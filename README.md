@@ -1,23 +1,36 @@
-# Gallery
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Features:
-Clients:
+## Getting Started
 
-Access to the complete portfolio of photos, categorized by different themes and events.
+First, run the development server:
 
-Ability to view high-resolution images and select their favorites.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-Option to select photos for purchase or request services, such as printing or custom editing.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-Photographers (Admins):
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-Admin dashboard with full control over the photo portfolio.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-Upload, organize, and categorize new images.
+## Learn More
 
-Manage client orders and related information.
+To learn more about Next.js, take a look at the following resources:
 
-View analytics and reports on client interactions with the portfolio.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-Objective:
-This project aims to create an intuitive and accessible platform for both photographers and clients, providing a seamless experience for viewing and interacting with images, while making content management and control easy for administrators.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
