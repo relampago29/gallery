@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "vanfer-ab962"
-  }
+    "portfolio": "global-tech-portfolio-d6fa9",
+    "default": "global-tech-portfolio-d6fa9"
+  },
+  "targets": {},
+  "etags": {}
 }
