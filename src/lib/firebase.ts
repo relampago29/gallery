@@ -1,17 +1,24 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+/* import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAnalytics, Analytics } from "firebase/analytics";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBOgUqJ9sgLocrNtL1jGYPst99WWQ0yBbo",
-  authDomain: "vanfer-ab962.firebaseapp.com",
-  projectId: "vanfer-ab962",
-  storageBucket: "vanfer-ab962.appspot.com",
-  messagingSenderId: "1087701926696",
-  appId: "1:1087701926696:web:3cad294f2e76c2ab2b861d",
-  measurementId: "G-Z4G32J6D2X"
+  apiKey: "AIzaSyARi1x2qtniVLlK2gfoLqapYHbmGEXgc0s",
+  authDomain: "global-tech-portfolio-d6fa9.firebaseapp.com",
+  projectId: "global-tech-portfolio-d6fa9",
+  storageBucket: "global-tech-portfolio-d6fa9.firebasestorage.app",
+  messagingSenderId: "713058661946",
+  appId: "1:713058661946:web:2215b57065aac516476703",
+  measurementId: "G-ZW69EV8TF0"
 };
 
+// Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+const auth: Auth = getAuth(app);
+let analytics: Analytics | null = null;
 
-export { app, auth };
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app);
+}
+
+export { app, auth, analytics }; */
