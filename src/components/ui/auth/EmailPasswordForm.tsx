@@ -1,24 +1,26 @@
-"use client";
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithEmailAndPassword, User } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  User,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-
 
 export default function EmailPasswordForm() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [showAuthAlert, setShowAuthAlert] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     try {
       let response = await signInWithEmailAndPassword(auth, email, pw);
 
-        console.log(response);
+      console.log(response);
       setError(null);
     } catch (err: any) {
       setError(err.message ?? "Erro a iniciar sessão");
@@ -27,14 +29,14 @@ const [user, setUser] = useState<User | null>(null);
 
   async function onSignOut(e: React.FormEvent) {
     e.preventDefault();
-    try{
-        await auth.signOut()
-    }catch(err: any){
-        setError(err.message)
+    try {
+      await auth.signOut();
+    } catch (err: any) {
+      setError(err.message);
     }
   }
 
-   useEffect(() => {
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setShowAuthAlert(!!u); // mostra o alert quando entra, esconde quando sai
@@ -51,7 +53,7 @@ const [user, setUser] = useState<User | null>(null);
   }, [showAuthAlert]);
 
   return (
-    <form onSubmit={onSubmit} className="card bg-base-100 w-96 shadow-sm">
+    <form onSubmit={onSubmit}>
       <input
         className="input"
         value={email}
@@ -67,22 +69,24 @@ const [user, setUser] = useState<User | null>(null);
       />
       <button className="btn">Entrar</button>
       {error && <p className="text-red-600 text-sm">{error}</p>}
-      <button onClick={onSignOut} className="btn btn-secondary mt-2">Sair</button>
+      <button onClick={onSignOut} className="btn btn-secondary mt-2">
+        Sair
+      </button>
 
       {user && showAuthAlert && (
-          <div role="alert" className="alert alert-success mt-2">
-            <span>
-              Autenticado como <strong>{user.email}</strong>.
-            </span>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => setShowAuthAlert(false)}
-            >
-              Fechar
-            </button>
-          </div>
-        )}
+        <div role="alert" className="alert alert-success mt-2">
+          <span>
+            Autenticado como <strong>{user.email}</strong>.
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => setShowAuthAlert(false)}
+          >
+            Fechar
+          </button>
+        </div>
+      )}
     </form>
   );
 }

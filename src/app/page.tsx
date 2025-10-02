@@ -1,13 +1,13 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import EmailPasswordForm from "@/components/ui/auth/EmailPasswordForm";
+import CardAuth from "@/components/ui/auth/CardAuth";
 
 
 export default function Home() {
   return (
-   <EmailPasswordForm>
-    
-   </EmailPasswordForm>
+    <CardAuth>
+    </CardAuth>
+   
   );
 }
