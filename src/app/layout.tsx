@@ -27,10 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <head>
-        <link rel="icon" href="favicon" />
-      </head>
+    <html lang="pt" className={`${geistSans.variable} ${geistMono.variable}`}>     
       <body>{children}</body>
     </html>
   );
