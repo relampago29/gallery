@@ -11,9 +11,12 @@
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
-    "@tailwindcss/postcss": "^4.1.11",
-    "firebase": "^12.2.1",
+    "@tailwindcss/postcss": "^4.1.13",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^13.5.0",
     "next": "15.4.6",
+    "next-intl": "^4.3.9",
+    "ogl": "^1.0.11",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -22,8 +25,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
+    "daisyui": "^5.1.10",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.12",
+    "tailwindcss": "^4.1.13",
     "typescript": "^5"
   }
 }
