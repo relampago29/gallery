@@ -11,20 +11,35 @@ let _storage: Storage | null = null;
 function ensureApp(): App {
   if (_app) return _app;
 
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const bucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error("Configuração Admin SDK incompleta. Define FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY no .env.local (chave PEM válida).");
+  // Accept either plain PEM with \n escapes or BASE64-encoded
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY || null;
+  const privateKeyB64 = process.env.FIREBASE_PRIVATE_KEY_BASE64 || null;
+  if (!privateKey && privateKeyB64) {
+    try {
+      privateKey = Buffer.from(privateKeyB64, "base64").toString("utf8");
+    } catch {
+      // ignore decode errors; will fail on validation below
+    }
   }
+  if (privateKey) {
+    privateKey = privateKey
+      .replace(/\\r\\n/g, "\n")
+      .replace(/\\n/g, "\n");
+  }
+  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || undefined;
+  const bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
 
-  const options: AppOptions = {
-    credential: cert({ projectId, clientEmail, privateKey }),
-    storageBucket: bucket,
-  };
-  _app = getApps().length ? getApp() : initializeApp(options);
+  if (projectId && clientEmail && privateKey) {
+    const options: AppOptions = {
+      credential: cert({ projectId, clientEmail, privateKey }),
+      storageBucket: bucket,
+    };
+    _app = getApps().length ? getApp() : initializeApp(options);
+  } else {
+    // Tenta Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS)
+    _app = getApps().length ? getApp() : initializeApp();
+  }
   return _app;
 }
 

@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
     const contentType = file.type || "application/octet-stream";
 
     const path = `uploads/${uid}/${name}`;
-    const bucket = getAdminStorage().bucket();
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+    const bucket = bucketName
+      ? getAdminStorage().bucket(bucketName)
+      : getAdminStorage().bucket();
     const gcsFile = bucket.file(path);
 
     await gcsFile.save(buffer, {
@@ -44,4 +47,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
