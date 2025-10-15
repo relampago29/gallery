@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "emulators:storage": "firebase emulators:start --only storage"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
