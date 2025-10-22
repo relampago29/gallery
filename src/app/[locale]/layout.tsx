@@ -35,12 +35,10 @@ export default async function RootLayout({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  // 🔑 Carrega mensagens diretamente do filesystem por locale (sem request.ts)
   let messages: Record<string, unknown>;
   try {
     messages = (await import(`@/locales/${locale}/common.json`)).default;
   } catch {
-    // fallback duro para pt se faltar o ficheiro de en
     messages = (await import('@/locales/pt/common.json')).default;
   }
 

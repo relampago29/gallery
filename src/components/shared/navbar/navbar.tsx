@@ -4,6 +4,7 @@ import React from 'react';
 import {useTranslations, useLocale} from 'next-intl';
 import {Link, usePathname} from '@/i18n/navigation'; 
 import { useSearchParams} from 'next/navigation';
+import admin from '@/app/[locale]/admin';
 
 const NavBar: React.FC = () => {
   const t = useTranslations('navbar');
@@ -30,7 +31,7 @@ const NavBar: React.FC = () => {
             <li>
               <a>Parent</a>
               <ul className="p-2">
-                <li><a>Submenu 1</a></li>
+                <li><a href="/admi.tsx"></a></li>
                 <li><a>Submenu 2</a></li>
               </ul>
             </li>
