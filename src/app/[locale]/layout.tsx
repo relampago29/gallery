@@ -44,8 +44,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>  
-
+      <body>
         <NextIntlClientProvider locale={locale} messages={messages as any}>
           {children}
         </NextIntlClientProvider>

@@ -6,11 +6,13 @@ import {Link, usePathname} from '@/i18n/navigation';
 import { useSearchParams} from 'next/navigation';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
+import logotipo from '../../../../public/brand/logo-sem-fundo-sem-nome.png';
+
 
 const NavBar: React.FC = () => {
   const t = useTranslations('navbar');
   const locale = useLocale();
-  const pathname = usePathname();       // pathname locale-aware
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [user, setUser] = useState<User | null>(null);
@@ -45,22 +47,16 @@ const NavBar: React.FC = () => {
             <li><a>Item 3</a></li>
           </ul>
         </div>
-        <a className="btn btn-ghost text-xl">daisyUI</a>
+        <img src={logotipo.src} alt="logo"  className='w-10 h-8'/>
+        <a className="text-xl pl-2 pt-1">Momentos</a>        
       </div>
 
       <div className="navbar-center hidden lg:flex">
         <ul className="menu menu-horizontal px-1">
           <li><a>{t('portfolio')}</a></li>
-          <li>
-            <details>
-              <summary>Parent</summary>
-              <ul className="p-2">
-                <li><a>Submenu 1</a></li>
-                <li><a>Submenu 2</a></li>
-              </ul>
-            </details>
-          </li>
-          <li><a>Item 3</a></li>
+          <li><a>{t('about')}</a></li>
+          <li><a>{t('team')}</a></li>
+          <li><a>{t('contact')}</a></li>
           {user && (
             <li>
               <Link href="/admin">Admin</Link>

@@ -1,12 +1,18 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-body{
-display: flex;
-background: #2a1e40;
-background: radial-gradient(circle, rgba(42, 30, 64, 1) 0%, rgba(13, 12, 20, 1) 100%);
-height: 100vh;
-width: 100%;
-justify-content: center;
+:root {
+  --defaultColor: #2a1e40;
+  --font-sans: "Inter";
+  --font-serif: "Source Serif 4";
+  --font-mono: "JetBrains Mono";
+  --fontFamily: var(--font-sans), sans-serif;}
 
+body {
+  display: flex;
+  background: var(--defaultColor);
+  height: 100vh;
+  width: 100%;
+  justify-content: center;
+  font-family: var(--fontFamily);
 }
