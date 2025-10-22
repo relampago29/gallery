@@ -2,7 +2,7 @@
 import { getApps, initializeApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 
 const config: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -19,3 +19,11 @@ const app = getApps().length ? getApps()[0] : initializeApp(config);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Optional: connect to local Storage emulator for offline/corporate networks
+if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FIREBASE_EMULATORS === "true") {
+  try {
+    connectStorageEmulator(storage, "localhost", 9199);
+    // console.info("Firebase Storage emulator connected at localhost:9199");
+  } catch {}
+}

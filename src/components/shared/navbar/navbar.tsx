@@ -1,16 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {useTranslations, useLocale} from 'next-intl';
 import {Link, usePathname} from '@/i18n/navigation'; 
 import { useSearchParams} from 'next/navigation';
-import admin from '@/app/[locale]/admin';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { auth } from '@/lib/firebase/client';
 
 const NavBar: React.FC = () => {
   const t = useTranslations('navbar');
   const locale = useLocale();
   const pathname = usePathname();       // pathname locale-aware
   const searchParams = useSearchParams();
+
+  const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
 
   const hrefWithQs = React.useMemo(() => {
     const qs = searchParams?.toString();
@@ -54,6 +61,11 @@ const NavBar: React.FC = () => {
             </details>
           </li>
           <li><a>Item 3</a></li>
+          {user && (
+            <li>
+              <Link href="/admin">Admin</Link>
+            </li>
+          )}
         </ul>
       </div>
 
