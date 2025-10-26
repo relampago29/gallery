@@ -10,7 +10,7 @@ import logotipo from '../../../../public/brand/logo-sem-fundo-sem-nome.png';
 
 
 const NavBar: React.FC = () => {
-  const t = useTranslations('navbar');
+  const translate = useTranslations('navbar');
   const locale = useLocale();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -53,10 +53,9 @@ const NavBar: React.FC = () => {
 
       <div className="navbar-center hidden lg:flex">
         <ul className="menu menu-horizontal px-1">
-          <li><a>{t('portfolio')}</a></li>
-          <li><a>{t('about')}</a></li>
-          <li><a>{t('team')}</a></li>
-          <li><a>{t('contact')}</a></li>
+          <li><a>{translate('portfolio')}</a></li>
+          <li><a>{translate('about')}</a></li>         
+          <li><a>{translate('contact')}</a></li>
           {user && (
             <li>
               <Link href="/admin">Admin</Link>

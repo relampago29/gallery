@@ -27,11 +27,9 @@ const Hero = () => {
             variant={2}
           />
         </div>
-
-        {/* Texto centrado por cima */}
         <div className="relative z-10 flex h-full w-full items-center justify-center pointer-events-none">
-          <p className="text-center text-6xl md:text-8xl lg:text-8xl font-bold ">
-            <TextType
+            
+            <TextType className="text-center text-6xl md:text-8xl lg:text-8xl font-bold "
               text={[
                 "Momentos,guardados para sempre.",               
               ]}
@@ -39,8 +37,7 @@ const Hero = () => {
               pauseDuration={1500}
               showCursor={true}             
               loop={false}
-            />
-          </p>
+            />          
         </div>
       </div>
     </section>

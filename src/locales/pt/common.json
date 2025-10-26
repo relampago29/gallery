@@ -4,5 +4,30 @@
         "about": "Sobre Nós",
         "contact": "Contacta-nos",
         "team": "Equipa"
-    }
+    },
+    "protofolioHomePage": {
+        "highlights": "Destaques"
+    },
+    "contactHomePage": {
+    "badge": "Contacta-nos",
+    "title": "Vamos falar 📷",
+    "subtitle": "Diz-nos o que precisas — respondemos normalmente em 24–48h.",
+    "firstNameLabel": "Nome",
+    "firstNamePlaceholder": "Ex.: Inês",
+    "lastNameLabel": "Apelido",
+    "lastNamePlaceholder": "Ex.: Duarte",
+    "emailLabel": "Email",
+    "emailPlaceholder": "exemplo@email.com",
+    "subjectLabel": "Assunto",
+    "subjectPlaceholder": "Ex.: Sessão de família em Lisboa",
+    "messageLabel": "Mensagem",
+    "messagePlaceholder": "Partilha ideias, datas e preferências…",
+    "messageHelp": "Min. 10 caracteres",
+    "consentText": "Concordo em ser contactado(a) sobre esta mensagem. Não partilhamos o teu email com terceiros.",
+    "submit": "Enviar mensagem",
+    "submitting": "A enviar…",
+    "successMessage": "Obrigado! Recebemos a tua mensagem.",
+    "errorGeneric": "Algo correu mal. Tenta novamente.",
+    "footerHelp": "Preferes falar já? Envia-nos um email para"
+  }
 }

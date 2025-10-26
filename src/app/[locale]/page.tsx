@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-import Link from "next/link";
-import CardAuth from "@/components/ui/auth/CardAuth";
 import NavBar from "@/components/shared/navbar/navbar";
 import Hero from "@/components/hero/hero";
+import LazyPortfolio from "@/components/sections/portofolio/LazyPortfolio";
+import TeamHomePage from "@/components/sections/team/teamHomePage";
+import Contact from "@/components/sections/conatct/Contact";
 
 
 export default function Home() {
@@ -14,9 +14,11 @@ export default function Home() {
     <div className="w-full">
       <NavBar></NavBar>
       <Hero></Hero>
+      <LazyPortfolio/>
+      <TeamHomePage/>
+      <Contact/>
     </div>
   );
 }
 
-/*  <CardAuth>
-    </CardAuth> */
+
