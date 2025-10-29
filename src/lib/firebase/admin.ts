@@ -29,7 +29,11 @@ function ensureApp(): App {
   const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || undefined;
   // Prefer explicit bucket if provided, otherwise default to appspot.com
-  const bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
+  let bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
+  // Sanitize common mistake: using firebasestorage.app host instead of bucket name
+  if (bucket && bucket.includes("firebasestorage.app")) {
+    bucket = projectId ? `${projectId}.appspot.com` : undefined;
+  }
 
   // Try explicit service account first; if it fails, fall back to ADC
   if (projectId && clientEmail && privateKey) {

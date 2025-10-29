@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-<<<<<<< Updated upstream
 :root {
   --defaultColor: #2a1e40;
   --font-sans: "Inter";
@@ -10,10 +9,9 @@
   --fontFamily: var(--font-sans), sans-serif;}
 
 body {
-  display: flex;
-  height: 100vh;
+  display: block;
+  min-height: 100vh;
   width: 100%;
-  justify-content: center;
   font-family: var(--fontFamily);
 }
 
@@ -41,12 +39,4 @@ body {
   filter: blur(6px);            /* blur-[6px] */
   opacity: 0.6;                 /* opacity-60 */
   pointer-events: none;         /* opcional: não capturar cliques */
-=======
-html, body {
-  height: 100%;
-  overflow: hidden;
-}
-main {
-  height: 100vh;
->>>>>>> Stashed changes
 }

@@ -13,15 +13,12 @@
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@tailwindcss/postcss": "^4.1.13",
+    "clsx": "^2.1.1",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.5.0",
-<<<<<<< Updated upstream
-    "gsap": "^3.13.0",
-    "jsrepo": "^2.5.0",
-=======
     "framer-motion": "^12.23.24",
+    "gsap": "^3.13.0",
     "lucide-react": "^0.548.0",
->>>>>>> Stashed changes
     "next": "15.4.6",
     "next-intl": "^4.3.9",
     "ogl": "^1.0.11",

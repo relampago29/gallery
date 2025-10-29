@@ -5,7 +5,7 @@ import { ref, uploadBytes } from "firebase/storage";
 import { auth, storage } from "@/lib/firebase/client";
 import { UploadCloud } from "lucide-react";
 
-export default function Uploader({ onUploadComplete }: { onUploadComplete?: () => void }) {
+export default function Uploader({ folder = "default", onUploadComplete }: { folder?: string; onUploadComplete?: () => void }) {
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -13,12 +13,14 @@ export default function Uploader({ onUploadComplete }: { onUploadComplete?: () =
     if (!file) return;
     setUploading(true);
     try {
+      const safeFolder = (folder || "default").replace(/[^A-Za-z0-9_-]/g, "-");
       const viaApi = process.env.NEXT_PUBLIC_UPLOAD_VIA_API === "true";
       if (viaApi) {
         const token = await auth.currentUser?.getIdToken();
         const form = new FormData();
         form.append("file", file);
         form.append("name", file.name);
+        form.append("folder", safeFolder);
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -29,7 +31,7 @@ export default function Uploader({ onUploadComplete }: { onUploadComplete?: () =
           throw new Error(data?.error || `Upload API falhou (${res.status})`);
         }
       } else {
-        await uploadBytes(ref(storage, "gallery/" + file.name), file);
+        await uploadBytes(ref(storage, `uploads/${safeFolder}/` + file.name), file);
       }
       if (onUploadComplete) onUploadComplete();
     } catch (err) {

@@ -4,8 +4,10 @@ import { getAdminStorage } from "@/lib/firebase/admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name } = await req.json();
+    const { name, folder: rawFolder } = await req.json();
     if (!name) return NextResponse.json({ error: "Missing name" }, { status: 400 });
+    let folder = (rawFolder as string) || "default";
+    folder = folder.replace(/[^A-Za-z0-9_-]/g, "-");
 
     let bucketName = process.env.FIREBASE_STORAGE_BUCKET || undefined;
     if (bucketName && bucketName.includes("firebasestorage.app")) {
@@ -16,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const storage = getAdminStorage();
     const bucket = bucketName ? storage.bucket(bucketName) : storage.bucket();
-    const file = bucket.file(`gallery/${name}`);
+    const file = bucket.file(`uploads/${folder}/${name}`);
     await file.delete({ ignoreNotFound: true });
 
     return NextResponse.json({ ok: true });

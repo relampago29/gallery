@@ -10,12 +10,13 @@ import Uploader from "@/components/storage/Uploader";
 export default function AdminGallery() {
   const [images, setImages] = useState<{ name: string; url: string }[]>([]);
   const [loading, setLoading] = useState(true);
+    const [folder, setFolder] = useState<string>("default");
 
   useEffect(() => {
     const loadImages = async () => {
       try {
         if (process.env.NEXT_PUBLIC_UPLOAD_VIA_API === "true") {
-          const res = await fetch("/api/gallery");
+          const res = await fetch(`/api/gallery?folder=${encodeURIComponent(folder)}`);
           if (!res.ok) throw new Error("Falha a carregar galeria");
           const data = await res.json();
           const items: { name: string; path: string }[] = data.items || [];
@@ -27,7 +28,7 @@ export default function AdminGallery() {
           );
           setImages(urls);
         } else {
-          const listRef = ref(storage, "gallery/");
+          const listRef = ref(storage, `uploads/${folder}/`);
           const res = await listAll(listRef);
           const urls = await Promise.all(
             res.items.map(async (itemRef) => ({
@@ -44,7 +45,7 @@ export default function AdminGallery() {
       }
     };
     loadImages();
-  }, []);
+  }, [folder]);
 
   const handleDelete = async (name: string) => {
     if (!confirm("Tens a certeza que queres apagar esta imagem?")) return;
@@ -53,11 +54,11 @@ export default function AdminGallery() {
         const res = await fetch("/api/gallery/delete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, folder }),
         });
         if (!res.ok) throw new Error("Falha a apagar");
       } else {
-        await deleteObject(ref(storage, "gallery/" + name));
+        await deleteObject(ref(storage, `uploads/${folder}/` + name));
       }
       setImages((prev) => prev.filter((img) => img.name !== name));
     } catch (e) {
@@ -76,8 +77,9 @@ export default function AdminGallery() {
          Galeria Administrativa
       </motion.h1>
 
-      <div className="w-full">
-        <Uploader onUploadComplete={() => location.reload()} />
+      <div className="w-full flex items-center gap-3">
+        <input className="input input-bordered" placeholder="Pasta (uploads/…)" value={folder} onChange={(e) => setFolder(e.target.value)} />
+        <Uploader folder={folder} onUploadComplete={() => location.reload()} />
       </div>
 
       {loading ? (
@@ -105,7 +107,7 @@ export default function AdminGallery() {
                   className="text-red-500 hover:text-red-700 font-semibold"
                   onClick={() => handleDelete(img.name)}
                 >
-                  🗑️
+                  Apagar
                 </button>
               </div>
             </motion.div>

@@ -16,9 +16,9 @@ export default function AdminLayout({
         <Sidebar />
       </div>
 
-      {/* Área principal expandida */}
-      <main className="flex-1 bg-gray-50 p-10 rounded-tl-3xl shadow-inner overflow-y-auto">
-        <div className="max-w-[1600px] mx-auto">
+      {/* ÃƒÂrea principal expandida */}
+      <main className="flex-1 bg-gray-50 p-10  overflow-y-auto">
+        <div className="w-full">
           <RequireAuth>{children}</RequireAuth>
         </div>
       </main>
