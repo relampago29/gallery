@@ -3,7 +3,8 @@
         "portfolio": "Portfolio",
         "about": "About Us",
         "contact": "Contact Us",
-        "team": "Team"
+        "team": "Team",
+        "home": "Home"
     },
     "protofolioHomePage": {
         "highlights": "High Lights"

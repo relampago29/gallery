@@ -20,7 +20,7 @@ const Highlight = ({ children }: { children: React.ReactNode }) => (
 
 export default function TeamHomePage() {
   return (
-    <section className="w-full">
+    <section className="w-full bg-black">
       {/* --- Contexto (igual ao teu) --- */}      
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8  py-10 text-center space-y-6">
         <div className="badge badge-primary badge-lg">Sobre nós</div>

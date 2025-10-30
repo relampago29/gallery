@@ -81,7 +81,7 @@ const PortofolioHomePage = () => {
     
   ];
   return (
-    <div className="relative  portofolioHomePage w-100% h-[850px] p-15">    
+    <div className="relative bg-black portofolioHomePage w-100% h-[850px] p-15">    
      
     <h1 className="absolute  top-4 z-10 pointer-events-none text-4xl font-bold">
       {translate('highlights')}

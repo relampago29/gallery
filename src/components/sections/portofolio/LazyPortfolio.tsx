@@ -20,7 +20,7 @@ export default function LazyPortfolio() {
   const {ref, inView} = useInView<HTMLDivElement>();
 
   return (
-    <div ref={ref}>
+    <div className=' bg-black' ref={ref}>
       {inView ? (
         <PortofolioHomePage />        
        

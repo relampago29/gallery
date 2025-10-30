@@ -39,7 +39,7 @@ const Contact = () => {
   }
 
   return (
-    <section className="w-full">
+    <section className="w-full bg-black">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="text-center mb-8 space-y-2">
           <div className="badge badge-primary badge-lg">{t("badge")}</div>
