@@ -18,6 +18,8 @@ export async function POST(req: NextRequest) {
     const form = await req.formData();
     const file = form.get("file");
     const name = (form.get("name") as string) || "upload.bin";
+    let folder = (form.get("folder") as string) || "default";
+    folder = folder.replace(/[^A-Za-z0-9_-]/g, "-");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
@@ -26,8 +28,15 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const contentType = file.type || "application/octet-stream";
 
-    const path = `uploads/${uid}/${name}`;
-    const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+    const path = `uploads/${folder}/${name}`;
+    // Prefer explicit bucket if valid; otherwise default to project's bucket
+    let bucketName = process.env.FIREBASE_STORAGE_BUCKET || undefined;
+    if (bucketName && bucketName.includes("firebasestorage.app")) {
+      // sanitize common mistake: use default appspot.com bucket
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      if (projectId) bucketName = `${projectId}.appspot.com`;
+      else bucketName = undefined;
+    }
     const bucket = bucketName
       ? getAdminStorage().bucket(bucketName)
       : getAdminStorage().bucket();

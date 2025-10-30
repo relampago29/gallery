@@ -28,18 +28,30 @@ function ensureApp(): App {
   }
   const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || undefined;
-  const bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
-
-  if (projectId && clientEmail && privateKey) {
-    const options: AppOptions = {
-      credential: cert({ projectId, clientEmail, privateKey }),
-      storageBucket: bucket,
-    };
-    _app = getApps().length ? getApp() : initializeApp(options);
-  } else {
-    // Tenta Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS)
-    _app = getApps().length ? getApp() : initializeApp();
+  // Prefer explicit bucket if provided, otherwise default to appspot.com
+  let bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
+  // Sanitize common mistake: using firebasestorage.app host instead of bucket name
+  if (bucket && bucket.includes("firebasestorage.app")) {
+    bucket = projectId ? `${projectId}.appspot.com` : undefined;
   }
+
+  // Try explicit service account first; if it fails, fall back to ADC
+  if (projectId && clientEmail && privateKey) {
+    try {
+      const options: AppOptions = {
+        credential: cert({ projectId, clientEmail, privateKey }),
+        storageBucket: bucket,
+      };
+      _app = getApps().length ? getApp() : initializeApp(options);
+      return _app;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("Failed to init admin with FIREBASE_PRIVATE_KEY; falling back to ADC.", err);
+    }
+  }
+
+  // Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS)
+  _app = getApps().length ? getApp() : initializeApp(bucket ? { storageBucket: bucket } : undefined);
   return _app;
 }
 
