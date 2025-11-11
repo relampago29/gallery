@@ -1,6 +1,6 @@
 
 import React from 'react'
- import NavBar from "@/components/shared/navbar/navbar";
+import NavBar from "@/components/shared/navbar/navbar";
 import { useTranslations } from 'next-intl';
 
 

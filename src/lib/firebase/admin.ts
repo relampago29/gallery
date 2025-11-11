@@ -1,57 +1,77 @@
 // src/lib/firebase/admin.ts
-import { getApps, initializeApp, cert, AppOptions, App, getApp } from "firebase-admin/app";
-import { getAuth, Auth } from "firebase-admin/auth";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
-import { getStorage, Storage } from "firebase-admin/storage";
+// ✅ Apenas no servidor (evita bundling no client)
+if (typeof window !== "undefined") {
+  throw new Error("firebase/admin.ts só pode ser usado no server.");
+}
+
+import { getApps, initializeApp, cert, getApp, type App, type AppOptions } from "firebase-admin/app";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { getStorage, type Storage } from "firebase-admin/storage";
+
 let _app: App | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _storage: Storage | null = null;
 
+/**
+ * Lê PRIVATE KEY de:
+ *  - FIREBASE_PRIVATE_KEY (PEM com \n escapado)
+ *  - ou FIREBASE_PRIVATE_KEY_BASE64 (JSON da service account ou a própria PEM em base64)
+ */
+function resolvePrivateKey(): string | null {
+  const pk = process.env.FIREBASE_PRIVATE_KEY || null;
+  const pkB64 = process.env.FIREBASE_PRIVATE_KEY_BASE64 || null;
+
+  if (pkB64 && !pk) {
+    try {
+      // pode ser o JSON inteiro da service account ou apenas a PEM em base64
+      const decoded = Buffer.from(pkB64, "base64").toString("utf8");
+      try {
+        const maybeJson = JSON.parse(decoded);
+        if (maybeJson.private_key) {
+          return String(maybeJson.private_key);
+        }
+      } catch {
+        // não é JSON; assume PEM pura
+      }
+      return decoded;
+    } catch {
+      // se falhar, continua e tentamos pk normal
+    }
+  }
+
+  if (pk) {
+    return pk.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+  }
+  return null;
+}
+
 function ensureApp(): App {
   if (_app) return _app;
 
-  // Accept either plain PEM with \n escapes or BASE64-encoded
-  let privateKey = process.env.FIREBASE_PRIVATE_KEY || null;
-  const privateKeyB64 = process.env.FIREBASE_PRIVATE_KEY_BASE64 || null;
-  if (!privateKey && privateKeyB64) {
-    try {
-      privateKey = Buffer.from(privateKeyB64, "base64").toString("utf8");
-    } catch {
-      // ignore decode errors; will fail on validation below
-    }
-  }
-  if (privateKey) {
-    privateKey = privateKey
-      .replace(/\\r\\n/g, "\n")
-      .replace(/\\n/g, "\n");
-  }
-  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || undefined;
-  // Prefer explicit bucket if provided, otherwise default to appspot.com
-  let bucket = process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.appspot.com` : undefined);
-  // Sanitize common mistake: using firebasestorage.app host instead of bucket name
-  if (bucket && bucket.includes("firebasestorage.app")) {
-    bucket = projectId ? `${projectId}.appspot.com` : undefined;
-  }
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = resolvePrivateKey();
 
-  // Try explicit service account first; if it fails, fall back to ADC
+  // bucket: usa exatamente o que vier do .env
+  // (no teu projeto é: gallery-e87e5.firebasestorage.app)
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+
+  // 1) Service Account explícita (recomendado)
   if (projectId && clientEmail && privateKey) {
-    try {
-      const options: AppOptions = {
-        credential: cert({ projectId, clientEmail, privateKey }),
-        storageBucket: bucket,
-      };
-      _app = getApps().length ? getApp() : initializeApp(options);
-      return _app;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn("Failed to init admin with FIREBASE_PRIVATE_KEY; falling back to ADC.", err);
-    }
+    const options: AppOptions = {
+      credential: cert({ projectId, clientEmail, privateKey }),
+      storageBucket, // pode ser undefined; o Admin usa o default do projeto
+    };
+    _app = getApps().length ? getApp() : initializeApp(options);
+    return _app;
   }
 
-  // Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS)
-  _app = getApps().length ? getApp() : initializeApp(bucket ? { storageBucket: bucket } : undefined);
+  // 2) ADC (Application Default Credentials) — gcloud auth application-default login
+  _app = getApps().length
+    ? getApp()
+    : initializeApp(storageBucket ? { storageBucket } : undefined);
   return _app;
 }
 
@@ -64,6 +84,8 @@ export function getAdminAuth(): Auth {
 export function getAdminDb(): Firestore {
   if (_db) return _db;
   _db = getFirestore(ensureApp());
+  // ignora undefined em writes parciais
+  _db.settings({ ignoreUndefinedProperties: true });
   return _db;
 }
 
@@ -72,3 +94,8 @@ export function getAdminStorage(): Storage {
   _storage = getStorage(ensureApp());
   return _storage;
 }
+
+// ✅ Singletons convenientes (importa estes diretamente se preferires)
+export const authAdmin = getAdminAuth();
+export const firestoreAdmin = getAdminDb();
+export const storageAdmin = getAdminStorage();

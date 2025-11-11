@@ -1,17 +1,19 @@
-// next.config.js
+// next.config.js (CommonJS)
 const createNextIntlPlugin = require('next-intl/plugin');
-// (opcional) passa o caminho do teu request config para melhor DX:
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 'via.placeholder.com' },
-      { protocol: 'https', hostname: 'placehold.co' }
-    ]
-  }
+      { protocol: 'https', hostname: 'placehold.co' },
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      // { protocol: 'https', hostname: 'storage.googleapis.com' }, // opcional
+    ],
+  },
 };
 
 module.exports = withNextIntl(nextConfig);
