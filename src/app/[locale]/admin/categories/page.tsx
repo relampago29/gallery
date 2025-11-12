@@ -53,32 +53,34 @@ export default function CategoriesAdminPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-6 space-y-6">
+    <main className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Categorias</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Categorias</h1>
         <p className="text-sm text-gray-500">Cria, ativa/desativa e remove categorias do portfólio.</p>
       </header>
 
-      <form onSubmit={createCategory} className="bg-white rounded-xl shadow p-4 grid gap-3 md:grid-cols-3">
-        <input
-          className="input input-bordered w-full md:col-span-1"
-          placeholder="Nome da categoria"
-          value={name}
-          onChange={(e)=>setName(e.target.value)}
-          required
-        />
-        <input
-          className="input input-bordered w-full md:col-span-1"
-          placeholder="Descrição (opcional)"
-          value={description}
-          onChange={(e)=>setDescription(e.target.value)}
-        />
-        <button className="btn btn-primary md:col-span-1" disabled={busy || !name.trim()}>
-          {busy ? "A guardar…" : "Criar"}
-        </button>
-      </form>
+      <section className="bg-white rounded-xl shadow-sm border">
+        <form onSubmit={createCategory} className="p-4 grid gap-3 md:grid-cols-3">
+          <input
+            className="input input-bordered w-full md:col-span-1"
+            placeholder="Nome da categoria"
+            value={name}
+            onChange={(e)=>setName(e.target.value)}
+            required
+          />
+          <input
+            className="input input-bordered w-full md:col-span-1"
+            placeholder="Descrição (opcional)"
+            value={description}
+            onChange={(e)=>setDescription(e.target.value)}
+          />
+          <button className="btn btn-primary md:col-span-1" disabled={busy || !name.trim()}>
+            {busy ? "A guardar…" : "Criar"}
+          </button>
+        </form>
+      </section>
 
-      <section className="bg-white rounded-xl shadow">
+      <section className="bg-white rounded-xl shadow-sm border">
         <div className="p-4 border-b font-medium">Lista</div>
         <div className="divide-y">
           {items.length === 0 ? (

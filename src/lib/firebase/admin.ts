@@ -13,6 +13,7 @@ let _app: App | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
 let _storage: Storage | null = null;
+let _dbConfigured = false;
 
 /**
  * Lê PRIVATE KEY de:
@@ -47,6 +48,20 @@ function resolvePrivateKey(): string | null {
   return null;
 }
 
+function resolveBucketName(): string | undefined {
+  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
+  const envBucket = process.env.FIREBASE_STORAGE_BUCKET || undefined;
+  // Prefer the canonical default bucket derived from projectId
+  if (projectId) return `${projectId}.appspot.com`;
+  // Fallback to env if it explicitly uses appspot.com
+  if (envBucket && envBucket.endsWith('.appspot.com')) return envBucket;
+  // Or try converting firebasestorage.app to appspot.com
+  if (envBucket && envBucket.endsWith('.firebasestorage.app')) {
+    return envBucket.replace(/\.firebasestorage\.app$/i, '.appspot.com');
+  }
+  return undefined;
+}
+
 function ensureApp(): App {
   if (_app) return _app;
 
@@ -54,9 +69,8 @@ function ensureApp(): App {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = resolvePrivateKey();
 
-  // bucket: usa exatamente o que vier do .env
-  // (no teu projeto é: gallery-e87e5.firebasestorage.app)
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+  // bucket: normaliza para o nome GCS (ex.: <projectId>.appspot.com)
+  const storageBucket = resolveBucketName();
 
   // 1) Service Account explícita (recomendado)
   if (projectId && clientEmail && privateKey) {
@@ -84,8 +98,16 @@ export function getAdminAuth(): Auth {
 export function getAdminDb(): Firestore {
   if (_db) return _db;
   _db = getFirestore(ensureApp());
-  // ignora undefined em writes parciais
-  _db.settings({ ignoreUndefinedProperties: true });
+  // Tenta ignorar undefined em writes parciais, mas evita crash se Firestore já foi usado
+  if (!_dbConfigured) {
+    try {
+      _db.settings({ ignoreUndefinedProperties: true });
+      _dbConfigured = true;
+    } catch {
+      // Se falhar (settings já aplicadas ou Firestore já usado), seguimos sem alterar
+      _dbConfigured = true;
+    }
+  }
   return _db;
 }
 
@@ -95,7 +117,14 @@ export function getAdminStorage(): Storage {
   return _storage;
 }
 
+export function getAdminBucket() {
+  const storage = getAdminStorage();
+  const name = resolveBucketName();
+  return name ? storage.bucket(name) : storage.bucket();
+}
+
 // ✅ Singletons convenientes (importa estes diretamente se preferires)
 export const authAdmin = getAdminAuth();
 export const firestoreAdmin = getAdminDb();
 export const storageAdmin = getAdminStorage();
+export const bucketAdmin = getAdminBucket();

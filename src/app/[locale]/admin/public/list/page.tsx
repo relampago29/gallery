@@ -2,9 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { listActiveCategories } from "@/lib/categories";
-import { listPublicPhotos, pickThumb, type PublicPhoto } from "@/lib/publicPhotos";
-import { db } from "@/lib/firebase/client";
-import { deleteDoc, doc } from "firebase/firestore";
+import { listPublicPhotos, pickThumb, type PublicPhoto, deletePublicPhoto } from "@/lib/publicPhotos";
 
 export default function PublicListPage() {
   const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
@@ -13,6 +11,7 @@ export default function PublicListPage() {
   const [items, setItems] = useState<PublicPhoto[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [end, setEnd] = useState(false);
   const [q, setQ] = useState("");
 
@@ -31,11 +30,13 @@ export default function PublicListPage() {
   async function load(reset = false) {
     if (reset) {
       setLoading(true);
+      setError(null);
       const { items, nextCursor } = await listPublicPhotos({
         limitN: 24,
         categoryId,
         cursor: null,
-      });
+        forceApi: true,
+      }).catch((e) => { setError(e?.message || 'Erro a carregar'); return { items: [], nextCursor: null }; });
       setItems(items);
       setCursor(nextCursor ?? null);
       setEnd(!nextCursor);
@@ -47,7 +48,8 @@ export default function PublicListPage() {
         limitN: 24,
         categoryId,
         cursor,
-      });
+        forceApi: true,
+      }).catch((e) => { setError(e?.message || 'Erro a carregar'); return { items: [], nextCursor: null }; });
       setItems((prev) => [...prev, ...more]);
       setCursor(nextCursor ?? null);
       setEnd(!nextCursor);
@@ -68,16 +70,20 @@ export default function PublicListPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Apagar esta foto?")) return;
-    await deleteDoc(doc(db, "public_photos", id));
-    setItems((prev) => prev.filter((p) => p.id !== id));
-    // TODO: Function onDelete para remover master + variants/public
+    try {
+      await deletePublicPhoto(id); // via API (Admin SDK) para contornar rules do client
+      setItems((prev) => prev.filter((p) => p.id !== id));
+    } catch (e: any) {
+      console.error("delete failed", e);
+      alert(e?.message || "Falha ao apagar");
+    }
   }
 
   return (
-    <main className="p-6 max-w-7xl mx-auto space-y-4">
+    <main className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Portfólio — Lista</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Portfólio — Lista</h1>
           <p className="text-sm text-gray-500">Filtra por categoria, pesquisa por título e gere as fotos públicas.</p>
         </div>
         <div className="flex gap-2">
@@ -87,7 +93,7 @@ export default function PublicListPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button className="btn btn-outline" onClick={() => load(true)}>Refresh</button>
+          <button className="btn btn-outline" onClick={() => load(true)} disabled={loading}>Refresh</button>
         </div>
       </div>
 
@@ -109,31 +115,44 @@ export default function PublicListPage() {
         ))}
       </div>
 
-      {loading && items.length === 0 ? (
-        <p>A carregar…</p>
-      ) : filtered.length === 0 ? (
-        <div className="py-20 text-center text-gray-500">Sem resultados.</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <section className="bg-white rounded-xl shadow-sm border">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="font-medium">Resultados</div>
+          <div className="text-sm text-gray-500">{filtered.length} itens</div>
+        </div>
+
+        {error && (
+          <div className="px-4 pt-4">
+            <div className="alert alert-error">
+              <span>{error.includes('index') || error.includes('FAILED_PRECONDITION') ? 'A consulta precisa de um índice Firestore. Faz deploy dos índices.' : error}</span>
+            </div>
+          </div>
+        )}
+
+        {loading && items.length === 0 ? (
+          <div className="p-6 text-gray-500">A carregar…</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">Sem resultados.</div>
+        ) : (
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filtered.map((p) => {
               const t = pickThumb(p);
               return (
-                <div key={p.id} className="bg-white rounded-2xl shadow p-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div key={p.id} className="rounded-xl border bg-white overflow-hidden">
                   {t.src ? (
-                    <img src={t.src} alt={p.alt || p.title || "foto"} className="w-full h-48 object-cover rounded-lg" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.src} alt={p.alt || p.title || "foto"} className="w-full h-48 object-cover" />
                   ) : (
-                    <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-500">
                       {p.status === "processing" ? "A gerar variantes..." : "Sem preview"}
                     </div>
                   )}
-                  <div className="mt-2 flex justify-between items-center">
+                  <div className="p-3 flex items-center justify-between">
                     <div className="text-sm">
-                      {p.title || "(sem título)"}{" "}
-                      <span className="text-xs opacity-60">· {p.status || "—"}</span>
+                      <div className="font-medium truncate max-w-[180px]">{p.title || "(sem título)"}</div>
+                      <div className="text-xs text-gray-500">{p.status || "—"}</div>
                     </div>
-                    <button className="text-red-600" onClick={() => handleDelete(p.id)}>
+                    <button className="btn btn-sm btn-error btn-outline" onClick={() => handleDelete(p.id)}>
                       Apagar
                     </button>
                   </div>
@@ -141,14 +160,14 @@ export default function PublicListPage() {
               );
             })}
           </div>
+        )}
 
-          <div className="flex justify-center mt-6">
-            <button className="btn btn-outline" onClick={() => load(false)} disabled={loading || end}>
-              {end ? "Não há mais" : loading ? "A carregar…" : "Carregar mais"}
-            </button>
-          </div>
-        </>
-      )}
+        <div className="p-4 border-t flex justify-center">
+          <button className="btn btn-outline" onClick={() => load(false)} disabled={loading || end}>
+            {end ? "Não há mais" : loading ? "A carregar…" : "Carregar mais"}
+          </button>
+        </div>
+      </section>
     </main>
   );
 }

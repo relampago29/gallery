@@ -53,6 +53,7 @@ type PageInput = {
   limitN: number;
   categoryId?: string | null;
   cursor?: number | null; // usa createdAt como cursor
+  forceApi?: boolean; // quando true, não faz fallback para Firestore client
 };
 
 /**
@@ -64,6 +65,7 @@ export async function listPublicPhotos({
   limitN,
   categoryId,
   cursor,
+  forceApi,
 }: PageInput): Promise<{ items: PublicPhoto[]; nextCursor: number | null }> {
   // 1) API (Admin) — robusto para o admin, ignora regras do client
   try {
@@ -76,19 +78,22 @@ export async function listPublicPhotos({
       `/api/public-photos/list?${params.toString()}`,
       { cache: "no-store" }
     );
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        items: (data.items || []) as PublicPhoto[],
-        nextCursor: (data.nextCursor ?? null) as number | null,
-      };
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return {
+      items: (data.items || []) as PublicPhoto[],
+      nextCursor: (data.nextCursor ?? null) as number | null,
+    };
+  } catch (e: any) {
+    // ignora; cai para o client SDK (a menos que forceApi)
+    if (forceApi) {
+      const msg = e?.message ? String(e.message) : String(e);
+      throw new Error(msg);
     }
-  } catch {
-    // ignora; cai para o client SDK
   }
 
   // 2) Fallback: Firestore client (apenas published == true, conforme rules)
-  const constraints: any[] = [orderBy("createdAt", "desc"), limit(limitN)];
+  const constraints: any[] = [where("published", "==", true), orderBy("createdAt", "desc"), limit(limitN)];
   if (categoryId) constraints.unshift(where("categoryId", "==", categoryId));
   if (cursor != null) constraints.push(startAfter(cursor));
 
@@ -173,4 +178,28 @@ export async function deletePublicPhoto(photoId: string): Promise<void> {
   if (!res.ok) {
     throw new Error(await res.text());
   }
+}
+
+/* ------------------------------ Upload privado (masters/private) ------------------------------ */
+
+/**
+ * Envia ficheiro para `masters/private/*`. Não cria documento no Firestore nem gera variantes.
+ */
+export async function uploadPrivateMaster(file: File) {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const photoId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : String(Date.now());
+  const masterPath = `masters/sessions/${photoId}.${ext}`;
+
+  const task = uploadBytesResumable(ref(storage, masterPath), file, {
+    contentType: file.type,
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    task.on("state_changed", undefined, reject, () => resolve());
+  });
+
+  return { photoId, masterPath, createdAt: Date.now() };
 }
