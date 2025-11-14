@@ -153,13 +153,13 @@ async function listSessionFiles(
             downloadName,
 
             downloadUrl,
-          };
+          } as SessionPhoto;
         } catch {
           return null;
         }
       })
     )
-  ).filter((f): f is SessionPhoto => Boolean(f));
+  ).filter((f): f is SessionPhoto => f !== null);
 
   if (files.length === 0) {
     const prefix = `masters/sessions/${sessionId}/`;
