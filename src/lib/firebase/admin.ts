@@ -49,16 +49,10 @@ function resolvePrivateKey(): string | null {
 }
 
 function resolveBucketName(): string | undefined {
-  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
   const envBucket = process.env.FIREBASE_STORAGE_BUCKET || undefined;
-  // Prefer the canonical default bucket derived from projectId
+  if (envBucket && envBucket.trim().length) return envBucket.trim();
+  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
   if (projectId) return `${projectId}.appspot.com`;
-  // Fallback to env if it explicitly uses appspot.com
-  if (envBucket && envBucket.endsWith('.appspot.com')) return envBucket;
-  // Or try converting firebasestorage.app to appspot.com
-  if (envBucket && envBucket.endsWith('.firebasestorage.app')) {
-    return envBucket.replace(/\.firebasestorage\.app$/i, '.appspot.com');
-  }
   return undefined;
 }
 

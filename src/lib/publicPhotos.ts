@@ -185,13 +185,29 @@ export async function deletePublicPhoto(photoId: string): Promise<void> {
 /**
  * Envia ficheiro para `masters/private/*`. Não cria documento no Firestore nem gera variantes.
  */
-export async function uploadPrivateMaster(file: File) {
+function slugifySegment(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+type PrivateUploadOpts = {
+  file: File;
+  sessionId: string;
+};
+
+export async function uploadPrivateMaster({ file, sessionId }: PrivateUploadOpts) {
+  const cleanSession =
+    slugifySegment(sessionId) || slugifySegment(file.name.split(".")[0] || "sessao");
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const photoId =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : String(Date.now());
-  const masterPath = `masters/sessions/${photoId}.${ext}`;
+  const masterPath = `masters/sessions/${cleanSession}/${photoId}.${ext}`;
 
   const task = uploadBytesResumable(ref(storage, masterPath), file, {
     contentType: file.type,
@@ -201,5 +217,31 @@ export async function uploadPrivateMaster(file: File) {
     task.on("state_changed", undefined, reject, () => resolve());
   });
 
-  return { photoId, masterPath, createdAt: Date.now() };
+  return { photoId, masterPath, createdAt: Date.now(), sessionId: cleanSession };
+}
+
+type RegisterPrivatePhotoOpts = {
+  sessionId: string;
+  masterPath: string;
+  title?: string;
+  alt?: string;
+  createdAt?: number;
+};
+
+export async function registerPrivateSessionPhoto(opts: RegisterPrivatePhotoOpts) {
+  const res = await fetch("/api/session-photos/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: opts.sessionId,
+      masterPath: opts.masterPath,
+      title: opts.title ?? null,
+      alt: opts.alt ?? opts.title ?? null,
+      createdAt: opts.createdAt ?? Date.now(),
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return res.json().catch(() => ({}));
 }
