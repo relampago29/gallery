@@ -26,6 +26,7 @@ export default async function PortfolioPage({ params }: Props) {
           <div className="pt-2">
             <Link
               href="/"
+              locale={params.locale}
               className="inline-flex items-center justify-center rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
             >
               {t("cta")}
