@@ -22,8 +22,10 @@ export default function EmailPasswordForm() {
 
     try {
       let response = await signInWithEmailAndPassword(auth, email, pw);
-
-      console.log(response);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {}
       setError(null);
     } catch (err: any) {
       setError(err.message ?? "Erro a iniciar sessão");
@@ -46,6 +48,10 @@ export default function EmailPasswordForm() {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {}
       setError(null);
     } catch (err: any) {
       setError(err.message ?? "Erro no login com Google");

@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Fotos públicas: só lê publicados
+    match /public_photos/{id} {
+      allow read: if resource.data.published == true;
+      allow write: if false;
+    }
+
+    // Categorias: leitura aberta (para o admin e, se quiseres, para o site)
+    match /categories/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Sessões privadas (bloqueadas por agora)
+    match /client_sessions/{sessionId} {
+      allow read, write: if false;
+      match /photos/{photoId} { allow read, write: if false; }
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
