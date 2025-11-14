@@ -9,6 +9,11 @@
     "protofolioHomePage": {
         "highlights": "Destaques"
     },
+    "portofolioPage": {
+        "title": "Portfólio",
+        "subtitle": "Uma seleção das histórias mais recentes que tivemos o privilégio de fotografar.",
+        "cta": "Quero marcar uma sessão"
+    },
     "contactHomePage": {
     "badge": "Contacta-nos",
     "title": "Vamos falar 📷",

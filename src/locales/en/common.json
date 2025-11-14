@@ -9,6 +9,11 @@
     "protofolioHomePage": {
         "highlights": "High Lights"
     },
+    "portofolioPage": {
+        "title": "Portfolio",
+        "subtitle": "A curated selection of the stories we captured most recently.",
+        "cta": "Book a session"
+    },
     "contactHomePage": {
     "badge": "Contact us",
     "title": "Let’s talk 📷",
