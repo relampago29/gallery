@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
-import { redirect, useSearchParams } from "next/navigation";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import logotipo from "../../../../public/brand/logo-sem-fundo-sem-nome.png";
 import "../../../styles/shared/navbar/navbar.css";
@@ -14,6 +14,7 @@ const NavBar: React.FC = () => {
   const locale = useLocale();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
@@ -25,6 +26,16 @@ const NavBar: React.FC = () => {
     const qs = searchParams?.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   }, [pathname, searchParams]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      console.error("Falha ao terminar sessão", err);
+    }
+  };
 
   return (
     <div className="navbar bg-base-100">
@@ -96,6 +107,15 @@ const NavBar: React.FC = () => {
 
       {/* ===== Dropdown de Idiomas (END) ===== */}
       <div className="navbar-end">
+        {user && (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn btn-ghost mr-2 text-sm"
+          >
+            {translate("logout")}
+          </button>
+        )}
         <div className="dropdown dropdown-end">
           <div tabIndex={0} role="button" className="btn btn-ghost">
             {locale.toUpperCase()}

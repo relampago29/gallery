@@ -4,7 +4,8 @@
         "about": "About Us",
         "contact": "Contact Us",
         "team": "Team",
-        "home": "Home"
+        "home": "Home",
+        "logout": "Log out"
     },
     "protofolioHomePage": {
         "highlights": "High Lights"
@@ -15,25 +16,25 @@
         "cta": "Book a session"
     },
     "contactHomePage": {
-    "badge": "Contact us",
-    "title": "Let’s talk 📷",
-    "subtitle": "Tell us what you need — we usually reply within 24–48h.",
-    "firstNameLabel": "First name",
-    "firstNamePlaceholder": "e.g. Inês",
-    "lastNameLabel": "Last name",
-    "lastNamePlaceholder": "e.g. Duarte",
-    "emailLabel": "Email",
-    "emailPlaceholder": "name@email.com",
-    "subjectLabel": "Subject",
-    "subjectPlaceholder": "e.g. Family session in Lisbon",
-    "messageLabel": "Message",
-    "messagePlaceholder": "Share ideas, dates and preferences…",
-    "messageHelp": "Min. 10 characters",
-    "consentText": "I agree to be contacted about this message. We don’t share your email with third parties.",
-    "submit": "Send message",
-    "submitting": "Sending…",
-    "successMessage": "Thanks! We’ve received your message.",
-    "errorGeneric": "Something went wrong. Please try again.",
-    "footerHelp": "Prefer to talk now? Email us at"
-  }
+        "badge": "Contact us",
+        "title": "Let’s talk 📷",
+        "subtitle": "Tell us what you need — we usually reply within 24–48h.",
+        "firstNameLabel": "First name",
+        "firstNamePlaceholder": "e.g. Inês",
+        "lastNameLabel": "Last name",
+        "lastNamePlaceholder": "e.g. Duarte",
+        "emailLabel": "Email",
+        "emailPlaceholder": "name@email.com",
+        "subjectLabel": "Subject",
+        "subjectPlaceholder": "e.g. Family session in Lisbon",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Share ideas, dates and preferences…",
+        "messageHelp": "Min. 10 characters",
+        "consentText": "I agree to be contacted about this message. We don’t share your email with third parties.",
+        "submit": "Send message",
+        "submitting": "Sending…",
+        "successMessage": "Thanks! We’ve received your message.",
+        "errorGeneric": "Something went wrong. Please try again.",
+        "footerHelp": "Prefer to talk now? Email us at"
+    }
 }
