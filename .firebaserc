@@ -1,6 +1,8 @@
 {
   "projects": {
-    "default": "gallery-e87e5"
-  }
+    "default": "gallery-e87e5",
+    "production": "gallery-e87e5"
+  },
+  "targets": {},
+  "etags": {}
 }
-
