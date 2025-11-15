@@ -9,13 +9,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type PageProps = {
-  params:
-    | { locale: string; sessionId: string }
-    | Promise<{ locale: string; sessionId: string }>;
-
-  searchParams?:
-    | Record<string, string | string[] | undefined>
-    | Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<{ locale: string; sessionId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type SessionPhoto = {

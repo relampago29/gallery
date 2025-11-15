@@ -1,12 +1,9 @@
 import { Link } from "@/i18n/navigation";
 import { PublicPreviewGrid } from "@/components/admin/PublicPreviewGrid";
+import { getLocale } from "next-intl/server";
 
-type AdminPageProps = {
-  params: Promise<{ locale: string }>;
-};
-
-export default async function AdminIndex({ params }: AdminPageProps) {
-  const { locale } = await params;
+export default async function AdminIndex() {
+  const locale = await getLocale();
   return (
     <div className="space-y-10">
       <section className="space-y-3">
