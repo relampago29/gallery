@@ -2,11 +2,11 @@ import { Link } from "@/i18n/navigation";
 import { PublicPreviewGrid } from "@/components/admin/PublicPreviewGrid";
 
 type AdminPageProps = {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 };
 
-export default function AdminIndex({ params }: AdminPageProps) {
-  const locale = params.locale;
+export default async function AdminIndex({ params }: AdminPageProps) {
+  const { locale } = await params;
   return (
     <div className="space-y-10">
       <section className="space-y-3">
@@ -41,4 +41,3 @@ export default function AdminIndex({ params }: AdminPageProps) {
     </div>
   );
 }
-
