@@ -28,8 +28,9 @@ export async function GET(req: Request) {
 
     const [metadata] = await file.getMetadata().catch(() => [{ contentType: "application/octet-stream", size: "0" } as any]);
     const [buffer] = await file.download();
+    const body = new Uint8Array(buffer);
 
-    return new NextResponse(buffer, {
+    return new NextResponse(body, {
       headers: {
         "Content-Type": metadata?.contentType || "application/octet-stream",
         "Content-Length": String(buffer.length),
@@ -41,4 +42,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: err?.message || "download failed" }, { status: 500 });
   }
 }
-

@@ -19,7 +19,7 @@ export function toPhotoCardModel(p: PublicPhoto): PhotoCardModel {
   return {
     id: p.id,
     title: p.title || "(untitled)",
-    alt: p.alt,
+    alt: p.alt ?? undefined,
     thumbnailUrl: thumb, // Lavble PhotoCard usa uma URL direta
     status: (p.status as any) || "processing",
     category: p.categoryId,
