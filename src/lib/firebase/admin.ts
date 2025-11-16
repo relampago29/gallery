@@ -1,124 +1,127 @@
 // src/lib/firebase/admin.ts
-// ✅ Apenas no servidor (evita bundling no client)
+// Este módulo é carregado apenas no servidor.
+// Garante que não corre no browser.
 if (typeof window !== "undefined") {
-  throw new Error("firebase/admin.ts só pode ser usado no server.");
+  throw new Error("firebase/admin.ts só pode ser usado no servidor.");
 }
 
-import { getApps, initializeApp, cert, getApp, type App, type AppOptions } from "firebase-admin/app";
-import { getAuth, type Auth } from "firebase-admin/auth";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
-import { getStorage, type Storage } from "firebase-admin/storage";
+import {
+  app as adminApp,
+  firestore as adminFirestore,
+  storage as adminStorage,
+  auth as adminAuth,
+  credential as adminCredential,
+  apps as adminApps,
+  initializeApp,
+  type ServiceAccount,
+} from "firebase-admin";
 
-let _app: App | null = null;
-let _auth: Auth | null = null;
-let _db: Firestore | null = null;
-let _storage: Storage | null = null;
-let _dbConfigured = false;
-
-/**
- * Lê PRIVATE KEY de:
- *  - FIREBASE_PRIVATE_KEY (PEM com \n escapado)
- *  - ou FIREBASE_PRIVATE_KEY_BASE64 (JSON da service account ou a própria PEM em base64)
- */
+// --------------------------------------------------------------------------
+// UTIL: Obtém PRIVATE KEY de forma segura (com suporte a Base64)
+// --------------------------------------------------------------------------
 function resolvePrivateKey(): string | null {
-  const pk = process.env.FIREBASE_PRIVATE_KEY || null;
-  const pkB64 = process.env.FIREBASE_PRIVATE_KEY_BASE64 || null;
+  const key = process.env.FIREBASE_PRIVATE_KEY || null;
+  const b64 = process.env.FIREBASE_PRIVATE_KEY_BASE64 || null;
 
-  if (pkB64 && !pk) {
+  // Se existir versão Base64 (mais comum em Docker/Cloud Build)
+  if (b64) {
     try {
-      // pode ser o JSON inteiro da service account ou apenas a PEM em base64
-      const decoded = Buffer.from(pkB64, "base64").toString("utf8");
+      const decoded = Buffer.from(b64, "base64").toString("utf8");
+
+      // Caso venha como JSON
       try {
-        const maybeJson = JSON.parse(decoded);
-        if (maybeJson.private_key) {
-          return String(maybeJson.private_key);
+        const parsed = JSON.parse(decoded) as { private_key?: string };
+        if (parsed.private_key) {
+          return parsed.private_key;
         }
       } catch {
-        // não é JSON; assume PEM pura
+        // fallback: assume que já é PEM
       }
+
       return decoded;
     } catch {
-      // se falhar, continua e tentamos pk normal
+      // fallback para FIREBASE_PRIVATE_KEY normal
     }
   }
 
-  if (pk) {
-    return pk.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+  if (key) {
+    return key.replace(/\\n/g, "\n"); // Corrige newlines
   }
+
   return null;
 }
 
+// --------------------------------------------------------------------------
+// UTIL: Resolve nome do bucket automaticamente
+// --------------------------------------------------------------------------
 function resolveBucketName(): string | undefined {
-  const envBucket = process.env.FIREBASE_STORAGE_BUCKET || undefined;
-  if (envBucket && envBucket.trim().length) return envBucket.trim();
-  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
-  if (projectId) return `${projectId}.appspot.com`;
+  const envBucket = process.env.FIREBASE_STORAGE_BUCKET;
+  if (envBucket) return envBucket.trim();
+
+  const project = process.env.FIREBASE_PROJECT_ID;
+  if (project) return `${project.trim()}.appspot.com`;
+
   return undefined;
 }
 
-function ensureApp(): App {
-  if (_app) return _app;
+// --------------------------------------------------------------------------
+// ESTADO LOCAL (para evitar múltiplas inicializações)
+// --------------------------------------------------------------------------
+let appInstance: adminApp.App | null = null;
+
+// --------------------------------------------------------------------------
+// Inicializa Firebase Admin
+// Lazy — só corre quando uma API chama isto
+// --------------------------------------------------------------------------
+export function initFirebaseAdmin(): adminApp.App {
+  if (appInstance) return appInstance;
+
+  // Se já existir app inicializada
+  if (adminApps.length > 0) {
+    appInstance = adminApp();
+    return appInstance;
+  }
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = resolvePrivateKey();
-
-  // bucket: normaliza para o nome GCS (ex.: <projectId>.appspot.com)
   const storageBucket = resolveBucketName();
 
-  // 1) Service Account explícita (recomendado)
+  // Inicialização com credenciais completas (Auth/Firestore/Storage)
   if (projectId && clientEmail && privateKey) {
-    const options: AppOptions = {
-      credential: cert({ projectId, clientEmail, privateKey }),
-      storageBucket, // pode ser undefined; o Admin usa o default do projeto
-    };
-    _app = getApps().length ? getApp() : initializeApp(options);
-    return _app;
+    appInstance = initializeApp({
+      credential: adminCredential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+      storageBucket,
+    });
+    return appInstance;
   }
 
-  // 2) ADC (Application Default Credentials) — gcloud auth application-default login
-  _app = getApps().length
-    ? getApp()
-    : initializeApp(storageBucket ? { storageBucket } : undefined);
-  return _app;
+  // Inicialização mínima sem Auth (evita crash)
+  appInstance = initializeApp(storageBucket ? { storageBucket } : undefined);
+  return appInstance;
 }
 
-export function getAdminAuth(): Auth {
-  if (_auth) return _auth;
-  _auth = getAuth(ensureApp());
-  return _auth;
+// --------------------------------------------------------------------------
+// Acesso aos serviços — lazy
+// --------------------------------------------------------------------------
+export function getAdminAuth() {
+  return adminAuth(initFirebaseAdmin());
 }
 
-export function getAdminDb(): Firestore {
-  if (_db) return _db;
-  _db = getFirestore(ensureApp());
-  // Tenta ignorar undefined em writes parciais, mas evita crash se Firestore já foi usado
-  if (!_dbConfigured) {
-    try {
-      _db.settings({ ignoreUndefinedProperties: true });
-      _dbConfigured = true;
-    } catch {
-      // Se falhar (settings já aplicadas ou Firestore já usado), seguimos sem alterar
-      _dbConfigured = true;
-    }
-  }
-  return _db;
+export function getAdminDb() {
+  const db = adminFirestore(initFirebaseAdmin());
+  db.settings?.({ ignoreUndefinedProperties: true });
+  return db;
 }
 
-export function getAdminStorage(): Storage {
-  if (_storage) return _storage;
-  _storage = getStorage(ensureApp());
-  return _storage;
+export function getAdminStorage() {
+  return adminStorage(initFirebaseAdmin());
 }
 
 export function getAdminBucket() {
-  const storage = getAdminStorage();
-  const name = resolveBucketName();
-  return name ? storage.bucket(name) : storage.bucket();
+  return getAdminStorage().bucket(resolveBucketName());
 }
-
-// ✅ Singletons convenientes (importa estes diretamente se preferires)
-export const authAdmin = getAdminAuth();
-export const firestoreAdmin = getAdminDb();
-export const storageAdmin = getAdminStorage();
-export const bucketAdmin = getAdminBucket();

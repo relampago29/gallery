@@ -22,42 +22,36 @@ export default function PublicListPage() {
       } catch (err) {
         console.error("categories load failed:", err);
         setCats([]);
+        setError("Não foi possível carregar as categorias.");
       }
     })();
   }, []);
 
   async function load(reset = false) {
-    if (reset) {
-      setLoading(true);
-      setError(null);
-      const { items, nextCursor } = await listPublicPhotos({
+    if (!reset && (loading || end)) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { items: fetched, nextCursor } = await listPublicPhotos({
         limitN: 24,
         categoryId,
-        cursor: null,
+        cursor: reset ? null : cursor,
         forceApi: true,
-      }).catch((e) => {
-        setError(e?.message || "Erro a carregar");
-        return { items: [], nextCursor: null };
       });
-      setItems(items);
+
+      setItems(reset ? fetched : (prev) => [...prev, ...fetched]);
       setCursor(nextCursor ?? null);
       setEnd(!nextCursor);
-      setLoading(false);
-    } else {
-      if (loading || end) return;
-      setLoading(true);
-      const { items: more, nextCursor } = await listPublicPhotos({
-        limitN: 24,
-        categoryId,
-        cursor,
-        forceApi: true,
-      }).catch((e) => {
-        setError(e?.message || "Erro a carregar");
-        return { items: [], nextCursor: null };
-      });
-      setItems((prev) => [...prev, ...more]);
-      setCursor(nextCursor ?? null);
-      setEnd(!nextCursor);
+    } catch (err: any) {
+      console.error("public photos load failed:", err);
+      setError(err?.message || "Erro a carregar as fotos públicas.");
+      if (reset) {
+        setItems([]);
+        setCursor(null);
+        setEnd(false);
+      }
+    } finally {
       setLoading(false);
     }
   }
@@ -113,7 +107,7 @@ export default function PublicListPage() {
           <div className="w-full sm:max-w-xs">
             <input
               className={inputBase}
-              placeholder="Pesquisar título…"
+              placeholder="Pesquisar título..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -163,7 +157,7 @@ export default function PublicListPage() {
           )}
 
           {loading && items.length === 0 ? (
-            <div className="px-6 py-10 text-center text-white/60">A carregar…</div>
+            <div className="px-6 py-10 text-center text-white/60">A carregar...</div>
           ) : filtered.length === 0 ? (
             <div className="px-6 py-10 text-center text-white/60">Sem resultados.</div>
           ) : (
@@ -181,16 +175,19 @@ export default function PublicListPage() {
                         <img src={t.src} alt={p.alt || p.title || "Foto"} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full items-center justify-center text-sm text-white/60">
-                          {p.status === "processing" ? "A gerar variantes…" : "Sem preview"}
+                          {p.status === "processing" ? "A gerar variantes..." : "Sem preview"}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-3 px-5 py-4">
                       <div className="min-w-0 text-sm text-white/90">
                         <div className="truncate text-base font-medium">{p.title || "(sem título)"}</div>
-                        <div className="text-xs uppercase tracking-wide text-white/50">{p.status || "—"}</div>
+                        <div className="text-xs uppercase tracking-wide text-white/50">{p.status || "Sem estado"}</div>
                       </div>
-                      <button className="rounded-full border border-red-400/70 px-4 py-1 text-xs text-red-100 hover:bg-red-500/10" onClick={() => handleDelete(p.id)}>
+                      <button
+                        className="rounded-full border border-red-400/70 px-4 py-1 text-xs text-red-100 hover:bg-red-500/10"
+                        onClick={() => handleDelete(p.id)}
+                      >
                         Apagar
                       </button>
                     </div>
@@ -202,7 +199,7 @@ export default function PublicListPage() {
 
           <div className="border-t border-white/10 px-6 py-4 text-center">
             <button className={pillButton} onClick={() => load(false)} disabled={loading || end}>
-              {end ? "Não há mais" : loading ? "A carregar…" : "Carregar mais"}
+              {end ? "Não há mais" : loading ? "A carregar..." : "Carregar mais"}
             </button>
           </div>
         </section>
@@ -210,4 +207,3 @@ export default function PublicListPage() {
     </main>
   );
 }
-
