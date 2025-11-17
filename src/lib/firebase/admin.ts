@@ -5,16 +5,10 @@ if (typeof window !== "undefined") {
   throw new Error("firebase/admin.ts só pode ser usado no servidor.");
 }
 
-import {
-  app as adminApp,
-  firestore as adminFirestore,
-  storage as adminStorage,
-  auth as adminAuth,
-  credential as adminCredential,
-  apps as adminApps,
-  initializeApp,
-  type ServiceAccount,
-} from "firebase-admin";
+import { App, cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 // --------------------------------------------------------------------------
 // UTIL: Obtém PRIVATE KEY de forma segura (com suporte a Base64)
@@ -67,18 +61,19 @@ function resolveBucketName(): string | undefined {
 // --------------------------------------------------------------------------
 // ESTADO LOCAL (para evitar múltiplas inicializações)
 // --------------------------------------------------------------------------
-let appInstance: adminApp.App | null = null;
+let appInstance: App | null = null;
+let firestoreConfigured = false;
 
 // --------------------------------------------------------------------------
 // Inicializa Firebase Admin
 // Lazy — só corre quando uma API chama isto
 // --------------------------------------------------------------------------
-export function initFirebaseAdmin(): adminApp.App {
+export function initFirebaseAdmin(): App {
   if (appInstance) return appInstance;
 
-  // Se já existir app inicializada
-  if (adminApps.length > 0) {
-    appInstance = adminApp();
+  const apps = getApps();
+  if (apps.length > 0) {
+    appInstance = apps[0];
     return appInstance;
   }
 
@@ -90,7 +85,7 @@ export function initFirebaseAdmin(): adminApp.App {
   // Inicialização com credenciais completas (Auth/Firestore/Storage)
   if (projectId && clientEmail && privateKey) {
     appInstance = initializeApp({
-      credential: adminCredential.cert({
+      credential: cert({
         projectId,
         clientEmail,
         privateKey,
@@ -109,17 +104,20 @@ export function initFirebaseAdmin(): adminApp.App {
 // Acesso aos serviços — lazy
 // --------------------------------------------------------------------------
 export function getAdminAuth() {
-  return adminAuth(initFirebaseAdmin());
+  return getAuth(initFirebaseAdmin());
 }
 
 export function getAdminDb() {
-  const db = adminFirestore(initFirebaseAdmin());
-  db.settings?.({ ignoreUndefinedProperties: true });
+  const db = getFirestore(initFirebaseAdmin());
+  if (!firestoreConfigured) {
+    db.settings({ ignoreUndefinedProperties: true });
+    firestoreConfigured = true;
+  }
   return db;
 }
 
 export function getAdminStorage() {
-  return adminStorage(initFirebaseAdmin());
+  return getStorage(initFirebaseAdmin());
 }
 
 export function getAdminBucket() {
