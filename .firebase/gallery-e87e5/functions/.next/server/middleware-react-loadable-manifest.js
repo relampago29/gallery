@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST='{"components/sections/portofolio/LazyPortfolio.tsx -> ./portofolioHomePage":{"id":3976,"files":["static/chunks/976.c852c744ba98b64e.js"]}}';

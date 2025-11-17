@@ -3,56 +3,36 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { firestoreAdmin } from "@/lib/firebase/admin";
 
 async function deleteById(photoId: string) {
-  const db = getAdminDb();
-
-  const ref = db.collection("public_photos").doc(photoId);
+  const ref = firestoreAdmin.collection("public_photos").doc(photoId);
   const snap = await ref.get();
-
-  // idempotente: se já não existe, não faz nada
-  if (!snap.exists) return;
-
+  if (!snap.exists) return; // idempotente: já não existe
   await ref.delete();
 }
 
 export async function POST(req: Request) {
   try {
     const { photoId } = await req.json();
-
-    if (!photoId) {
-      return NextResponse.json({ error: "missing photoId" }, { status: 400 });
-    }
-
+    if (!photoId) return NextResponse.json({ error: "missing photoId" }, { status: 400 });
     await deleteById(photoId);
-
-    // A Cloud Function onDelete trata de remover master + variants/public automaticamente
+    // A Cloud Function onDelete limpa master + variants/public
     return new NextResponse(null, { status: 204 });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
   }
 }
 
-// Suporte opcional ao método DELETE
+// (Opcional) aceitar DELETE
 export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url);
     const photoId = url.searchParams.get("id");
-
-    if (!photoId) {
-      return NextResponse.json({ error: "missing id" }, { status: 400 });
-    }
-
+    if (!photoId) return NextResponse.json({ error: "missing id" }, { status: 400 });
     await deleteById(photoId);
     return new NextResponse(null, { status: 204 });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
   }
 }

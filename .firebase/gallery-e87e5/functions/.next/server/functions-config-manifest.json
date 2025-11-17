@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/categories/create": {},
+    "/api/categories/delete": {},
+    "/api/categories": {},
+    "/api/categories/update": {},
+    "/api/public-photos/create": {},
+    "/api/public-photos/delete": {},
+    "/api/public-photos/list": {},
+    "/api/session-photos/download-all": {},
+    "/api/session-photos/download": {},
+    "/api/session-photos/register": {},
+    "/api/storage/list": {},
+    "/api/storage/sign": {},
+    "/api/upload": {},
+    "/[locale]/sessions/[sessionId]": {}
+  }
+}

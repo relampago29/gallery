@@ -1,41 +1,31 @@
 import { db } from "@/lib/firebase/client";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 
-export type Category = { id: string; name: string; active: boolean; description?: string | null };
+export type Category = { id: string; name: string; active: boolean; description?: string|null };
 
-type ListOptions = { activeOnly?: boolean };
-
-async function listCategoriesInternal({ activeOnly = true }: ListOptions = {}): Promise<Category[]> {
+/**
+ * Lista categorias ativas. Tenta primeiro via API (Admin SDK),
+ * e faz fallback para o Firestore client se necessário.
+ */
+export async function listActiveCategories(): Promise<Category[]> {
+  // 1) API server (ignora rules do client, ideal para o admin)
   try {
     const res = await fetch("/api/categories", { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
-      const items = (data.items || []) as Category[];
-      return activeOnly ? items.filter((x) => x.active) : items;
+      // filtra só as ativas para manter contrato do helper
+      return (data.items || []).filter((x: any) => x.active);
     }
   } catch {
-    // ignora erro e tenta fallback
+    // ignora e cai no client SDK
   }
 
-  const constraints: any[] = [orderBy("name", "asc")];
-  if (activeOnly) {
-    constraints.unshift(where("active", "==", true));
-  }
-
-  const snap = await getDocs(query(collection(db, "categories"), ...constraints));
+  // 2) Fallback: Firestore client (precisa das rules deployadas)
+  const qs = query(
+    collection(db, "categories"),
+    where("active", "==", true),
+    orderBy("name", "asc")
+  );
+  const snap = await getDocs(qs);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-}
-
-/**
- * Lista apenas categorias ativas (fallback automático).
- */
-export async function listActiveCategories(): Promise<Category[]> {
-  return listCategoriesInternal({ activeOnly: true });
-}
-
-/**
- * Lista todas as categorias (ativas e inativas) com fallback.
- */
-export async function listAllCategories(): Promise<Category[]> {
-  return listCategoriesInternal({ activeOnly: false });
 }

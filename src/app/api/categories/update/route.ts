@@ -2,35 +2,21 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { firestoreAdmin } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
   try {
-    const { id, patch } = (await req.json()) as {
-      id?: string;
-      patch?: Record<string, any>;
-    };
-
+    const { id, patch } = await req.json() as { id?: string; patch?: Record<string, any> };
     if (!id || !patch || typeof patch !== "object") {
-      return NextResponse.json(
-        { error: "missing id/patch" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "missing id/patch" }, { status: 400 });
     }
-
-    const db = getAdminDb();
-
-    await db.collection("categories").doc(id).update({
+    await firestoreAdmin.collection("categories").doc(id).update({
       ...patch,
       updatedAt: FieldValue.serverTimestamp(),
     });
-
     return new NextResponse(null, { status: 204 });
   } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || "server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
   }
 }

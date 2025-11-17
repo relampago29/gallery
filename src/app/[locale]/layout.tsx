@@ -7,8 +7,6 @@ import {NextIntlClientProvider} from 'next-intl';
 import {setRequestLocale} from 'next-intl/server';
 import {Locale, routing} from '@/i18n/routing';
 
-// 🔥 ADICIONAR O TEU PROVIDER CLIENTE PARA NEXTAUTH
-import AuthProvider from '@/components/AuthProvider';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
@@ -19,10 +17,12 @@ export const metadata: Metadata = {
   icons: { icon: [{ url: '/favicon.ico', type: 'image/x-icon' }] }
 };
 
+// Gera rotas por locale
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+// Desliga cache nesta subtree (facilita debug)
 export const revalidate = 0;
 
 export default async function RootLayout({
@@ -45,13 +45,9 @@ export default async function RootLayout({
   return (
     <html lang={locale} className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        {/* 🔥 NextAuth wrapper */}
-        <AuthProvider>
-          {/* i18n wrapper */}
-          <NextIntlClientProvider locale={locale} messages={messages as any}>
-            {children}
-          </NextIntlClientProvider>
-        </AuthProvider>
+        <NextIntlClientProvider locale={locale} messages={messages as any}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

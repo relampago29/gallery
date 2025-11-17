@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminBucket, getAdminDb } from "@/lib/firebase/admin";
+import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
 
 function sanitizeSessionId(raw: string) {
   return raw
@@ -66,6 +66,8 @@ function buildZip(entries: ZipEntry[]) {
   const centralParts: Buffer[] = [];
   let offset = 0;
 
+  const encoder = new TextEncoder();
+
   for (const entry of entries) {
     const nameBytes = Buffer.from(entry.name, "utf8");
     const data = entry.data;
@@ -108,7 +110,6 @@ function buildZip(entries: ZipEntry[]) {
     centralHeader.writeUInt32LE(offset, 42);
 
     centralParts.push(centralHeader, nameBytes);
-
     offset += localHeader.length + nameBytes.length + data.length;
   }
 
@@ -130,67 +131,48 @@ function buildZip(entries: ZipEntry[]) {
 
 async function getSessionFileEntries(sessionId: string) {
   const db = getAdminDb();
-  const bucket = getAdminBucket();
-
   const sessionRef = db.collection("client_sessions").doc(sessionId);
   const sessionSnap = await sessionRef.get();
 
   const entries: { name: string; path: string; createdAt?: number }[] = [];
-
-  const photosSnap = await sessionRef
-    .collection("photos")
-    .orderBy("createdAt", "asc")
-    .get();
-
+  const photosSnap = await sessionRef.collection("photos").orderBy("createdAt", "asc").get();
   photosSnap.forEach((doc) => {
     const data = doc.data() || {};
     if (data.masterPath) {
       entries.push({
         name: data.title || data.alt || doc.id,
         path: data.masterPath as string,
-        createdAt:
-          typeof data.createdAt === "number" ? data.createdAt : undefined,
+        createdAt: typeof data.createdAt === "number" ? data.createdAt : undefined,
       });
     }
   });
 
   if (!entries.length) {
     const prefix = `masters/sessions/${sessionId}/`;
-    const [objects] = await bucket.getFiles({ prefix });
-
+    const [objects] = await bucketAdmin.getFiles({ prefix });
     objects
       .filter((f) => f.name !== prefix && !f.name.endsWith("/"))
       .forEach((file) => {
         entries.push({
           name: file.name.slice(prefix.length),
           path: file.name,
-          createdAt: file.metadata?.timeCreated
-            ? Date.parse(file.metadata.timeCreated)
-            : undefined,
+          createdAt: file.metadata?.timeCreated ? Date.parse(file.metadata.timeCreated) : undefined,
         });
       });
   }
 
-  if (!entries.length) return [];
+  if (!entries.length) {
+    return [];
+  }
 
   const usedNames = new Map<string, number>();
   const buffers: ZipEntry[] = [];
-  const bucketInstance = getAdminBucket();
-
   for (const entry of entries) {
-    const file = bucketInstance.file(entry.path);
+    const file = bucketAdmin.file(entry.path);
     const [data] = await file.download();
-
-    const rawName =
-      sanitizeFilename(entry.name || entry.path.split("/").pop() || "foto");
-    const ext = entry.path.includes(".")
-      ? entry.path.split(".").pop() || "jpg"
-      : "jpg";
-
-    let finalName = rawName.toLowerCase().endsWith(`.${ext}`)
-      ? rawName
-      : `${rawName}.${ext}`;
-
+    const rawName = sanitizeFilename(entry.name || entry.path.split("/").pop() || "foto");
+    const ext = entry.path.includes(".") ? entry.path.split(".").pop() || "jpg" : "jpg";
+    let finalName = rawName.toLowerCase().endsWith(`.${ext}`) ? rawName : `${rawName}.${ext}`;
     if (usedNames.has(finalName)) {
       const count = usedNames.get(finalName)! + 1;
       usedNames.set(finalName, count);
@@ -199,14 +181,12 @@ async function getSessionFileEntries(sessionId: string) {
     } else {
       usedNames.set(finalName, 0);
     }
-
     buffers.push({
       name: finalName,
       data,
       date: entry.createdAt ? new Date(entry.createdAt) : new Date(),
     });
   }
-
   return buffers;
 }
 
@@ -221,16 +201,11 @@ export async function GET(req: Request) {
 
     const entries = await getSessionFileEntries(sessionId);
     if (!entries.length) {
-      return NextResponse.json(
-        { error: "sem ficheiros para esta sessão" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "sem ficheiros para esta sessão" }, { status: 404 });
     }
 
     const zipBuffer = buildZip(entries);
-    const body = new Uint8Array(zipBuffer);
-
-    return new NextResponse(body, {
+    return new NextResponse(zipBuffer, {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${sessionId || "sessao"}.zip"`,
@@ -239,9 +214,7 @@ export async function GET(req: Request) {
       },
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || "download all failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message || "download all failed" }, { status: 500 });
   }
 }
+

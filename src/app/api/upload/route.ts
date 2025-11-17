@@ -10,11 +10,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminStorage, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminAuth, getAdminStorage, getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 type Mode = "public" | "private";
 
@@ -34,11 +32,13 @@ function extFromNameOrMime(name?: string | null, mime?: string | null) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const uid = session.user?.email || session.user?.name || "next-auth-user";
+    // --- Auth ---
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const decoded = await getAdminAuth().verifyIdToken(token);
+    const uid = decoded.uid;
 
     // (Opcional) Restringir a admins:
     // if (!decoded.claims?.isAdmin) {

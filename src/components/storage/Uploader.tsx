@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { ref, uploadBytes } from "firebase/storage";
-import { storage } from "@/lib/firebase/client";
+import { auth, storage } from "@/lib/firebase/client";
 import { UploadCloud } from "lucide-react";
 
 export default function Uploader({ folder = "default", onUploadComplete }: { folder?: string; onUploadComplete?: () => void }) {
@@ -16,12 +16,14 @@ export default function Uploader({ folder = "default", onUploadComplete }: { fol
       const safeFolder = (folder || "default").replace(/[^A-Za-z0-9_-]/g, "-");
       const viaApi = process.env.NEXT_PUBLIC_UPLOAD_VIA_API === "true";
       if (viaApi) {
+        const token = await auth.currentUser?.getIdToken();
         const form = new FormData();
         form.append("file", file);
         form.append("name", file.name);
         form.append("folder", safeFolder);
         const res = await fetch("/api/upload", {
           method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: form,
         });
         if (!res.ok) {

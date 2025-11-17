@@ -1,5 +1,4 @@
-import { useRef, useEffect } from 'react';
-import type { JSX } from 'react';
+import { useRef, useEffect, type JSX } from 'react';
 import { gsap } from 'gsap';
 
 function lerp(a: number, b: number, n: number): number {

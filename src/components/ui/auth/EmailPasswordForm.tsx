@@ -1,171 +1,137 @@
-"use client";
-
-import { signIn as nextSignIn, signOut as nextSignOut } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { auth } from "@/lib/firebase/client";
+import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithPopup,
-  signOut as firebaseSignOut,
-  type User,
+  User,
 } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase/client";
 
-type Props = {
-  callbackUrl?: string;
-};
+export default function EmailPasswordForm() {
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-export default function EmailPasswordForm({ callbackUrl }: Props) {
-  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [showAuthAlert, setShowAuthAlert] = useState(false);
 
-  const [firebaseEmail, setFirebaseEmail] = useState("");
-  const [firebasePassword, setFirebasePassword] = useState("");
-  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
-  const [firebaseLoading, setFirebaseLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState<string | null>(null);
-
-  const targetUrl = callbackUrl && callbackUrl.length > 0 ? callbackUrl : "/";
-  const googleProvider = useMemo(() => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    return provider;
-  }, []);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setFirebaseUser(user);
-    });
-    return () => unsub();
-  }, []);
-
-  const syncNextAuthSession = useCallback(async (user: User) => {
-    const idToken = await user.getIdToken();
-    const response = await nextSignIn("credentials", {
-      idToken,
-      redirect: false,
-      callbackUrl: targetUrl,
-    });
-    if (response?.error) {
-      throw new Error(response.error);
-    }
-  }, [targetUrl]);
-
-  async function onGoogleSignIn(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setGoogleLoading(true);
-    setGoogleError(null);
+
     try {
-      const credential = await signInWithPopup(auth, googleProvider);
-      await syncNextAuthSession(credential.user);
-      router.replace(targetUrl);
+      let response = await signInWithEmailAndPassword(auth, email, pw);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {}
+      setError(null);
     } catch (err: any) {
-      if (err?.code === "auth/popup-closed-by-user") {
-        setGoogleError("A janela de login foi fechada antes de concluir.");
-      } else {
-        setGoogleError(err?.message ?? "Falha ao autenticar com o Google.");
-      }
-    } finally {
-      setGoogleLoading(false);
+      setError(err.message ?? "Erro a iniciar sessão");
+    }
+  }
+
+  async function onSignup(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const res = await createUserWithEmailAndPassword(auth, email, pw);
+      console.log(res);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message ?? "Erro a registar");
+    }
+  }
+
+  async function onGoogle(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (token) await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch {}
+      setError(null);
+    } catch (err: any) {
+      setError(err.message ?? "Erro no login com Google");
     }
   }
 
   async function onSignOut(e: React.FormEvent) {
     e.preventDefault();
-    setGoogleLoading(true);
-    setGoogleError(null);
     try {
-      await firebaseSignOut(auth);
-      await nextSignOut({ callbackUrl: "/" });
+      await auth.signOut();
     } catch (err: any) {
-      setGoogleError(err?.message ?? "Erro ao terminar sessão.");
-    } finally {
-      setGoogleLoading(false);
+      setError(err.message);
     }
   }
 
-  async function onFirebaseSignIn(e: React.FormEvent) {
-    e.preventDefault();
-    if (!firebaseEmail.trim() || !firebasePassword.trim()) {
-      setFirebaseError("Indica email e password.");
-      return;
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setShowAuthAlert(!!u); // mostra o alert quando entra, esconde quando sai
+    });
+    return () => unsub();
+  }, []);
+
+  // (Opcional) auto-fechar o alert de sucesso após 4s
+  useEffect(() => {
+    if (showAuthAlert) {
+      const t = setTimeout(() => setShowAuthAlert(false), 4000);
+      return () => clearTimeout(t);
     }
-    setFirebaseLoading(true);
-    setFirebaseError(null);
-    try {
-      const credential = await signInWithEmailAndPassword(auth, firebaseEmail.trim(), firebasePassword);
-      await syncNextAuthSession(credential.user);
-      router.replace(targetUrl);
-    } catch (err: any) {
-      const code = err?.code || "";
-      if (code === "auth/invalid-credential" || code === "auth/user-not-found") {
-        setFirebaseError("Credenciais inválidas.");
-      } else {
-        setFirebaseError(err?.message ?? "Falha no login Firebase.");
-      }
-    } finally {
-      setFirebaseLoading(false);
-    }
-  }
+  }, [showAuthAlert]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <button className="btn btn-outline" onClick={onGoogleSignIn} disabled={googleLoading || !!firebaseUser}>
-          {googleLoading ? "A iniciar sessão..." : "Entrar com Google"}
+    <form onSubmit={onSubmit}>
+      <div className="flex flex-col gap-2">
+        <input
+          className="input input-bordered"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="email"
+        />
+        <input
+          className="input input-bordered"
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          placeholder="password"
+        />
+
+        <div className="flex gap-2">
+          <button className="btn btn-primary" type="submit">Entrar</button>
+          <button className="btn" onClick={onSignup}>Registar</button>
+        </div>
+
+        <div className="divider">ou</div>
+        <button className="btn btn-outline" onClick={onGoogle}>
+          Entrar com Google
         </button>
 
-        {firebaseUser && (
-          <button className="btn btn-secondary" onClick={onSignOut} disabled={googleLoading}>
-            Terminar sessão
-          </button>
-        )}
+        {error && <p className="text-red-600 text-sm">{error}</p>}
 
-        {firebaseUser?.email && (
-          <div role="alert" className="alert alert-success mt-2 text-sm">
-            Autenticado como <strong>{firebaseUser.email}</strong>.
+        <button onClick={onSignOut} className="btn btn-secondary mt-2">
+          Sair
+        </button>
+
+        {user && showAuthAlert && (
+          <div role="alert" className="alert alert-success mt-2">
+            <span>
+              Autenticado como <strong>{user.email}</strong>.
+            </span>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setShowAuthAlert(false)}
+            >
+              Fechar
+            </button>
           </div>
         )}
-
-        {googleError && <p className="text-red-600 text-sm">{googleError}</p>}
-      </section>
-
-      <section className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-5">
-        <div className="text-sm text-white/80">Acesso direto ao Firebase (Email/Password)</div>
-        <input
-          className="input input-bordered w-full"
-          type="email"
-          placeholder="email@exemplo.com"
-          value={firebaseEmail}
-          onChange={(e) => setFirebaseEmail(e.target.value)}
-        />
-        <input
-          className="input input-bordered w-full"
-          type="password"
-          placeholder="password"
-          value={firebasePassword}
-          onChange={(e) => setFirebasePassword(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <button className="btn btn-outline flex-1" onClick={onFirebaseSignIn} disabled={firebaseLoading || !!firebaseUser}>
-            {firebaseLoading ? "A autenticar..." : "Entrar no Firebase"}
-          </button>
-          {firebaseUser && (
-            <button className="btn flex-1" onClick={onSignOut} disabled={firebaseLoading || googleLoading}>
-              Terminar Firebase
-            </button>
-          )}
-        </div>
-        {firebaseUser && (
-          <p className="text-xs text-white/70">
-            Sessão Firebase ativa como <strong>{firebaseUser.email || firebaseUser.uid}</strong>.
-          </p>
-        )}
-        {firebaseError && <p className="text-red-500 text-sm">{firebaseError}</p>}
-      </section>
-    </div>
+      </div>
+    </form>
   );
 }

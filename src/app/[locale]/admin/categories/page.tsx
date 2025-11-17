@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listAllCategories } from "@/lib/categories";
 
 type Category = { id: string; name: string; description?: string | null; active: boolean; createdAt?: number };
 
@@ -10,85 +9,59 @@ export default function CategoriesAdminPage() {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    setBusy(true);
-    try {
-      const data = await listAllCategories();
-      setItems(data);
-      setError(null);
-    } catch (err) {
-      console.error("categories load failed:", err);
-      setItems([]);
-      setError("Não foi possível carregar as categorias.");
-    } finally {
-      setBusy(false);
-    }
+    const res = await fetch("/api/categories", { cache: "no-store" });
+    const data = await res.json();
+    setItems((data.items || []) as Category[]);
   }
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
-    try {
-      const res = await fetch("/api/categories/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: description.trim() || null }),
-      });
-      if (!res.ok) throw new Error(await res.text().catch(() => ""));
+    const res = await fetch("/api/categories/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), description: description.trim() || null }),
+    });
+    setBusy(false);
+    if (res.ok) {
       setName("");
       setDescription("");
-      await load();
-    } catch (err) {
-      console.error("create category failed:", err);
-      setError("Falha ao criar categoria.");
-    } finally {
-      setBusy(false);
+      load();
+    } else {
+      alert("Falha ao criar categoria.");
     }
   }
 
   async function toggleActive(id: string, active: boolean) {
     setBusy(true);
-    try {
-      const res = await fetch("/api/categories/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, patch: { active } }),
-      });
-      if (!res.ok) throw new Error(await res.text().catch(() => ""));
-      await load();
-    } catch (err) {
-      console.error("update category failed:", err);
-      setError("Falha ao atualizar a categoria.");
-    } finally {
-      setBusy(false);
-    }
+    const res = await fetch("/api/categories/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, patch: { active } }),
+    });
+    setBusy(false);
+    if (res.ok) load();
+    else alert("Falha ao atualizar.");
   }
 
   async function remove(id: string) {
     if (!confirm("Apagar esta categoria?")) return;
     setBusy(true);
-    try {
-      const res = await fetch("/api/categories/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error(await res.text().catch(() => ""));
-      await load();
-    } catch (err) {
-      console.error("delete category failed:", err);
-      setError("Falha ao apagar a categoria.");
-    } finally {
-      setBusy(false);
-    }
+    const res = await fetch("/api/categories/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setBusy(false);
+    if (res.ok) load();
+    else alert("Falha ao apagar.");
   }
 
   const cardClass =
@@ -110,7 +83,7 @@ export default function CategoriesAdminPage() {
         <div className="absolute left-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b61f] blur-3xl" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-5xl space-y-10 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-5xl space-y-10 py-12 px-4 sm:px-6 lg:px-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
           <h1 className="text-4xl font-semibold text-white tracking-tight">Categorias</h1>
@@ -133,7 +106,7 @@ export default function CategoriesAdminPage() {
               onChange={(e) => setDescription(e.target.value)}
             />
             <button className={`${primaryBtn} sm:col-span-1`} disabled={busy || !name.trim()}>
-              {busy ? "A guardar..." : "Criar categoria"}
+              {busy ? "A guardar…" : "Criar categoria"}
             </button>
           </form>
         </section>
@@ -146,7 +119,6 @@ export default function CategoriesAdminPage() {
             </div>
             <div className="text-xs text-white/50">Atualiza ou remove categorias rapidamente</div>
           </div>
-          {error && <div className="px-6 py-3 text-sm text-red-200">{error}</div>}
           <div className="divide-y divide-white/10">
             {items.length === 0 ? (
               <div className="p-6 text-center text-white/60">Sem categorias ainda. Cria a primeira acima.</div>
@@ -181,3 +153,4 @@ export default function CategoriesAdminPage() {
     </main>
   );
 }
+

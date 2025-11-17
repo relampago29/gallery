@@ -3,9 +3,8 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { usePathname } from "next/navigation";
 import { Images, UploadCloud, Tags } from "lucide-react";
-import { ReactNode } from "react";
 
-function NavItem({ href, active, icon, children }: { href: string; active?: boolean; icon: ReactNode; children: ReactNode }) {
+function NavItem({ href, active, icon, children }: { href: string; active?: boolean; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <li>
       <Link
@@ -33,8 +32,8 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="flex h-full flex-col">
-      <div className="border-b px-4 py-3">
+    <aside className="h-full flex flex-col">
+      <div className="px-4 py-3 border-b">
         <div className="font-semibold tracking-tight">Admin</div>
         <div className="text-xs text-gray-500">Portfólio público</div>
       </div>
