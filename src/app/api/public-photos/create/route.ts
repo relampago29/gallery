@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { firestoreAdmin } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
 type Body = {
@@ -22,17 +22,20 @@ export async function POST(req: Request) {
     if (!body?.categoryId || !body?.createdAt || !body?.masterPath) {
       return NextResponse.json({ error: "missing fields" }, { status: 400 });
     }
+
     // garante que estamos a criar docs apenas para masters públicos (sanidade)
     if (!body.masterPath.startsWith("masters/public/")) {
       return NextResponse.json({ error: "invalid masterPath" }, { status: 400 });
     }
 
-    const docRef = await firestoreAdmin.collection("public_photos").add({
+    const db = getAdminDb();
+
+    const docRef = await db.collection("public_photos").add({
       title: body.title ?? null,
       alt: body.alt ?? body.title ?? null,
       categoryId: body.categoryId,
-      createdAt: body.createdAt,                 // número do cliente (ms)
-      createdAtServer: FieldValue.serverTimestamp(), // verdade oficial
+      createdAt: body.createdAt,                      // timestamp enviado pelo cliente
+      createdAtServer: FieldValue.serverTimestamp(),  // timestamp real do servidor
       published: false,
       status: "processing",
       masterPath: body.masterPath,
@@ -41,6 +44,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, id: docRef.id }, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message || "server error" },
+      { status: 500 }
+    );
   }
 }

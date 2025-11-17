@@ -1,21 +1,18 @@
 import { Link } from "@/i18n/navigation";
 import { PublicPreviewGrid } from "@/components/admin/PublicPreviewGrid";
+import { getLocale } from "next-intl/server";
 
-type AdminPageProps = {
-  params: Promise<{ locale: string }>;
-};
-
-export default async function AdminIndex({ params }: AdminPageProps) {
-  const { locale } = await params;
+export default async function AdminIndex() {
+  const locale = await getLocale();
   return (
     <div className="space-y-10">
       <section className="space-y-3">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Visão geral</p>
         <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-white shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Olá! 👋</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Bem-vindo de volta!</h1>
             <p className="text-sm text-white/70">
-              Acede rapidamente às últimas fotos públicas e gere as sessões privadas com o novo visual.
+              Aqui encontras os atalhos para gerir uploads públicos e sessões privadas com o novo painel.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

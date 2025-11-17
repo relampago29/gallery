@@ -1,16 +1,11 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import { Sidebar } from "@/components/ui/auth/Sidebar";
-import RequireAuth from "@/components/ui/auth/RequireAuth";
 import { Toaster } from "sonner";
-import { ensureFirebaseUser } from "@/lib/firebase/ensureAuth";
 import { Link } from "@/i18n/navigation";
 import { useLocale } from "next-intl";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    ensureFirebaseUser().catch(console.error);
-  }, []);
   const locale = useLocale();
 
   return (
@@ -43,9 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-6 py-10">
-            <RequireAuth>{children}</RequireAuth>
-          </div>
+          <div className="mx-auto max-w-7xl px-6 py-10">{children}</div>
         </main>
       </div>
 
