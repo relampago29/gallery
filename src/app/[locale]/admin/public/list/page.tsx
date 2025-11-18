@@ -13,6 +13,8 @@ export default function PublicListPage() {
   const [error, setError] = useState<string | null>(null);
   const [end, setEnd] = useState(false);
   const [q, setQ] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -147,10 +149,43 @@ export default function PublicListPage() {
         </div>
 
         <section className={cardClass}>
-          <div className="flex flex-col gap-2 border-b border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="font-semibold text-white">Resultados</div>
-            <div className="text-sm text-white/60">{filtered.length} itens</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="text-sm text-white/60 text-center sm:text-left">{filtered.length} itens</div>
+              <button
+                type="button"
+                className="rounded-full border border-red-400/60 px-4 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-500/10 disabled:opacity-40"
+                onClick={async () => {
+                  if (purging) return;
+                  if (!confirm("Isto vai apagar TODAS as fotos públicas. Continuar?")) return;
+                  setPurging(true);
+                  try {
+                    const res = await fetch("/api/public-photos/delete-all", { method: "POST" });
+                    if (!res.ok) {
+                      const data = await res.json().catch(() => ({}));
+                      throw new Error(data?.error || `Falha (${res.status})`);
+                    }
+                    setItems([]);
+                    setCursor(null);
+                    setEnd(true);
+                    setMsg("Todas as fotos públicas foram removidas.");
+                  } catch (err: any) {
+                    alert(err?.message || "Não foi possível apagar todas as fotos.");
+                  } finally {
+                    setPurging(false);
+                  }
+                }}
+                disabled={purging || items.length === 0}
+              >
+                {purging ? "A apagar…" : "Apagar tudo"}
+              </button>
+            </div>
           </div>
+
+          {msg && (
+            <div className="border-b border-white/10 px-6 py-3 text-sm text-white/80">{msg}</div>
+          )}
 
           {error && (
             <div className="px-6 py-4">
@@ -210,4 +245,3 @@ export default function PublicListPage() {
     </main>
   );
 }
-

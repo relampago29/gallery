@@ -71,6 +71,11 @@ export default function UploadPublicPhotoPage() {
     if (visibility === "public") setSessionShare(null);
   }, [visibility]);
 
+  function buildSequentialLabel(index: number, base?: string | null) {
+    const safeBase = base && base.trim().length ? base.trim() : "Foto";
+    return `${safeBase} ${index + 1}`;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (visibility === "public" && (!categoryId || files.length === 0)) return;
@@ -85,8 +90,15 @@ export default function UploadPublicPhotoPage() {
     setMsg(null);
     try {
       if (visibility === "public") {
-        for (const f of files) {
-          await uploadMasterAndCreateProcessingDoc({ file: f, categoryId, title, alt });
+        for (const [index, f] of files.entries()) {
+          const generatedTitle = buildSequentialLabel(index, title);
+          const generatedAlt = buildSequentialLabel(index, alt ?? title);
+          await uploadMasterAndCreateProcessingDoc({
+            file: f,
+            categoryId,
+            title: generatedTitle,
+            alt: generatedAlt,
+          });
         }
         setMsg(
           `${files.length} ficheiro(s) enviados para a pasta pública. As variantes serão geradas automaticamente.`
@@ -94,15 +106,17 @@ export default function UploadPublicPhotoPage() {
         setPrivateLinks([]);
       } else {
         const paths: { name: string; path: string }[] = [];
-        for (const f of files) {
+        for (const [index, f] of files.entries()) {
+          const generatedTitle = buildSequentialLabel(index);
           const { masterPath, createdAt } = await uploadPrivateMaster({ file: f, sessionId: sessionSlug });
           await registerPrivateSessionPhoto({
             sessionId: sessionSlug,
             masterPath,
-            title: f.name,
+            title: generatedTitle,
+            alt: generatedTitle,
             createdAt,
           });
-          paths.push({ name: f.name, path: masterPath });
+          paths.push({ name: generatedTitle, path: masterPath });
         }
         setPrivatePaths(paths);
         const links = await signPrivatePaths(paths);
@@ -228,22 +242,22 @@ export default function UploadPublicPhotoPage() {
               </label>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <input
-                className={inputBase}
-                placeholder="Título (opcional)"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={visibility === "private"}
-              />
-              <input
-                className={inputBase}
-                placeholder="Alt (opcional)"
-                value={alt}
-                onChange={(e) => setAlt(e.target.value)}
-                disabled={visibility === "private"}
-              />
-            </div>
+            {visibility === "public" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <input
+                  className={inputBase}
+                  placeholder="Título (opcional)"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+                <input
+                  className={inputBase}
+                  placeholder="Alt (opcional)"
+                  value={alt}
+                  onChange={(e) => setAlt(e.target.value)}
+                />
+              </div>
+            )}
 
             {files.length > 0 && (
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -354,4 +368,3 @@ export default function UploadPublicPhotoPage() {
     </main>
   );
 }
-

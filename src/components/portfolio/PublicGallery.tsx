@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { pickThumb, type PublicPhoto } from "@/lib/publicPhotos";
+import { useTranslations } from "next-intl";
 
 function formatDate(ts?: number) {
   if (!ts) return "";
@@ -17,6 +18,7 @@ function formatDate(ts?: number) {
 }
 
 export function PublicGallery() {
+  const t = useTranslations("portofolioPage");
   const [photos, setPhotos] = useState<PublicPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function PublicGallery() {
         const items = (Array.isArray(data.items) ? data.items : []) as PublicPhoto[];
         setPhotos(items.filter((p) => p.published !== false));
       } catch (err: any) {
-        setError(err?.message || "Falha ao carregar o portfÃ³lio. Tenta novamente em instantes.");
+        setError(err?.message || "Falha ao carregar o portfólio. Tenta novamente em instantes.");
         setPhotos([]);
       } finally {
         setLoading(false);
@@ -66,7 +68,7 @@ export function PublicGallery() {
   if (loading) {
     return (
       <div className="py-16 text-center text-sm text-white/70">
-        A preparar as imagensâ€¦
+        A preparar as imagens…
       </div>
     );
   }
@@ -75,7 +77,7 @@ export function PublicGallery() {
     return (
       <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-6 text-sm text-red-100">
         {error.includes("index")
-          ? "Precisamos de publicar o Ã­ndice do Firestore para concluir esta secÃ§Ã£o."
+          ? "Precisamos de publicar o índice do Firestore para concluir esta secção."
           : error}
       </div>
     );
@@ -84,7 +86,7 @@ export function PublicGallery() {
   if (photos.length === 0) {
     return (
       <div className="py-16 text-center text-sm text-white/70">
-        Ainda nÃ£o hÃ¡ histÃ³rias pÃºblicas aqui â€” volta em breve.
+        {t("empty")}
       </div>
     );
   }
@@ -118,20 +120,20 @@ export function PublicGallery() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cover.src}
-              alt={p.alt || p.title || "PortfÃ³lio"}
+              alt={p.alt || p.title || "Portfólio"}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
               loading="lazy"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-white/60">
-              {p.status === "processing" ? "A gerar variantesâ€¦" : "Sem preview"}
+              {p.status === "processing" ? "A gerar variantes…" : "Sem preview"}
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
         </div>
         <div className="space-y-2 px-5 py-4">
-          <h3 className="text-lg font-semibold text-white truncate">{p.title || "(sem tÃ­tulo)"}</h3>
-          <p className="text-sm text-white/70 truncate">{p.alt || "HistÃ³ria captada recentemente"}</p>
+          <h3 className="text-lg font-semibold text-white truncate">{p.title || "(sem título)"}</h3>
+          <p className="text-sm text-white/70 truncate">{p.alt || "História captada recentemente"}</p>
           <div className="flex items-center justify-between text-xs text-white/50 uppercase tracking-wide">
             <span>{formatDate(p.createdAt)}</span>
             {p.categoryId ? (
@@ -177,12 +179,12 @@ export function PublicGallery() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedCover.src}
-              alt={selectedPhoto.alt || selectedPhoto.title || "PortfÃ³lio"}
+              alt={selectedPhoto.alt || selectedPhoto.title || "Portfólio"}
               className="max-h-[80vh] w-full rounded-2xl object-contain"
             />
             <div className="space-y-1 px-1">
-              <h3 className="text-xl font-semibold">{selectedPhoto.title || "(sem tÃ­tulo)"}</h3>
-              <p className="text-sm text-white/70">{selectedPhoto.alt || "HistÃ³ria captada recentemente"}</p>
+              <h3 className="text-xl font-semibold">{selectedPhoto.title || "(sem título)"}</h3>
+              <p className="text-sm text-white/70">{selectedPhoto.alt || "História captada recentemente"}</p>
               <div className="text-xs uppercase tracking-wide text-white/50">
                 {formatDate(selectedPhoto.createdAt)}
               </div>

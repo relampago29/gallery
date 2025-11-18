@@ -13,7 +13,8 @@
     "portofolioPage": {
         "title": "Portfólio",
         "subtitle": "Uma seleção das histórias mais recentes que tivemos o privilégio de fotografar.",
-        "cta": "Quero marcar uma sessão"
+        "cta": "Quero marcar uma sessão",
+        "empty": "Ainda não há histórias públicas aqui — volta em breve."
     },
     "contactHomePage": {
         "badge": "Contacta-nos",

@@ -13,7 +13,8 @@
     "portofolioPage": {
         "title": "Portfolio",
         "subtitle": "A curated selection of the stories we captured most recently.",
-        "cta": "Book a session"
+        "cta": "Book a session",
+        "empty": "No public stories here yet — check back soon."
     },
     "contactHomePage": {
         "badge": "Contact us",
