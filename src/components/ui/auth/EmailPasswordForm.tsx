@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { auth } from "@/lib/firebase/client";
 import {
   GoogleAuthProvider,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
+  updateProfile,
   type User,
 } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -22,6 +24,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
 
   const [firebaseEmail, setFirebaseEmail] = useState("");
   const [firebasePassword, setFirebasePassword] = useState("");
+  const [firebaseName, setFirebaseName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [firebaseLoading, setFirebaseLoading] = useState(false);
@@ -114,11 +119,69 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
     }
   }
 
+  async function onFirebaseRegister(e: React.FormEvent) {
+    e.preventDefault();
+    if (!firebaseEmail.trim() || !firebasePassword.trim()) {
+      setFirebaseError("Indica email e password.");
+      return;
+    }
+    if (firebasePassword !== confirmPassword) {
+      setFirebaseError("As passwords têm de coincidir.");
+      return;
+    }
+    setFirebaseLoading(true);
+    setFirebaseError(null);
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, firebaseEmail.trim(), firebasePassword);
+      if (firebaseName.trim()) {
+        await updateProfile(credential.user, { displayName: firebaseName.trim() });
+      }
+      await syncNextAuthSession(credential.user);
+      router.replace(targetUrl);
+    } catch (err: any) {
+      const code = err?.code || "";
+      if (code === "auth/email-already-in-use") {
+        setFirebaseError("Este email já está registado.");
+      } else {
+        setFirebaseError(err?.message ?? "Falha ao criar conta.");
+      }
+    } finally {
+      setFirebaseLoading(false);
+    }
+  }
+
+  const isRegister = mode === "register";
+
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <button className="btn btn-outline" onClick={onGoogleSignIn} disabled={googleLoading || !!firebaseUser}>
-          {googleLoading ? "A iniciar sessão..." : "Entrar com Google"}
+        <div className="rounded-full border border-white/10 bg-white/5 p-1 text-sm text-white/70">
+          <div className="flex">
+            <button
+              type="button"
+              className={`flex-1 rounded-full px-4 py-2 font-medium transition ${!isRegister ? "bg-white text-gray-900" : "hover:bg-white/10"}`}
+              onClick={() => setMode("login")}
+              disabled={!isRegister}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded-full px-4 py-2 font-medium transition ${isRegister ? "bg-white text-gray-900" : "hover:bg-white/10"}`}
+              onClick={() => setMode("register")}
+              disabled={isRegister}
+            >
+              Criar conta
+            </button>
+          </div>
+        </div>
+
+        <button
+          className="btn btn-outline"
+          onClick={onGoogleSignIn}
+          disabled={googleLoading || (!!firebaseUser && !isRegister)}
+        >
+          {googleLoading ? "A autenticar..." : "Continuar com Google"}
         </button>
 
         {firebaseUser && (
@@ -136,8 +199,19 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         {googleError && <p className="text-red-600 text-sm">{googleError}</p>}
       </section>
 
-      <section className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-5">
-        <div className="text-sm text-white/80">Acesso direto ao Firebase (Email/Password)</div>
+      <section className="space-y-4 rounded-3xl border border-white/10 bg-[#070707]/80 p-5">
+        <div className="text-sm text-white/80">
+          {isRegister ? "Cria uma conta com email" : "Entrar com email e password"}
+        </div>
+        {isRegister && (
+          <input
+            className="input input-bordered w-full"
+            type="text"
+            placeholder="Nome completo (opcional)"
+            value={firebaseName}
+            onChange={(e) => setFirebaseName(e.target.value)}
+          />
+        )}
         <input
           className="input input-bordered w-full"
           type="email"
@@ -152,13 +226,26 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           value={firebasePassword}
           onChange={(e) => setFirebasePassword(e.target.value)}
         />
+        {isRegister && (
+          <input
+            className="input input-bordered w-full"
+            type="password"
+            placeholder="confirmar password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        )}
         <div className="flex gap-2">
-          <button className="btn btn-outline flex-1" onClick={onFirebaseSignIn} disabled={firebaseLoading || !!firebaseUser}>
-            {firebaseLoading ? "A autenticar..." : "Entrar no Firebase"}
+          <button
+            className="btn btn-outline flex-1"
+            onClick={isRegister ? onFirebaseRegister : onFirebaseSignIn}
+            disabled={firebaseLoading || (!!firebaseUser && !isRegister)}
+          >
+            {firebaseLoading ? "A processar..." : isRegister ? "Criar conta" : "Entrar"}
           </button>
-          {firebaseUser && (
+          {firebaseUser && !isRegister && (
             <button className="btn flex-1" onClick={onSignOut} disabled={firebaseLoading || googleLoading}>
-              Terminar Firebase
+              Terminar
             </button>
           )}
         </div>

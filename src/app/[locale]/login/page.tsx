@@ -3,14 +3,13 @@ import CardAuth from "@/components/ui/auth/CardAuth";
 
 export default function LoginPage() {
   return (
-    <div className="min-h-[70vh] flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-[#030303] py-16 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
         <CardAuth />
-        <div className="text-center text-sm text-gray-600 mt-4">
-          Após iniciar sessão, podes abrir a Dashboard.
-        </div>
+        <p className="mt-6 text-center text-sm text-white/70">
+          Após iniciar sessão, regressas automaticamente ao backoffice.
+        </p>
       </div>
     </div>
   );
 }
-

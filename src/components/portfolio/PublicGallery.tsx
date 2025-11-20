@@ -20,7 +20,10 @@ function formatDate(ts?: number) {
 export function PublicGallery() {
   const t = useTranslations("portofolioPage");
   const [photos, setPhotos] = useState<PublicPhoto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [cursor, setCursor] = useState<number | null>(null);
+  const [end, setEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
@@ -29,22 +32,56 @@ export function PublicGallery() {
     [photos, selectedPhotoId]
   );
 
+  const PAGE_SIZE = 18;
+
+  async function fetchBatch(nextCursor: number | null) {
+    const params = new URLSearchParams();
+    params.set("limit", String(PAGE_SIZE));
+    if (nextCursor != null) params.set("cursor", String(nextCursor));
+    const res = await fetch(`/api/public-photos/list?${params.toString()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const items = (Array.isArray(data.items) ? data.items : []) as PublicPhoto[];
+    return {
+      items: items.filter((p) => p.published !== false),
+      nextCursor: (data.nextCursor ?? null) as number | null,
+    };
+  }
+
   useEffect(() => {
+    setInitialLoading(true);
+    setError(null);
     (async () => {
       try {
-        const res = await fetch("/api/public-photos/list?limit=48", { cache: "no-store" });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        const items = (Array.isArray(data.items) ? data.items : []) as PublicPhoto[];
-        setPhotos(items.filter((p) => p.published !== false));
+        const batch = await fetchBatch(null);
+        setPhotos(batch.items);
+        setCursor(batch.nextCursor);
+        setEnd(!batch.nextCursor);
       } catch (err: any) {
         setError(err?.message || "Falha ao carregar o portfólio. Tenta novamente em instantes.");
         setPhotos([]);
+        setCursor(null);
+        setEnd(true);
       } finally {
-        setLoading(false);
+        setInitialLoading(false);
       }
     })();
   }, []);
+
+  async function loadMore() {
+    if (loadingMore || end || cursor == null) return;
+    setLoadingMore(true);
+    try {
+      const batch = await fetchBatch(cursor);
+      setPhotos((prev) => [...prev, ...batch.items]);
+      setCursor(batch.nextCursor);
+      setEnd(!batch.nextCursor || batch.items.length === 0);
+    } catch (err: any) {
+      setError(err?.message || "Erro ao carregar mais histórias.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   useEffect(() => {
     if (!selectedPhoto) return;
@@ -65,7 +102,7 @@ export function PublicGallery() {
     };
   }, [selectedPhoto]);
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="py-16 text-center text-sm text-white/70">
         A preparar as imagens…
@@ -156,7 +193,22 @@ export function PublicGallery() {
 
   return (
     <>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
+      <>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
+
+        {!end && photos.length > 0 && (
+          <div className="pt-8 text-center">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="inline-flex items-center justify-center rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 disabled:opacity-50"
+            >
+              {loadingMore ? t("loadingMore") : t("loadMore")}
+            </button>
+          </div>
+        )}
+      </>
 
       {selectedPhoto && selectedCover?.src && (
         <div

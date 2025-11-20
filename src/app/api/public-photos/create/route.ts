@@ -12,6 +12,7 @@ type Body = {
   categoryId: string;
   createdAt: number;         // do cliente (para paginação imediata)
   masterPath: string;        // ex.: masters/public/{uuid}.jpg
+  sequenceNumber?: number;
 };
 
 export async function POST(req: Request) {
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       published: false,
       status: "processing",
       masterPath: body.masterPath,
+      sequenceNumber: body.sequenceNumber ?? null,
       updatedAt: FieldValue.serverTimestamp(),
     });
 

@@ -14,6 +14,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /highlights/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Sessões privadas (bloqueadas por agora)
     match /client_sessions/{sessionId} {
       allow read, write: if false;

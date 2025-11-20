@@ -1,17 +1,25 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Sidebar } from "@/components/ui/auth/Sidebar";
 import RequireAuth from "@/components/ui/auth/RequireAuth";
 import { Toaster } from "sonner";
 import { ensureFirebaseUser } from "@/lib/firebase/ensureAuth";
 import { Link } from "@/i18n/navigation";
 import { useLocale } from "next-intl";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     ensureFirebaseUser().catch(console.error);
   }, []);
   const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const fallbackCallbackUrl = useMemo(() => {
+    const qs = searchParams?.toString();
+    return `${pathname}${qs ? `?${qs}` : ""}`;
+  }, [pathname, searchParams]);
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-[#030303] text-gray-100">
@@ -44,7 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-6 py-10">
-            <RequireAuth>{children}</RequireAuth>
+            <RequireAuth fallbackCallbackUrl={fallbackCallbackUrl}>{children}</RequireAuth>
           </div>
         </main>
       </div>

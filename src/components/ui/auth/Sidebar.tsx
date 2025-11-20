@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { usePathname } from "next/navigation";
-import { Images, UploadCloud, Tags } from "lucide-react";
+import { Images, UploadCloud, Tags, CreditCard } from "lucide-react";
 
 function NavItem({ href, active, icon, children }: { href: string; active?: boolean; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -29,6 +29,8 @@ export function Sidebar() {
     { label: "Upload", href: `${base}/public/upload`, icon: <UploadCloud size={16} /> },
     { label: "Lista", href: `${base}/public/list`, icon: <Images size={16} /> },
     { label: "Categorias", href: `${base}/categories`, icon: <Tags size={16} /> },
+    { label: "Highlights", href: `${base}/highlights`, icon: <Images size={16} /> },
+    { label: "Pagamentos", href: `${base}/payments`, icon: <CreditCard size={16} /> },
   ];
 
   return (

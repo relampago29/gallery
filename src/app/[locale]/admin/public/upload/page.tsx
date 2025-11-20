@@ -21,6 +21,7 @@ function slugifySessionName(name: string) {
 export default function UploadPublicPhotoPage() {
   const params = useParams<{ locale: string }>();
   const locale = params?.locale || "";
+  const sessionsPath = locale ? `/${locale}/sessions` : "/sessions";
 
   const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -30,34 +31,10 @@ export default function UploadPublicPhotoPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<"public" | "private">("public");
-  const [privateLinks, setPrivateLinks] = useState<{ name: string; url: string }[]>([]);
-  const [expiryHours, setExpiryHours] = useState<number>(48);
-  const [privatePaths, setPrivatePaths] = useState<{ name: string; path: string }[]>([]);
   const [sessionName, setSessionName] = useState("");
   const sessionSlug = useMemo(() => slugifySessionName(sessionName), [sessionName]);
-  const [sessionShare, setSessionShare] = useState<{ sessionId: string; url: string } | null>(null);
-
-  async function signPrivatePaths(paths: { name: string; path: string }[]) {
-    const out: { name: string; url: string }[] = [];
-    for (const p of paths) {
-      try {
-        const res = await fetch(`/api/storage/sign?path=${encodeURIComponent(p.path)}&hours=${expiryHours}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.url) out.push({ name: p.name, url: data.url });
-        }
-      } catch {
-        // ignore errors, re-run later
-      }
-    }
-    return out;
-  }
-
-  function buildSessionShareUrl(slug: string) {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const localePrefix = locale ? `/${locale}` : "";
-    return `${origin}${localePrefix}/sessions/${slug}?hours=${expiryHours}`;
-  }
+  const [lastSessionCode, setLastSessionCode] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -68,12 +45,31 @@ export default function UploadPublicPhotoPage() {
   }, []);
 
   useEffect(() => {
-    if (visibility === "public") setSessionShare(null);
+    if (visibility === "public") {
+      setLastSessionCode(null);
+    }
   }, [visibility]);
 
-  function buildSequentialLabel(index: number, base?: string | null) {
+  function buildSequentialLabel(sequenceNumber: number, base?: string | null) {
     const safeBase = base && base.trim().length ? base.trim() : "Foto";
-    return `${safeBase} ${index + 1}`;
+    return `${safeBase} ${sequenceNumber}`;
+  }
+
+  async function reserveSequenceNumbers(params: { mode: "public" | "private"; count: number; sessionId?: string }) {
+    const payload: any = { mode: params.mode, count: params.count };
+    if (params.sessionId) payload.sessionId = params.sessionId;
+    const res = await fetch("/api/upload/sequence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || `Falha (${res.status}) ao reservar numeração.`);
+    }
+    const data = await res.json();
+    const start = Number(data?.start) || 1;
+    return start;
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -87,27 +83,36 @@ export default function UploadPublicPhotoPage() {
       }
     }
     setBusy(true);
+    setProgress(0);
     setMsg(null);
     try {
+      const start = await reserveSequenceNumbers({
+        mode: visibility,
+        count: files.length,
+        sessionId: visibility === "private" ? sessionSlug : undefined,
+      });
+
       if (visibility === "public") {
         for (const [index, f] of files.entries()) {
-          const generatedTitle = buildSequentialLabel(index, title);
-          const generatedAlt = buildSequentialLabel(index, alt ?? title);
+          const sequenceNumber = start + index;
+          const generatedTitle = buildSequentialLabel(sequenceNumber, title);
+          const generatedAlt = buildSequentialLabel(sequenceNumber, alt ?? title);
           await uploadMasterAndCreateProcessingDoc({
             file: f,
             categoryId,
             title: generatedTitle,
             alt: generatedAlt,
+            sequenceNumber,
           });
+          setProgress((index + 1) / files.length);
         }
         setMsg(
           `${files.length} ficheiro(s) enviados para a pasta pública. As variantes serão geradas automaticamente.`
         );
-        setPrivateLinks([]);
       } else {
-        const paths: { name: string; path: string }[] = [];
         for (const [index, f] of files.entries()) {
-          const generatedTitle = buildSequentialLabel(index);
+          const sequenceNumber = start + index;
+          const generatedTitle = buildSequentialLabel(sequenceNumber);
           const { masterPath, createdAt } = await uploadPrivateMaster({ file: f, sessionId: sessionSlug });
           await registerPrivateSessionPhoto({
             sessionId: sessionSlug,
@@ -115,18 +120,13 @@ export default function UploadPublicPhotoPage() {
             title: generatedTitle,
             alt: generatedTitle,
             createdAt,
+            sequenceNumber,
           });
-          paths.push({ name: generatedTitle, path: masterPath });
+          setProgress((index + 1) / files.length);
         }
-        setPrivatePaths(paths);
-        const links = await signPrivatePaths(paths);
-        setPrivateLinks(links);
-        const shareUrl = buildSessionShareUrl(sessionSlug);
-        setSessionShare({ sessionId: sessionSlug, url: shareUrl });
+        setLastSessionCode(sessionSlug);
         setMsg(
-          `${files.length} ficheiro(s) enviados para "${sessionSlug}". Links ${
-            links.length ? "gerados" : "serão gerados em instantes"
-          } por ${expiryHours}h.`
+          `${files.length} ficheiro(s) enviados para "${sessionSlug}". Partilha este código com o cliente para selecionar as fotos.`
         );
       }
       setFiles([]);
@@ -136,6 +136,7 @@ export default function UploadPublicPhotoPage() {
       setMsg("Erro: " + (e?.message || String(e)));
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -164,7 +165,7 @@ export default function UploadPublicPhotoPage() {
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
           <h1 className="text-4xl font-semibold text-white tracking-tight">Upload & Sessões</h1>
           <p className="text-sm text-white/70">
-            Escolhe o destino, envia as fotos e partilha com o cliente através de um link privado.
+            Escolhe o destino, envia as fotos e partilha o código da sessão com o cliente para ele aceder em {sessionsPath}.
           </p>
         </header>
 
@@ -199,21 +200,6 @@ export default function UploadPublicPhotoPage() {
               </label>
 
               {visibility === "private" && (
-                <label className="space-y-2">
-                  <span className="text-xs uppercase tracking-[0.25em] text-white/60">Validade do link</span>
-                  <select
-                    className={selectBase}
-                    value={expiryHours}
-                    onChange={(e) => setExpiryHours(Number(e.target.value))}
-                  >
-                    <option value={24}>24 horas</option>
-                    <option value={48}>48 horas</option>
-                    <option value={168}>7 dias</option>
-                  </select>
-                </label>
-              )}
-
-              {visibility === "private" && (
                 <label className="space-y-2 sm:col-span-2">
                   <span className="text-xs uppercase tracking-[0.25em] text-white/60">Nome da sessão</span>
                   <input
@@ -224,18 +210,20 @@ export default function UploadPublicPhotoPage() {
                     required={visibility === "private"}
                   />
                   <span className="text-xs text-white/50">
-                    {sessionSlug ? `Link base: /sessions/${sessionSlug}` : "Usa apenas letras e números"}
+                    {sessionSlug
+                      ? `Código que o cliente vai introduzir em ${sessionsPath}: ${sessionSlug}`
+                      : "Usa apenas letras e números"}
                   </span>
                 </label>
               )}
 
-              <label className="space-y-2">
+              <label className="space-y-2 sm:col-span-2">
                 <span className="text-xs uppercase tracking-[0.25em] text-white/60">Ficheiros</span>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
-                  className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-8 text-sm text-white file:mr-4 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:text-gray-900 hover:border-white/40"
+                  className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-6 text-sm text-white file:mr-4 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:text-gray-900 hover:border-white/40"
                   onChange={(e) => setFiles(Array.from(e.target.files || []))}
                   required
                 />
@@ -284,84 +272,60 @@ export default function UploadPublicPhotoPage() {
               {msg}
             </div>
           )}
+          {progress !== null && (
+            <div className="border-t border-white/10 px-6 py-4">
+              <div className="mb-2 text-xs uppercase tracking-[0.3em] text-white/60">
+                Upload {Math.round(progress * 100)}%
+              </div>
+              <div className="h-2 w-full rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-white transition-all duration-300"
+                  style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+                />
+              </div>
+            </div>
+          )}
         </section>
 
         {visibility === "private" && (
           <section className={cardClass}>
-            <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm text-white/70">Links de download (válidos por {expiryHours}h)</span>
-              {privatePaths.length > 0 && (
-                <button
-                  type="button"
-                  className={pillButton}
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      const links = await signPrivatePaths(privatePaths);
-                      setPrivateLinks(links);
-                      if (!links.length) {
-                        setMsg("Ainda a preparar os ficheiros. Tenta novamente em alguns segundos.");
-                      }
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  Gerar links
-                </button>
-              )}
-            </div>
-            {privateLinks.length === 0 ? (
-              <div className="px-6 py-5 text-sm text-white/60">
-                Sem links ainda. Assim que os ficheiros ficarem visíveis, clica em “Gerar links”.
+            <div className="space-y-5 px-6 py-6">
+              <div className="space-y-2">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/60">Partilha com o cliente</p>
+                <h3 className="text-2xl font-semibold text-white">Código da sessão</h3>
+                <p className="text-sm text-white/70">
+                  Depois de terminares o upload envia este código ao cliente. Ele só precisa de visitar {sessionsPath} e introduzir o
+                  identificador para escolher as fotos favoritas.
+                </p>
               </div>
-            ) : (
-              <ul className="space-y-3 px-6 py-5">
-                {privateLinks.map((l, idx) => (
-                  <li
-                    key={idx}
-                    className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+              {lastSessionCode ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-white/60">Código</div>
+                    <div className="text-2xl font-mono text-white">{lastSessionCode}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={pillButton}
+                    onClick={() => navigator.clipboard.writeText(lastSessionCode)}
                   >
-                    <div className="truncate">
-                      <div className="font-medium text-white truncate">{l.name}</div>
-                      <a
-                        className="text-xs text-white/70 break-all hover:text-white"
-                        href={l.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {l.url}
-                      </a>
-                    </div>
-                    <button type="button" className={pillButton} onClick={() => navigator.clipboard.writeText(l.url)}>
-                      Copiar
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {sessionShare && (
-              <div className="border-t border-white/10 px-6 py-5 space-y-2">
-                <div className="text-sm font-semibold text-white">Link geral da sessão ({sessionShare.sessionId})</div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <a
-                    className="text-sm text-white/80 break-all hover:text-white"
-                    href={sessionShare.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {sessionShare.url}
-                  </a>
-                  <button type="button" className={pillButton} onClick={() => navigator.clipboard.writeText(sessionShare.url)}>
                     Copiar
                   </button>
                 </div>
-                <p className="text-xs text-white/60">
-                  Junta todas as fotos enviadas nesta sessão e expira em {expiryHours}h.
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/15 bg-transparent px-4 py-4 text-sm text-white/60">
+                  Assim que guardares uma sessão privada o código fica disponível aqui.
+                </div>
+              )}
+              <ul className="space-y-2 text-sm text-white/70">
+                <li>1. Faz upload das fotos para a pasta privada.</li>
+                <li>2. Envia o código ao cliente.</li>
+                <li>
+                  3. O cliente entra em <span className="font-mono text-white">{sessionsPath}</span>, introduz o código e escolhe as fotos.
+                </li>
+                <li>4. Quando confirmares o pagamento, o download fica disponível automaticamente.</li>
+              </ul>
+            </div>
           </section>
         )}
       </div>

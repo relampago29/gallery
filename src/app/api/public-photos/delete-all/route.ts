@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { firestoreAdmin } from "@/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function POST() {
   try {
@@ -23,6 +24,11 @@ export async function POST() {
     });
 
     await writer.close();
+
+    await firestoreAdmin
+      .collection("admin")
+      .doc("upload_counters")
+      .set({ public: 0, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 
     return NextResponse.json({ deleted: count }, { status: 200 });
   } catch (err: any) {

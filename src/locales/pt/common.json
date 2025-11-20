@@ -5,7 +5,8 @@
         "contact": "Contacta-nos",
         "team": "Equipa",
         "home": "Início",
-        "logout": "Terminar sessão"
+        "logout": "Terminar sessão",
+        "viewSession": "Vê a tua sessão"
     },
     "protofolioHomePage": {
         "highlights": "Destaques"
@@ -14,7 +15,9 @@
         "title": "Portfólio",
         "subtitle": "Uma seleção das histórias mais recentes que tivemos o privilégio de fotografar.",
         "cta": "Quero marcar uma sessão",
-        "empty": "Ainda não há histórias públicas aqui — volta em breve."
+        "empty": "Ainda não há histórias públicas aqui — volta em breve.",
+        "loadMore": "Carregar mais histórias",
+        "loadingMore": "A carregar…"
     },
     "contactHomePage": {
         "badge": "Contacta-nos",

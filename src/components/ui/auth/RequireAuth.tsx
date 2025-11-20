@@ -6,7 +6,12 @@ import { auth } from "@/lib/firebase/client";
 import CardAuth from "@/components/ui/auth/CardAuth";
 import { useRouter } from "next/navigation";
 
-export default function RequireAuth({ children }: { children: ReactNode }) {
+type Props = {
+  children: ReactNode;
+  fallbackCallbackUrl?: string;
+};
+
+export default function RequireAuth({ children, fallbackCallbackUrl }: Props) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [user, setUser] = useState<User | null>(null);
@@ -40,8 +45,8 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   if (!user)
     return (
       <div className="min-h-[70vh] w-full flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <CardAuth />
+        <div className="w-full max-w-4xl">
+          <CardAuth defaultCallbackUrl={fallbackCallbackUrl} />
         </div>
       </div>
     );
