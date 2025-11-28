@@ -1,24 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
+import { useParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
 
-export default function OrderDownloadPage({ params }: { params: { orderId: string } }) {
+export default function OrderDownloadPage() {
   const locale = useLocale();
-  const token = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("token") || "";
-  }, []);
+  const params = useParams<{ orderId: string; locale: string }>();
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [token, setToken] = useState<string>("");
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const runningRef = useRef(false);
 
-  const orderId = params.orderId;
+  useEffect(() => {
+    setOrderId(params?.orderId || null);
+    const qsToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") || "" : "";
+    setToken(qsToken);
+  }, [params?.orderId]);
 
   const triggerDownload = useCallback(async () => {
-    if (!token || runningRef.current) return;
+    if (!token || !orderId || runningRef.current) return;
     runningRef.current = true;
     setState("running");
     setError(null);
@@ -47,10 +51,10 @@ export default function OrderDownloadPage({ params }: { params: { orderId: strin
   }, [orderId, token]);
 
   useEffect(() => {
-    if (token) {
+    if (token && orderId) {
       triggerDownload();
     }
-  }, [token, triggerDownload]);
+  }, [token, triggerDownload, orderId]);
 
   return (
     <div className="min-h-screen bg-[#030303] text-gray-100">
@@ -91,7 +95,7 @@ export default function OrderDownloadPage({ params }: { params: { orderId: strin
           </Link>
         </div>
 
-        <div className="text-xs text-white/60">Pedido #{orderId}</div>
+        {orderId ? <div className="text-xs text-white/60">Pedido #{orderId}</div> : null}
       </main>
     </div>
   );

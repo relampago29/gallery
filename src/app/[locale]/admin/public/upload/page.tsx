@@ -9,13 +9,13 @@ import {
 } from "@/lib/publicPhotos";
 import { useParams } from "next/navigation";
 
-function slugifySessionName(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+function generateSessionCode() {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let code = "";
+  for (let i = 0; i < 8; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
 }
 
 export default function UploadPublicPhotoPage() {
@@ -32,9 +32,10 @@ export default function UploadPublicPhotoPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [sessionName, setSessionName] = useState("");
-  const sessionSlug = useMemo(() => slugifySessionName(sessionName), [sessionName]);
+  const [sessionCode, setSessionCode] = useState<string>(() => generateSessionCode());
   const [lastSessionCode, setLastSessionCode] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const [savingSession, setSavingSession] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -47,6 +48,7 @@ export default function UploadPublicPhotoPage() {
   useEffect(() => {
     if (visibility === "public") {
       setLastSessionCode(null);
+      setSessionCode(generateSessionCode());
     }
   }, [visibility]);
 
@@ -77,8 +79,8 @@ export default function UploadPublicPhotoPage() {
     if (visibility === "public" && (!categoryId || files.length === 0)) return;
     if (visibility === "private") {
       if (files.length === 0) return;
-      if (!sessionSlug) {
-        setMsg("Escolhe um nome válido para a sessão.");
+      if (!sessionCode) {
+        setMsg("Gera um código antes de continuar.");
         return;
       }
     }
@@ -86,10 +88,26 @@ export default function UploadPublicPhotoPage() {
     setProgress(0);
     setMsg(null);
     try {
+      if (visibility === "private") {
+        setSavingSession(true);
+        const resMeta = await fetch("/api/session-photos/upsert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionCode,
+            name: sessionName.trim() || sessionCode,
+          }),
+        });
+        if (!resMeta.ok) {
+          const data = await resMeta.json().catch(() => ({}));
+          throw new Error(data?.error || "Falha ao preparar sessão.");
+        }
+        setSavingSession(false);
+      }
       const start = await reserveSequenceNumbers({
         mode: visibility,
         count: files.length,
-        sessionId: visibility === "private" ? sessionSlug : undefined,
+        sessionId: visibility === "private" ? sessionCode : undefined,
       });
 
       if (visibility === "public") {
@@ -113,9 +131,9 @@ export default function UploadPublicPhotoPage() {
         for (const [index, f] of files.entries()) {
           const sequenceNumber = start + index;
           const generatedTitle = buildSequentialLabel(sequenceNumber);
-          const { masterPath, createdAt } = await uploadPrivateMaster({ file: f, sessionId: sessionSlug });
+          const { masterPath, createdAt } = await uploadPrivateMaster({ file: f, sessionId: sessionCode });
           await registerPrivateSessionPhoto({
-            sessionId: sessionSlug,
+            sessionId: sessionCode,
             masterPath,
             title: generatedTitle,
             alt: generatedTitle,
@@ -124,9 +142,9 @@ export default function UploadPublicPhotoPage() {
           });
           setProgress((index + 1) / files.length);
         }
-        setLastSessionCode(sessionSlug);
+        setLastSessionCode(sessionCode);
         setMsg(
-          `${files.length} ficheiro(s) enviados para "${sessionSlug}". Partilha este código com o cliente para selecionar as fotos.`
+          `${files.length} ficheiro(s) enviados para "${sessionCode}". Partilha este código com o cliente para selecionar as fotos.`
         );
       }
       setFiles([]);
@@ -140,9 +158,6 @@ export default function UploadPublicPhotoPage() {
     }
   }
 
-  const shellBg = "relative min-h-screen overflow-hidden bg-[#030303] text-gray-100";
-  const backdrop =
-    "pointer-events-none absolute inset-0 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_60%)] before:content-['']";
   const cardClass =
     "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm";
   const inputBase =
@@ -154,13 +169,7 @@ export default function UploadPublicPhotoPage() {
     "rounded-full border border-white/30 px-4 py-1.5 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50 disabled:opacity-40";
 
   return (
-    <main className={shellBg}>
-      <div className={backdrop}>
-        <div className="absolute -left-16 top-24 h-72 w-72 rounded-full bg-[#7c3aed1f] blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b61f] blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-5xl space-y-10 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="space-y-10">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
           <h1 className="text-4xl font-semibold text-white tracking-tight">Upload & Sessões</h1>
@@ -183,39 +192,48 @@ export default function UploadPublicPhotoPage() {
                   <option value="private">Pasta privada</option>
                 </select>
               </label>
-              <label className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.25em] text-white/60">Categoria</span>
-                <select
-                  className={selectBase}
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  disabled={visibility === "private"}
-                >
-                  {cats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {visibility === "public" && (
+                <label className="space-y-2">
+                  <span className="text-xs uppercase tracking-[0.25em] text-white/60">Categoria</span>
+                  <select
+                    className={selectBase}
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                  >
+                    {cats.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               {visibility === "private" && (
                 <label className="space-y-2 sm:col-span-2">
-                  <span className="text-xs uppercase tracking-[0.25em] text-white/60">Nome da sessão</span>
-                  <input
-                    className={inputBase}
-                    placeholder="Ex.: Sessão Joana & Rui"
-                    value={sessionName}
-                    onChange={(e) => setSessionName(e.target.value)}
-                    required={visibility === "private"}
-                  />
+                <span className="text-xs uppercase tracking-[0.25em] text-white/60">Nome da sessão</span>
+                <input
+                  className={inputBase}
+                  placeholder="Ex.: Sessão Joana & Rui"
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  required={visibility === "private"}
+                />
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="text-xs text-white/50">
-                    {sessionSlug
-                      ? `Código que o cliente vai introduzir em ${sessionsPath}: ${sessionSlug}`
-                      : "Usa apenas letras e números"}
+                    Código que o cliente introduz em {sessionsPath}:{" "}
+                    <span className="font-mono text-white">{sessionCode}</span>
                   </span>
-                </label>
-              )}
+                  <button
+                    type="button"
+                    className={pillButton}
+                    onClick={() => setSessionCode(generateSessionCode())}
+                  >
+                    Gerar novo código
+                  </button>
+                </div>
+              </label>
+            )}
 
               <label className="space-y-2 sm:col-span-2">
                 <span className="text-xs uppercase tracking-[0.25em] text-white/60">Ficheiros</span>
@@ -255,16 +273,17 @@ export default function UploadPublicPhotoPage() {
 
             <div className="pt-2">
               <button
-                className={primaryButton}
-                disabled={
-                  busy ||
-                  files.length === 0 ||
-                  (visibility === "public" && !categoryId) ||
-                  (visibility === "private" && !sessionSlug)
-                }
-              >
-                {busy ? "A enviar…" : visibility === "public" ? "Guardar no portfólio" : "Guardar sessão privada"}
-              </button>
+              className={primaryButton}
+              disabled={
+                busy ||
+                savingSession ||
+                files.length === 0 ||
+                (visibility === "public" && !categoryId) ||
+                (visibility === "private" && !sessionCode)
+              }
+            >
+              {busy ? "A enviar…" : visibility === "public" ? "Guardar no portfólio" : "Guardar sessão privada"}
+            </button>
             </div>
           </form>
           {msg && (
@@ -328,7 +347,6 @@ export default function UploadPublicPhotoPage() {
             </div>
           </section>
         )}
-      </div>
-    </main>
+    </div>
   );
 }

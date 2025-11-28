@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="relative z-10 flex flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-white/10 bg-[#030303]/80 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5">
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-white/60">Admin</p>
               <div className="text-lg font-semibold text-white">Dashboard</div>

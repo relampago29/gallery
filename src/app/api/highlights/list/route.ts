@@ -10,7 +10,10 @@ export async function GET() {
     const snap = await db.collection("highlights").orderBy("order", "asc").limit(12).get();
 
     const items = snap.docs
-      .map((doc) => ({ id: doc.id, ...(doc.data() as Record<string, unknown>) }))
+      .map((doc) => {
+        const data = doc.data() as Record<string, unknown>;
+        return { id: doc.id, ...data } as { id: string; order?: number; createdAt?: number; [key: string]: unknown };
+      })
       .sort((a, b) => {
         const orderA = typeof a.order === "number" ? a.order : 0;
         const orderB = typeof b.order === "number" ? b.order : 0;

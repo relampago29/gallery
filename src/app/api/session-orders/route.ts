@@ -133,11 +133,36 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const sessionId = sanitizeSessionId(searchParams.get("sessionId") || "");
+    const status = (searchParams.get("status") || "").toLowerCase();
+
+    const db = getAdminDb();
+
+    if (status === "paid") {
+      // evita índice composto: busca últimos pedidos e filtra pagos/fulfilled em memória
+      const snapshot = await db.collection("session_orders").orderBy("createdAt", "desc").limit(200).get();
+
+      const items = snapshot.docs
+        .map((doc) => {
+          const data = doc.data() || {};
+          return {
+            id: doc.id,
+            status: data.status || "pending",
+            token: data.publicToken,
+            createdAt: data.createdAt || null,
+            sessionId: data.sessionId,
+            sessionName: data.sessionName || data.sessionId,
+            selectedCount: data.selectedCount || (Array.isArray(data.selectedPhotos) ? data.selectedPhotos.length : 0),
+          };
+        })
+        .filter((it) => it.status === "paid" || it.status === "fulfilled");
+
+      return NextResponse.json({ items });
+    }
+
     if (!sessionId) {
       return NextResponse.json({ error: "sessionId obrigatório" }, { status: 400 });
     }
 
-    const db = getAdminDb();
     const snapshot = await db
       .collection("session_orders")
       .where("sessionId", "==", sessionId)

@@ -105,7 +105,7 @@ const NavBar: React.FC = () => {
             </Link>
             </li>
             <li>
-              <Link href="/sessions">{translate("viewSession")}</Link>
+              <Link className="text-2xl" href="/sessions">{translate("viewSession")}</Link>
             </li>
           {/* <li>
             <a>{translate("about")}</a>

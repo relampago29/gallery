@@ -76,81 +76,72 @@ export default function CategoriesAdminPage() {
     "rounded-full border border-red-400/70 px-4 py-1.5 text-sm text-red-200 hover:bg-red-500/10 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300";
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#030303] text-gray-100">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_60%)]" />
-        <div className="absolute -right-10 top-20 h-72 w-72 rounded-full bg-[#7c3aed1f] blur-3xl" />
-        <div className="absolute left-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b61f] blur-3xl" />
-      </div>
+    <div className="space-y-10">
+      <header className="space-y-3">
+        <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
+        <h1 className="text-4xl font-semibold text-white tracking-tight">Categorias</h1>
+        <p className="text-sm text-white/70">Cria, ativa/desativa e organiza as categorias do portfólio.</p>
+      </header>
 
-      <div className="relative z-10 mx-auto max-w-5xl space-y-10 py-12 px-4 sm:px-6 lg:px-8">
-        <header className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
-          <h1 className="text-4xl font-semibold text-white tracking-tight">Categorias</h1>
-          <p className="text-sm text-white/70">Cria, ativa/desativa e organiza as categorias do portfólio.</p>
-        </header>
+      <section className={cardClass}>
+        <form onSubmit={createCategory} className="grid gap-4 p-6 sm:grid-cols-3">
+          <input
+            className={`${inputClass} sm:col-span-1`}
+            placeholder="Nome da categoria"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <input
+            className={`${inputClass} sm:col-span-1`}
+            placeholder="Descrição (opcional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <button className={`${primaryBtn} sm:col-span-1`} disabled={busy || !name.trim()}>
+            {busy ? "A guardar…" : "Criar categoria"}
+          </button>
+        </form>
+      </section>
 
-        <section className={cardClass}>
-          <form onSubmit={createCategory} className="grid gap-4 p-6 sm:grid-cols-3">
-            <input
-              className={`${inputClass} sm:col-span-1`}
-              placeholder="Nome da categoria"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            <input
-              className={`${inputClass} sm:col-span-1`}
-              placeholder="Descrição (opcional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-            <button className={`${primaryBtn} sm:col-span-1`} disabled={busy || !name.trim()}>
-              {busy ? "A guardar…" : "Criar categoria"}
-            </button>
-          </form>
-        </section>
-
-        <section className={cardClass}>
-          <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-            <div>
-              <div className="text-sm uppercase tracking-[0.2em] text-white/60">Lista</div>
-              <div className="text-lg font-semibold text-white">{items.length} categorias</div>
-            </div>
-            <div className="text-xs text-white/50">Atualiza ou remove categorias rapidamente</div>
+      <section className={cardClass}>
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+          <div>
+            <div className="text-sm uppercase tracking-[0.2em] text-white/60">Lista</div>
+            <div className="text-lg font-semibold text-white">{items.length} categorias</div>
           </div>
-          <div className="divide-y divide-white/10">
-            {items.length === 0 ? (
-              <div className="p-6 text-center text-white/60">Sem categorias ainda. Cria a primeira acima.</div>
-            ) : (
-              items.map((c) => (
-                <div key={c.id} className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-base font-medium text-white">{c.name}</div>
-                    {c.description ? <div className="text-sm text-white/60">{c.description}</div> : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${
-                        c.active ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/50" : "border border-white/20 text-white/60"
-                      }`}
-                    >
-                      {c.active ? "Ativa" : "Inativa"}
-                    </span>
-                    <button className={subtleBtn} onClick={() => toggleActive(c.id, !c.active)} disabled={busy}>
-                      {c.active ? "Desativar" : "Ativar"}
-                    </button>
-                    <button className={dangerBtn} onClick={() => remove(c.id)} disabled={busy}>
-                      Apagar
-                    </button>
-                  </div>
+          <div className="text-xs text-white/50">Atualiza ou remove categorias rapidamente</div>
+        </div>
+        <div className="divide-y divide-white/10">
+          {items.length === 0 ? (
+            <div className="p-6 text-center text-white/60">Sem categorias ainda. Cria a primeira acima.</div>
+          ) : (
+            items.map((c) => (
+              <div key={c.id} className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-base font-medium text-white">{c.name}</div>
+                  {c.description ? <div className="text-sm text-white/60">{c.description}</div> : null}
                 </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
-    </main>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${
+                      c.active ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/50" : "border border-white/20 text-white/60"
+                    }`}
+                  >
+                    {c.active ? "Ativa" : "Inativa"}
+                  </span>
+                  <button className={subtleBtn} onClick={() => toggleActive(c.id, !c.active)} disabled={busy}>
+                    {c.active ? "Desativar" : "Ativar"}
+                  </button>
+                  <button className={dangerBtn} onClick={() => remove(c.id)} disabled={busy}>
+                    Apagar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
-

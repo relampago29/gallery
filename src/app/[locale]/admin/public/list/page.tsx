@@ -111,45 +111,6 @@ export default function PublicListPage() {
     }
   }
 
-  async function loadPrivateSession(e?: React.FormEvent) {
-    e?.preventDefault();
-    const slug = sessionInput.trim();
-    if (!slug) {
-      setPrivateError("Indica o identificador da sessão (ex.: joana-rui).");
-      return;
-    }
-    setPrivateLoading(true);
-    setPrivateError(null);
-    try {
-      const res = await fetch(`/api/session-photos/list?sessionId=${encodeURIComponent(slug)}&hours=48`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || `Falha (${res.status})`);
-      }
-      const data = await res.json();
-      setPrivatePhotos(Array.isArray(data.files) ? data.files : []);
-      setPrivateSession(data.sessionId || slug);
-      setPrivateSessionName(data.sessionName || slug);
-      setPrivateExpiresAt(typeof data.expiresAt === "number" ? data.expiresAt : null);
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      setPrivateShareUrl(origin ? `${origin}${shareLocalePrefix}${slug}?hours=48` : null);
-    } catch (err: any) {
-      setPrivateError(err?.message || "Falhou ao carregar a sessão privada.");
-      setPrivatePhotos([]);
-      setPrivateSession(slug);
-      setPrivateSessionName(null);
-      setPrivateExpiresAt(null);
-      setPrivateShareUrl(null);
-    } finally {
-      setPrivateLoading(false);
-    }
-  }
-
-  const shellBg = "relative min-h-screen overflow-hidden bg-[#030303] text-gray-100";
-  const backdrop =
-    "pointer-events-none absolute inset-0 before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_60%)] before:content-['']";
   const cardClass =
     "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm";
   const inputBase =
@@ -196,13 +157,7 @@ export default function PublicListPage() {
   }
 
   return (
-    <main className={shellBg}>
-      <div className={backdrop}>
-        <div className="absolute left-0 top-24 h-72 w-72 rounded-full bg-[#7c3aed1f] blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b61f] blur-3xl" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-6xl space-y-10 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="space-y-10">
         <header className="space-y-6 text-center sm:text-left">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -464,7 +419,6 @@ export default function PublicListPage() {
             )}
           </section>
         )}
-      </div>
-    </main>
+    </div>
   );
 }
