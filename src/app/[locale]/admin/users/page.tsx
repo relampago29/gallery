@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { AdminNotification } from "@/components/admin/Notification";
 
 type AdminUser = {
   uid: string;
@@ -75,6 +76,13 @@ export default function UsersAdminPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [prefetchingPages, setPrefetchingPages] = useState(false);
   const [pagesFullyLoaded, setPagesFullyLoaded] = useState(false);
+  const [deletingUid, setDeletingUid] = useState<string | null>(null);
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    type?: "success" | "error" | "warning" | "info";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
 
   const PAGE_SIZE = 5;
 
@@ -168,6 +176,7 @@ export default function UsersAdminPage() {
 
   useEffect(() => {
     loadUsers(0);
+    setCurrentUid(auth.currentUser?.uid ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -182,8 +191,53 @@ export default function UsersAdminPage() {
   const hasNext = pagesFullyLoaded ? pageIndex < pageTokens.length - 1 : !!nextPageToken;
   const pageList = buildPageItems(Math.max(totalPages, 1), pageIndex);
 
+  async function deleteUser(uid: string, confirmed = false) {
+    if (!uid) return;
+    if (!confirmed) {
+      setToast({
+        type: "warning",
+        message: "Tens a certeza que queres apagar este utilizador?",
+        actions: [
+          { label: "Cancelar", onClick: () => setToast(null) },
+          {
+            label: "Apagar",
+            variant: "primary",
+            onClick: () => {
+              setToast(null);
+              deleteUser(uid, true);
+            },
+          },
+        ],
+      });
+      return;
+    }
+    try {
+      setDeletingUid(uid);
+      const token = await getIdToken();
+      const res = await fetch("/api/users", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || "Falha ao apagar utilizador.");
+      }
+      await loadUsers(pageIndex);
+      setToast({ type: "success", message: "Utilizador apagado com sucesso." });
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message || "Não foi possível apagar o utilizador." });
+    } finally {
+      setDeletingUid(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
+      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
@@ -218,37 +272,52 @@ export default function UsersAdminPage() {
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center text-sm text-white/60">Sem utilizadores para mostrar.</div>
         ) : (
           <div className="divide-y divide-white/10">
-            {filteredUsers.map((user) => (
-              <div key={user.uid} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <div className="text-base font-semibold text-white">{user.email || "Sem email"}</div>
-                  <div className="text-sm text-white/70">{user.displayName || "Sem nome"}</div>
-                  <div className="text-xs text-white/50">
-                    Criado: {formatDate(user.createdAt)} · Último acesso: {formatDate(user.lastLoginAt)}
+            {filteredUsers.map((user) => {
+              const isSelf = currentUid === user.uid;
+              const isDeleting = deletingUid === user.uid;
+              return (
+                <div key={user.uid} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-base font-semibold text-white">{user.email || "Sem email"}</div>
+                    <div className="text-sm text-white/70">{user.displayName || "Sem nome"}</div>
+                    <div className="text-xs text-white/50">
+                      Criado: {formatDate(user.createdAt)} · Último acesso: {formatDate(user.lastLoginAt)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:items-end">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white/80">{providerLabel(user.provider)}</span>
+                      <span
+                        className={`rounded-full px-3 py-1 font-semibold ${
+                          user.emailVerified ? "border border-emerald-400/60 bg-emerald-500/10 text-emerald-100" : "border border-amber-400/60 bg-amber-500/10 text-amber-100"
+                        }`}
+                      >
+                        {user.emailVerified ? "Email verificado" : "Email por verificar"}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 ${
+                          user.disabled ? "border border-red-400/60 bg-red-500/10 text-red-100" : "border border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
+                        }`}
+                      >
+                        {user.disabled ? "Conta desativada" : "Ativa"}
+                      </span>
+                      <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-white/70" title={user.uid}>
+                        UID {abbreviateUid(user.uid)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(user.uid)}
+                      disabled={isSelf || isDeleting || loading}
+                      className="w-full rounded-full border border-red-400/60 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      title={isSelf ? "Não podes apagar a tua própria conta" : undefined}
+                    >
+                      {isDeleting ? "A apagar…" : "Apagar utilizador"}
+                    </button>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white/80">{providerLabel(user.provider)}</span>
-                  <span
-                    className={`rounded-full px-3 py-1 font-semibold ${
-                      user.emailVerified ? "border border-emerald-400/60 bg-emerald-500/10 text-emerald-100" : "border border-amber-400/60 bg-amber-500/10 text-amber-100"
-                    }`}
-                  >
-                    {user.emailVerified ? "Email verificado" : "Email por verificar"}
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 ${
-                      user.disabled ? "border border-red-400/60 bg-red-500/10 text-red-100" : "border border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
-                    }`}
-                  >
-                    {user.disabled ? "Conta desativada" : "Ativa"}
-                  </span>
-                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-white/70" title={user.uid}>
-                    UID {abbreviateUid(user.uid)}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

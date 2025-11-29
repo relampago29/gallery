@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { AdminNotification } from "@/components/admin/Notification";
 
 type SessionRow = {
   id: string;
@@ -33,6 +34,12 @@ export default function PrivateSessionsAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    type?: "success" | "error" | "warning" | "info";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
   const PAGE_SIZE = 8;
 
   async function loadSessions() {
@@ -80,8 +87,53 @@ export default function PrivateSessionsAdminPage() {
     setPageIndex(idx);
   };
 
+  async function deleteSession(id: string, confirmed = false) {
+    if (!id) return;
+    if (!confirmed) {
+      setToast({
+        type: "warning",
+        message: "Tens a certeza que queres apagar esta sessão? Esta ação não pode ser desfeita.",
+        actions: [
+          { label: "Cancelar", onClick: () => setToast(null) },
+          {
+            label: "Apagar",
+            variant: "primary",
+            onClick: () => {
+              setToast(null);
+              deleteSession(id, true);
+            },
+          },
+        ],
+      });
+      return;
+    }
+    try {
+      setDeletingId(id);
+      const token = await getIdToken();
+      const res = await fetch("/api/admin/sessions", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Falha ao apagar sessão.");
+      }
+      setItems((prev) => prev.filter((s) => s.id !== id));
+      setToast({ type: "success", message: "Sessão apagada com sucesso." });
+    } catch (err: any) {
+      setToast({ type: "error", message: err?.message || "Não foi possível apagar esta sessão." });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
+      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Sessões</p>
         <h1 className="text-3xl font-semibold text-white">Sessões privadas</h1>
@@ -117,7 +169,7 @@ export default function PrivateSessionsAdminPage() {
         <div className="space-y-4">
           {pageItems.map((item) => (
             <div key={item.id} className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-              <div className="grid gap-3 sm:grid-cols-5 sm:items-center">
+              <div className="grid gap-3 sm:grid-cols-6 sm:items-center">
                 <div className="sm:col-span-2 space-y-1">
                   <div className="text-base font-semibold text-white">{item.name || "Sessão sem nome"}</div>
                   <div className="text-xs uppercase tracking-[0.35em] text-white/50">{item.id}</div>
@@ -133,6 +185,16 @@ export default function PrivateSessionsAdminPage() {
                 <div className="space-y-1 text-sm text-white/70">
                   <div className="text-xs uppercase tracking-[0.2em] text-white/50">Estado</div>
                   <div className="font-medium text-white">{item.status || "open"}</div>
+                </div>
+                <div className="flex sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => deleteSession(item.id)}
+                    disabled={deletingId === item.id}
+                    className="w-full sm:w-auto rounded-full border border-red-400/60 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
+                  >
+                    {deletingId === item.id ? "A apagar…" : "Apagar sessão"}
+                  </button>
                 </div>
               </div>
             </div>

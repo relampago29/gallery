@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Highlight, fetchHighlights } from "@/lib/highlights";
 import { auth, storage } from "@/lib/firebase/client";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { AdminNotification } from "@/components/admin/Notification";
 
 const emptyForm = {
   title: "",
@@ -22,6 +23,11 @@ export default function HighlightsAdminPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [toast, setToast] = useState<{
+    type?: "success" | "error" | "warning" | "info";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
 
   async function loadHighlights() {
     setLoading(true);
@@ -164,25 +170,40 @@ export default function HighlightsAdminPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover este destaque?")) return;
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      await callAuthorized("/api/highlights/delete", { id });
-      setSuccess("Destaque removido.");
-      await loadHighlights();
-    } catch (err: any) {
-      setError(err?.message || "Falha ao remover.");
-    } finally {
-      setSaving(false);
-    }
+    if (!id) return;
+    setToast({
+      type: "warning",
+      message: "Remover este destaque?",
+      actions: [
+        { label: "Cancelar", onClick: () => setToast(null) },
+        {
+          label: "Remover",
+          variant: "primary",
+          onClick: async () => {
+            setToast(null);
+            setSaving(true);
+            setError(null);
+            setSuccess(null);
+            try {
+              await callAuthorized("/api/highlights/delete", { id });
+              setSuccess("Destaque removido.");
+              await loadHighlights();
+            } catch (err: any) {
+              setError(err?.message || "Falha ao remover.");
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ],
+    });
   }
 
   const editingItem = useMemo(() => items.find((it) => it.id === editingId) || null, [editingId, items]);
 
   return (
     <div className="space-y-8">
+      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Admin</p>
         <h1 className="text-3xl font-semibold text-white">Highlights</h1>
