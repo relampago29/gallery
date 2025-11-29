@@ -1,14 +1,12 @@
 [
   {
-    "origin": ["http://localhost:3000"],
-    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
-    "responseHeader": ["Authorization", "Content-Type", "x-goog-meta-*"],
-    "maxAgeSeconds": 3600
-  },
-  {
-    "origin": ["*"],
-    "method": ["GET", "HEAD"],
-    "responseHeader": ["Content-Type"],
+    "origin": [
+      "https://www.momentos.work",
+      "https://momentos.work",
+      "http://localhost:3000"
+    ],
+    "method": ["GET", "POST", "PUT"],
+    "responseHeader": ["Authorization", "Content-Type"],
     "maxAgeSeconds": 3600
   }
 ]

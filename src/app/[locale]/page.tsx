@@ -15,10 +15,8 @@ export default function Home() {
       <NavBar></NavBar>
       <Hero></Hero>
       <LazyPortfolio/>
-      <TeamHomePage/>
-      <Contact/>
+   {/*    <TeamHomePage/>
+      <Contact/> */}
     </div>
   );
 }
-
-

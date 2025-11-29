@@ -1,9 +1,18 @@
 import { Link } from "@/i18n/navigation";
-import { PublicPreviewGrid } from "@/components/admin/PublicPreviewGrid";
 import { getLocale } from "next-intl/server";
+import PaymentPhoneCard from "@/components/admin/PaymentPhoneCard";
+import { getAdminDb } from "@/lib/firebase/admin";
 
 export default async function AdminIndex() {
   const locale = await getLocale();
+  let initialPhone: string | null = null;
+  try {
+    const snap = await getAdminDb().collection("settings").doc("payment-phone").get();
+    const data = snap.exists ? snap.data() || {} : {};
+    initialPhone = typeof data.phone === "string" ? data.phone : null;
+  } catch {
+    initialPhone = null;
+  }
   return (
     <div className="space-y-10">
       <section className="space-y-3">
@@ -34,8 +43,9 @@ export default async function AdminIndex() {
         </div>
       </section>
 
-      <PublicPreviewGrid locale={locale} seeAllHref="/admin/public/list" />
+      <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <PaymentPhoneCard initialPhone={initialPhone} />
+      </section>
     </div>
   );
 }
-

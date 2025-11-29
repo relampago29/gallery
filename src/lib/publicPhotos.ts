@@ -115,6 +115,7 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
   categoryId: string;
   title?: string;
   alt?: string;
+  sequenceNumber: number;
 }) {
   const ext = (opts.file.name.split(".").pop() || "jpg").toLowerCase();
   const photoId =
@@ -145,6 +146,7 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
         categoryId: opts.categoryId,
         createdAt,
         masterPath,
+        sequenceNumber: opts.sequenceNumber,
       }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -158,6 +160,7 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
       published: false,
       status: "processing",
       masterPath,
+      sequenceNumber: opts.sequenceNumber,
     });
   }
 
@@ -226,6 +229,7 @@ type RegisterPrivatePhotoOpts = {
   title?: string;
   alt?: string;
   createdAt?: number;
+  sequenceNumber: number;
 };
 
 export async function registerPrivateSessionPhoto(opts: RegisterPrivatePhotoOpts) {
@@ -238,6 +242,7 @@ export async function registerPrivateSessionPhoto(opts: RegisterPrivatePhotoOpts
       title: opts.title ?? null,
       alt: opts.alt ?? opts.title ?? null,
       createdAt: opts.createdAt ?? Date.now(),
+      sequenceNumber: opts.sequenceNumber,
     }),
   });
   if (!res.ok) {

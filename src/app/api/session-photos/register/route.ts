@@ -11,6 +11,7 @@ type Body = {
   title?: string | null;
   alt?: string | null;
   createdAt?: number;
+  sequenceNumber?: number;
 };
 
 function sanitizeId(input: string) {
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
     const db = getAdminDb();
     const sessionRef = db.collection("client_sessions").doc(safeSession);
     const createdAt = Number.isFinite(data?.createdAt) ? Number(data?.createdAt) : Date.now();
+    const sequenceNumber = Number.isFinite(data?.sequenceNumber) ? Number(data?.sequenceNumber) : null;
 
     const sessionSnap = await sessionRef.get();
     if (!sessionSnap.exists) {
@@ -51,6 +53,7 @@ export async function POST(req: Request) {
       alt: data?.alt ?? data?.title ?? null,
       masterPath: data.masterPath,
       createdAt,
+      sequenceNumber,
       createdAtServer: FieldValue.serverTimestamp(),
       status: "ready",
       updatedAt: FieldValue.serverTimestamp(),
@@ -61,4 +64,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
   }
 }
-

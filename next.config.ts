@@ -1,4 +1,8 @@
 // next.config.js (CommonJS)
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception during Next build:', err?.stack || err);
+  throw err;
+});
 const createNextIntlPlugin = require('next-intl/plugin');
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
