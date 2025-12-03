@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect } from "react";
 import NavBar from "@/components/shared/navbar/navbar";
 import { useLocale } from "next-intl";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type SessionPhoto = {
   id: string;
@@ -49,6 +49,7 @@ export default function SessionsEntryPage() {
 function SessionFlow() {
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<SessionPayload | null>(null);
@@ -88,6 +89,41 @@ function SessionFlow() {
     }
   };
 
+  useEffect(() => {
+    const prefill = searchParams.get("sessionId");
+    if (prefill) {
+      setCode(prefill);
+      // dispara busca automática
+      (async () => {
+        setLoading(true);
+        setError(null);
+        setSession(null);
+        setSelected(new Set());
+        setExistingOrder(null);
+        setExistingOrderError(null);
+        try {
+          const params = new URLSearchParams({ sessionId: prefill.trim() });
+          const res = await fetch(`/api/session-photos/list?${params.toString()}`, { cache: "no-store" });
+          if (!res.ok) {
+            const payload = await res.json().catch(() => ({}));
+            throw new Error(payload?.error || "Não encontrámos essa sessão");
+          }
+          const data = (await res.json()) as SessionPayload;
+          if (!data?.files?.length) {
+            throw new Error("Ainda não existem fotos nessa sessão.");
+          }
+          setSession(data);
+          void fetchExistingOrder(data.sessionId);
+        } catch (err: any) {
+          setError(err?.message || "Falha ao procurar essa sessão.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const togglePhoto = (photoId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -120,7 +156,12 @@ function SessionFlow() {
         throw new Error(payload?.error || "Não foi possível verificar pedidos anteriores.");
       }
       const data = await res.json();
-      setExistingOrder(data?.order || null);
+      const ord = data?.order || null;
+      if (ord && (ord.status === "rejected" || ord.status === "cancelled")) {
+        setExistingOrder(null);
+      } else {
+        setExistingOrder(ord);
+      }
     } catch (err: any) {
       setExistingOrder(null);
       setExistingOrderError(err?.message || "Falhou ao procurar pedidos anteriores.");
@@ -215,7 +256,7 @@ function SessionFlow() {
               type="text"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              placeholder="Ex.: familia-lisboa"
+              placeholder="Ex.: abc123xy"
               className="flex-1 rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none focus:border-white/40"
               disabled={loading}
             />
@@ -226,6 +267,15 @@ function SessionFlow() {
             >
               {loading ? "A procurar…" : "Ver sessão"}
             </button>
+            {code.trim() ? (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(code.trim())}
+                className="rounded-2xl border border-white/30 px-4 py-3 text-sm text-white transition hover:bg-white/10"
+              >
+                Copiar código
+              </button>
+            ) : null}
           </div>
           {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
         </form>

@@ -133,14 +133,15 @@ export default function UploadPublicPhotoPage() {
         return {
           fileName: f.name,
           sequenceNumber,
-          fn: () =>
-            uploadMasterAndCreateProcessingDoc({
+          fn: async () => {
+            await uploadMasterAndCreateProcessingDoc({
               file: f,
               categoryId,
               title: generatedTitle,
               alt: generatedAlt,
               sequenceNumber,
-            }),
+            });
+          },
         };
       });
       const results = await runWithConcurrency(tasks, MAX_PARALLEL_UPLOADS, (done) => {

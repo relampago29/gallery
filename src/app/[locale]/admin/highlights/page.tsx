@@ -421,7 +421,7 @@ export default function HighlightsAdminPage() {
                         onClick={() => handleDelete(item.id)}
                         disabled={globalLock}
                       >
-                        Remover
+                        <span className="text-gray-900">Remover</span>
                       </button>
                     </div>
                   </div>

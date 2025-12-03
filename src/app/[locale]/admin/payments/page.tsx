@@ -60,6 +60,7 @@ export default function PendingPaymentsPage() {
     actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
   } | null>(null);
   const [actioning, setActioning] = useState<{ id: string; type: "confirm" | "cancel" | "reject" } | null>(null);
+  const [modal, setModal] = useState<{ id: string; type: "confirm" | "reject"; message: string } | null>(null);
 
   const PAGE_SIZE = 5;
 
@@ -160,27 +161,12 @@ export default function PendingPaymentsPage() {
   );
 
   const confirmActionPrompt = useCallback(
-    (orderId: string, type: "confirm" | "cancel" | "reject") => {
+    (orderId: string, type: "confirm" | "reject") => {
       const messages = {
-        confirm: "Confirmar o pagamento deste pedido?",
-        cancel: "Cancelar este pagamento? O cliente deixará de o ver como pendente.",
-        reject: "Rejeitar este pagamento? O cliente será informado que foi rejeitado.",
+        confirm: "Tem a certeza que quer confirmar o pagamento?",
+        reject: "Tem a certeza que quer rejeitar o pagamento?",
       };
-      setToast({
-        type: "confirm",
-        message: messages[type],
-        actions: [
-          { label: "Voltar", onClick: () => setToast(null) },
-          {
-            label: "Continuar",
-            variant: "primary",
-            onClick: () => {
-              setToast(null);
-              runAction(orderId, type);
-            },
-          },
-        ],
-      });
+      setModal({ id: orderId, type, message: messages[type] });
     },
     [runAction]
   );
@@ -235,7 +221,36 @@ export default function PendingPaymentsPage() {
 
   return (
     <div className="space-y-8">
-      {toast ? <AdminNotification type={toast.type} message={toast.message} onClose={() => setToast(null)} /> : null}
+      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {modal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
+            <div className="text-lg font-semibold">{modal.message}</div>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-full border border-white/30 px-4 py-2 text-sm text-white hover:bg-white/10"
+                onClick={() => setModal(null)}
+                disabled={!!actioning}
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-white/90 disabled:opacity-50"
+                onClick={() => {
+                  if (!modal) return;
+                  runAction(modal.id, modal.type);
+                  setModal(null);
+                }}
+                disabled={!!actioning}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Pagamentos</p>
         <h1 className="text-3xl font-semibold text-white">Pagamentos pendentes</h1>
@@ -323,24 +338,14 @@ export default function PendingPaymentsPage() {
                       >
                         {actioning?.id === item.id && actioning.type === "confirm" ? "A confirmar…" : "Pagamento confirmado"}
                       </button>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => confirmActionPrompt(item.id, "cancel")}
-                          disabled={!!actioning}
-                          className="flex-1 rounded-full border border-white/30 px-4 py-2 text-xs text-white transition hover:bg-white/10 disabled:opacity-40"
-                        >
-                          {actioning?.id === item.id && actioning.type === "cancel" ? "A cancelar…" : "Cancelar"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => confirmActionPrompt(item.id, "reject")}
-                          disabled={!!actioning}
-                          className="flex-1 rounded-full border border-rose-300/60 px-4 py-2 text-xs text-rose-100 transition hover:bg-rose-500/10 disabled:opacity-40"
-                        >
-                          {actioning?.id === item.id && actioning.type === "reject" ? "A rejeitar…" : "Rejeitar"}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => confirmActionPrompt(item.id, "reject")}
+                        disabled={!!actioning}
+                        className="rounded-full border border-rose-300/60 px-4 py-2 text-xs text-rose-100 transition hover:bg-rose-500/10 disabled:opacity-40"
+                      >
+                        {actioning?.id === item.id && actioning.type === "reject" ? "A rejeitar…" : "Rejeitar pagamento"}
+                      </button>
                     </div>
                   </div>
                 </div>

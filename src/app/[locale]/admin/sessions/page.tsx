@@ -41,6 +41,7 @@ export default function PrivateSessionsAdminPage() {
     actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
   } | null>(null);
   const PAGE_SIZE = 8;
+  const [actionModal, setActionModal] = useState<{ id: string; type: "delete"; name?: string } | null>(null);
 
   async function loadSessions() {
     setLoading(true);
@@ -87,26 +88,8 @@ export default function PrivateSessionsAdminPage() {
     setPageIndex(idx);
   };
 
-  async function deleteSession(id: string, confirmed = false) {
+  async function deleteSession(id: string) {
     if (!id) return;
-    if (!confirmed) {
-      setToast({
-        type: "warning",
-        message: "Tens a certeza que queres apagar esta sessão? Esta ação não pode ser desfeita.",
-        actions: [
-          { label: "Cancelar", onClick: () => setToast(null) },
-          {
-            label: "Apagar",
-            variant: "primary",
-            onClick: () => {
-              setToast(null);
-              deleteSession(id, true);
-            },
-          },
-        ],
-      });
-      return;
-    }
     try {
       setDeletingId(id);
       const token = await getIdToken();
@@ -131,9 +114,51 @@ export default function PrivateSessionsAdminPage() {
     }
   }
 
+  function copySessionCode(code: string) {
+    if (!code) return;
+    try {
+      navigator.clipboard.writeText(code);
+      setToast({ type: "success", message: `Código ${code} copiado.` });
+    } catch (err) {
+      setToast({ type: "error", message: "Não foi possível copiar o código." });
+    }
+  }
+
   return (
     <div className="space-y-8">
       {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {actionModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
+            <div className="text-lg font-semibold">Apagar sessão</div>
+            <p className="mt-2 text-sm text-white/70">
+              Tem a certeza que queres apagar a sessão {actionModal.name || actionModal.id}? Esta ação não pode ser desfeita.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-full border border-white/30 px-4 py-2 text-sm text-white hover:bg-white/10"
+                onClick={() => setActionModal(null)}
+                disabled={deletingId === actionModal.id}
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-white/90 disabled:opacity-50"
+                onClick={() => {
+                  if (!actionModal) return;
+                  deleteSession(actionModal.id);
+                  setActionModal(null);
+                }}
+                disabled={deletingId === actionModal.id}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Sessões</p>
         <h1 className="text-3xl font-semibold text-white">Sessões privadas</h1>
@@ -174,10 +199,7 @@ export default function PrivateSessionsAdminPage() {
                   <div className="text-base font-semibold text-white">{item.name || "Sessão sem nome"}</div>
                   <div className="text-xs uppercase tracking-[0.35em] text-white/50">{item.id}</div>
                 </div>
-                <div className="space-y-1 text-sm text-white/70">
-                  <div className="font-semibold text-white">{item.selectedCount ?? "—"} selecionadas</div>
-                  <div className="text-xs text-white/60">Pagamentos: {item.paymentStatus || "pendente"}</div>
-                </div>
+                <div />
                 <div className="space-y-1 text-sm text-white/70">
                   <div className="text-xs uppercase tracking-[0.2em] text-white/50">Criada</div>
                   <div className="font-medium text-white">{formatDate(item.createdAt)}</div>
@@ -186,10 +208,17 @@ export default function PrivateSessionsAdminPage() {
                   <div className="text-xs uppercase tracking-[0.2em] text-white/50">Estado</div>
                   <div className="font-medium text-white">{item.status || "open"}</div>
                 </div>
-                <div className="flex sm:justify-end">
+                <div className="flex flex-col gap-2 sm:items-end sm:justify-end">
                   <button
                     type="button"
-                    onClick={() => deleteSession(item.id)}
+                    onClick={() => copySessionCode(item.id)}
+                    className="w-full sm:w-auto rounded-full border border-white/30 px-3 py-1.5 text-xs text-white transition hover:bg-white/10 disabled:opacity-60"
+                  >
+                    Copiar código da sessão
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionModal({ id: item.id, type: "delete", name: item.name })}
                     disabled={deletingId === item.id}
                     className="w-full sm:w-auto rounded-full border border-red-400/60 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
                   >

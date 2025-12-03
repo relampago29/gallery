@@ -81,6 +81,12 @@ export default function OrderPaymentPage() {
     if (!order) return;
     if (order.status === "paid" || order.status === "fulfilled") {
       router.replace(`/${locale}/sessions/orders/${orderId}/download?token=${token}`);
+      return;
+    }
+    if (order.status === "rejected" || order.status === "cancelled") {
+      const qs = new URLSearchParams();
+      qs.set("sessionId", order.sessionId);
+      router.replace(`/${locale}/sessions?${qs.toString()}`);
     }
   }, [order, router, locale, orderId, token]);
 
@@ -90,6 +96,10 @@ export default function OrderPaymentPage() {
       case "paid":
       case "fulfilled":
         return "Pagamento confirmado";
+      case "rejected":
+        return "Pagamento rejeitado";
+      case "cancelled":
+        return "Pagamento cancelado";
       default:
         return "A aguardar confirmação";
     }

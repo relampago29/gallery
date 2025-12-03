@@ -31,7 +31,7 @@ function tone(type: NotificationProps["type"]) {
 export function AdminNotification({ type = "info", message, onClose, actions }: NotificationProps) {
   const t = tone(type);
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-md animate-fade-in">
+    <div className="fixed top-6 right-6 z-50 max-w-md animate-fade-in">
       <div className={`flex flex-col gap-3 rounded-2xl border ${t.border} ${t.bg} px-4 py-3 shadow-[0_20px_80px_rgba(0,0,0,0.4)] backdrop-blur-lg`}>
         <div className="flex items-start gap-3">
           <span className={`mt-0.5 inline-flex h-7 min-w-14 items-center justify-center rounded-full px-3 text-xs font-semibold ${t.pill}`}>

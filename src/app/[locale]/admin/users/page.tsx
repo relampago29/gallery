@@ -79,10 +79,13 @@ export default function UsersAdminPage() {
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
   const [toast, setToast] = useState<{
-    type?: "success" | "error" | "warning" | "info";
+    type?: "success" | "error" | "warning" | "info" | "confirm";
     message: string;
     actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
   } | null>(null);
+  const [actionModal, setActionModal] = useState<{ uid: string; email?: string | null } | null>(null);
+  const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null);
+  const [fetchingAll, setFetchingAll] = useState(false);
 
   const PAGE_SIZE = 5;
 
@@ -135,6 +138,39 @@ export default function UsersAdminPage() {
     }
   }
 
+  async function fetchAllUsers() {
+    if (fetchingAll) return;
+    setFetchingAll(true);
+    try {
+      const token = await getIdToken();
+      const collected: AdminUser[] = [];
+      let pageToken: string | null = null;
+      for (let i = 0; i < 400; i++) {
+        const params = new URLSearchParams();
+        if (pageToken) params.set("pageToken", pageToken);
+        const res = await fetch(`/api/users${params.size ? `?${params.toString()}` : ""}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error || "Falha ao carregar utilizadores.");
+        }
+        const data = await res.json();
+        const pageUsers = Array.isArray(data?.users) ? (data.users as AdminUser[]) : [];
+        collected.push(...pageUsers);
+        const next = data?.nextPageToken || null;
+        if (!next) break;
+        pageToken = next;
+      }
+      setAllUsers(collected);
+    } catch (err) {
+      console.error("fetchAllUsers failed", err);
+    } finally {
+      setFetchingAll(false);
+    }
+  }
+
   async function prefetchAllPages() {
     if (pagesFullyLoaded || prefetchingPages) return;
     setPrefetchingPages(true);
@@ -180,37 +216,27 @@ export default function UsersAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const term = filter.trim();
+    if (term && (!allUsers || allUsers.length === 0) && !fetchingAll) {
+      fetchAllUsers();
+    }
+  }, [filter, allUsers, fetchingAll]);
+
   const filteredUsers = useMemo(() => {
     const term = filter.trim().toLowerCase();
     if (!term) return users;
-    return users.filter((u) => [u.email, u.displayName, u.uid].some((field) => field?.toLowerCase().includes(term)));
-  }, [filter, users]);
+    const source = allUsers && allUsers.length ? allUsers : users;
+    return source.filter((u) => [u.email, u.displayName, u.uid].some((field) => field?.toLowerCase().includes(term)));
+  }, [filter, users, allUsers]);
 
   const totalPages = pageTokens.length;
   const hasPrev = pageIndex > 0;
   const hasNext = pagesFullyLoaded ? pageIndex < pageTokens.length - 1 : !!nextPageToken;
   const pageList = buildPageItems(Math.max(totalPages, 1), pageIndex);
 
-  async function deleteUser(uid: string, confirmed = false) {
+  async function deleteUser(uid: string) {
     if (!uid) return;
-    if (!confirmed) {
-      setToast({
-        type: "warning",
-        message: "Tens a certeza que queres apagar este utilizador?",
-        actions: [
-          { label: "Cancelar", onClick: () => setToast(null) },
-          {
-            label: "Apagar",
-            variant: "primary",
-            onClick: () => {
-              setToast(null);
-              deleteUser(uid, true);
-            },
-          },
-        ],
-      });
-      return;
-    }
     try {
       setDeletingUid(uid);
       const token = await getIdToken();
@@ -227,6 +253,7 @@ export default function UsersAdminPage() {
         throw new Error(payload?.error || "Falha ao apagar utilizador.");
       }
       await loadUsers(pageIndex);
+      setAllUsers((prev) => (prev ? prev.filter((u) => u.uid !== uid) : prev));
       setToast({ type: "success", message: "Utilizador apagado com sucesso." });
     } catch (err: any) {
       setToast({ type: "error", message: err?.message || "Não foi possível apagar o utilizador." });
@@ -238,6 +265,38 @@ export default function UsersAdminPage() {
   return (
     <div className="space-y-8">
       {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {actionModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
+            <div className="text-lg font-semibold">Apagar utilizador</div>
+            <p className="mt-2 text-sm text-white/70">
+              Tem a certeza que queres apagar o utilizador {actionModal.email || actionModal.uid}? Esta ação não pode ser desfeita.
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                className="flex-1 rounded-full border border-white/30 px-4 py-2 text-sm text-white hover:bg-white/10"
+                onClick={() => setActionModal(null)}
+                disabled={deletingUid === actionModal.uid}
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-white/90 disabled:opacity-50"
+                onClick={() => {
+                  if (!actionModal) return;
+                  deleteUser(actionModal.uid);
+                  setActionModal(null);
+                }}
+                disabled={deletingUid === actionModal.uid}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
@@ -307,7 +366,7 @@ export default function UsersAdminPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => deleteUser(user.uid)}
+                      onClick={() => setActionModal({ uid: user.uid, email: user.email })}
                       disabled={isSelf || isDeleting || loading}
                       className="w-full rounded-full border border-red-400/60 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                       title={isSelf ? "Não podes apagar a tua própria conta" : undefined}
