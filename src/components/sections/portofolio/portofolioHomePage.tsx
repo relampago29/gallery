@@ -1,12 +1,14 @@
-import Masonry from "@/components/reactBits/Masonry/Masonry";
+import HighlightsMasonry from "@/components/highlights/HighlightsMasonry";
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { Highlight } from "@/lib/highlights";
+import teste4 from "../../../../public/images/bryanminear-themframes-06.png"
 
 const fallbackItems = [
   { id: "placeholder-1", imageUrl: "https://picsum.photos/id/1015/600/900?grayscale", height: 420 },
   { id: "placeholder-2", imageUrl: "https://picsum.photos/id/1011/600/750?grayscale", height: 260 },
   { id: "placeholder-3", imageUrl: "https://picsum.photos/id/1020/600/800?grayscale", height: 600 },
+  { id: "placeholder-4", imageUrl: teste4.src, height: 300 },
 ];
 
 const PortofolioHomePage = () => {
@@ -59,16 +61,15 @@ const PortofolioHomePage = () => {
       <h1 className="absolute top-6 left-6 z-10 pointer-events-none text-4xl font-bold text-white">
         {translate("highlights")}
       </h1>
-      <Masonry
+      <HighlightsMasonry
         items={items}
         ease="power3.out"
         duration={0.6}
         stagger={0.1}
         animateFrom="top"
-        scaleOnHover={true}
+        scaleOnHover
         hoverScale={0.95}
-        blurToFocus={true}
-        colorShiftOnHover={false}
+        blurToFocus
       />
     </div>
   );

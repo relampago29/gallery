@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminStorage, getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
+import { Readable } from "node:stream";
 
 type Mode = "public" | "private";
 
@@ -39,6 +40,13 @@ export async function POST(req: NextRequest) {
 
     const decoded = await getAdminAuth().verifyIdToken(token);
     const uid = decoded.uid;
+    const isAdmin =
+      (decoded as any).isAdmin === true ||
+      (decoded as any).claims?.isAdmin === true ||
+      (decoded as any)["https://hasura.io/jwt/claims"]?.["x-hasura-default-role"] === "admin";
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // (Opcional) Restringir a admins:
     // if (!decoded.claims?.isAdmin) {
@@ -85,19 +93,29 @@ export async function POST(req: NextRequest) {
         : `masters/sessions/${safeSession}/${photoId}.${ext}`;
 
     // --- Upload para Storage ---
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     const storage = getAdminStorage();
     const bucket = storage.bucket();
     const gcsFile = bucket.file(masterPath);
 
-    await gcsFile.save(buffer, {
-      contentType: file.type || "application/octet-stream",
-      resumable: false,
-      metadata: {
-        contentType: file.type || "application/octet-stream",
-        // cacheControl para masters não é relevante (são privados por rules)
-      },
+    const contentType = file.type || "application/octet-stream";
+    const inputStream =
+      typeof (file as any).stream === "function" && typeof Readable.fromWeb === "function"
+        ? Readable.fromWeb((file as any).stream())
+        : Readable.from(Buffer.from(await file.arrayBuffer()));
+
+    await new Promise<void>((resolve, reject) => {
+      const writeStream = gcsFile.createWriteStream({
+        resumable: true,
+        contentType,
+        metadata: {
+          contentType,
+          // cacheControl para masters não é relevante (são privados por rules)
+        },
+      });
+      writeStream.on("error", reject);
+      writeStream.on("finish", resolve);
+      inputStream.on("error", reject);
+      inputStream.pipe(writeStream);
     });
 
     // --- Documento no Firestore ---

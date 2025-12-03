@@ -27,7 +27,14 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: () => true,
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+        const isAdminRoute = /^\/(pt|en)\/admin(\/|$)/.test(pathname);
+        if (isAdminRoute) {
+          return token?.isAdmin === true;
+        }
+        return true;
+      },
     },
   }
 );

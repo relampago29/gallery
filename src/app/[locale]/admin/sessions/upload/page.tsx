@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { listActiveCategories } from "@/lib/categories";
-import { uploadMasterAndCreateProcessingDoc } from "@/lib/publicPhotos";
+import { useMemo, useState } from "react";
+import { uploadPrivateMaster, registerPrivateSessionPhoto } from "@/lib/publicPhotos";
+import { useParams } from "next/navigation";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
+
+function generateSessionCode() {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let code = "";
+  for (let i = 0; i < 8; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
 
 const parsedConcurrency = Number(process.env.NEXT_PUBLIC_UPLOAD_CONCURRENCY);
 const MAX_PARALLEL_UPLOADS =
@@ -58,11 +67,11 @@ async function runWithConcurrency(
   return results;
 }
 
-async function reserveSequenceNumbers(count: number) {
+async function reserveSequenceNumbers(count: number, sessionId: string) {
   const res = await fetch("/api/upload/sequence", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "public", count }),
+    body: JSON.stringify({ mode: "private", count, sessionId }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -73,27 +82,23 @@ async function reserveSequenceNumbers(count: number) {
   return start;
 }
 
-export default function UploadPublicPhotoPage() {
-  const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
-  const [categoryId, setCategoryId] = useState("");
+export default function UploadPrivatePhotoPage() {
+  const params = useParams<{ locale: string }>();
+  const locale = params?.locale || "";
+  const sessionsPath = locale ? `/${locale}/sessions` : "/sessions";
+
   const [files, setFiles] = useState<File[]>([]);
-  const [title, setTitle] = useState("");
-  const [alt, setAlt] = useState("");
+  const [sessionName, setSessionName] = useState("");
+  const [sessionCode, setSessionCode] = useState<string>(() => generateSessionCode());
+  const [lastSessionCode, setLastSessionCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [savingSession, setSavingSession] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [failedUploads, setFailedUploads] = useState<UploadResult[]>([]);
   const { state: globalUpload, setUploadProgress, clearUpload } = useUploadProgress();
-  const uploadScope = "public-upload";
+  const uploadScope = "private-upload";
   const globalLock = !!globalUpload && globalUpload.progress < 1;
-
-  useEffect(() => {
-    (async () => {
-      const c = await listActiveCategories();
-      setCats(c.map((x) => ({ id: x.id, name: x.name })));
-      if (c.length) setCategoryId(c[0].id);
-    })();
-  }, []);
 
   const cardClass = useMemo(
     () => "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm",
@@ -104,10 +109,14 @@ export default function UploadPublicPhotoPage() {
       "w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-white placeholder-white/60 focus:border-white/50 focus:outline-none disabled:opacity-50",
     []
   );
-  const selectBase = `${inputBase} appearance-none`;
   const primaryButton = useMemo(
     () =>
       "inline-flex items-center justify-center rounded-full bg-white text-gray-900 px-6 py-2.5 text-sm font-semibold transition hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40",
+    []
+  );
+  const pillButton = useMemo(
+    () =>
+      "rounded-full border border-white/30 px-4 py-1.5 text-sm text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50 disabled:opacity-40",
     []
   );
 
@@ -117,48 +126,64 @@ export default function UploadPublicPhotoPage() {
       setMsg("Existe outro upload em curso. Aguarda que termine antes de iniciar outro.");
       return;
     }
-    if (!categoryId || files.length === 0) return;
+    if (files.length === 0 || !sessionCode) return;
     setBusy(true);
     setProgress(0);
     setMsg(null);
     setFailedUploads([]);
     try {
-      setUploadProgress({ label: "Portfólio público", progress: 0, scope: uploadScope });
-      const start = await reserveSequenceNumbers(files.length);
-      const total = files.length;
+      setUploadProgress({ label: "Sessões privadas", progress: 0, scope: uploadScope });
+      setSavingSession(true);
+      const resMeta = await fetch("/api/session-photos/upsert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionCode,
+          name: sessionName.trim() || sessionCode,
+        }),
+      });
+      if (!resMeta.ok) {
+        const data = await resMeta.json().catch(() => ({}));
+        throw new Error(data?.error || "Falha ao preparar sessão.");
+      }
+      setSavingSession(false);
+
+      const start = await reserveSequenceNumbers(files.length, sessionCode);
       const tasks = files.map((f, index) => {
         const sequenceNumber = start + index;
-        const generatedTitle = buildSequentialLabel(sequenceNumber, title);
-        const generatedAlt = buildSequentialLabel(sequenceNumber, alt ?? title);
+        const generatedTitle = buildSequentialLabel(sequenceNumber);
         return {
           fileName: f.name,
           sequenceNumber,
-          fn: () =>
-            uploadMasterAndCreateProcessingDoc({
-              file: f,
-              categoryId,
+          fn: async () => {
+            const { masterPath, createdAt } = await uploadPrivateMaster({ file: f, sessionId: sessionCode });
+            await registerPrivateSessionPhoto({
+              sessionId: sessionCode,
+              masterPath,
               title: generatedTitle,
-              alt: generatedAlt,
+              alt: generatedTitle,
+              createdAt,
               sequenceNumber,
-            }),
+            });
+          },
         };
       });
+      const total = files.length;
       const results = await runWithConcurrency(tasks, MAX_PARALLEL_UPLOADS, (done) => {
         const value = total ? done / total : 0;
         setProgress(value);
-        setUploadProgress({ label: "Portfólio público", progress: value, scope: uploadScope });
+        setUploadProgress({ label: "Sessões privadas", progress: value, scope: uploadScope });
       });
       const failures = results.filter((r) => !r.ok);
       setFailedUploads(failures);
       const successCount = results.length - failures.length;
+      setLastSessionCode(sessionCode);
       setMsg(
-        `${successCount} ficheiro(s) enviados para o portfólio público. ${
-          failures.length ? `${failures.length} falharam.` : "As variantes serão geradas automaticamente."
+        `${successCount} ficheiro(s) enviados para "${sessionCode}". ${
+          failures.length ? `${failures.length} falharam.` : "Partilha este código com o cliente para selecionar as fotos."
         }`
       );
       setFiles([]);
-      setTitle("");
-      setAlt("");
       clearUpload();
     } catch (e: any) {
       setMsg("Erro: " + (e?.message || String(e)));
@@ -173,33 +198,36 @@ export default function UploadPublicPhotoPage() {
     <div className="space-y-10">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
-        <h1 className="text-4xl font-semibold text-white tracking-tight">Carregar portfólio público</h1>
-        <p className="text-sm text-white/70">Envie fotos para o portfólio público. As variantes serão geradas automaticamente.</p>
+        <h1 className="text-4xl font-semibold text-white tracking-tight">Carregar sessões privadas</h1>
+        <p className="text-sm text-white/70">
+          Envia fotos para uma sessão privada e partilha o código com o cliente. O acesso público mantém-se em {sessionsPath}.
+        </p>
       </header>
 
       <section className={cardClass}>
         <form className="space-y-6 p-6" onSubmit={onSubmit}>
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.25em] text-white/60">Categoria</span>
-                <select className={selectBase} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                  {cats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.25em] text-white/60">Título (opcional)</span>
-                <input className={inputBase} placeholder="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
-              </label>
-              <label className="space-y-2">
-                <span className="text-xs uppercase tracking-[0.25em] text-white/60">Alt (opcional)</span>
-                <input className={inputBase} placeholder="Texto alternativo" value={alt} onChange={(e) => setAlt(e.target.value)} />
-              </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-white/60">Nome da sessão</span>
+              <input
+                className={inputBase}
+                placeholder="Ex.: Sessão Joana & Rui"
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                required
+              />
+            </label>
+            <div className="space-y-2">
+              <span className="text-xs uppercase tracking-[0.25em] text-white/60">Código</span>
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+                <span className="text-xs text-white/60">Cliente usa em {sessionsPath}</span>
+                <span className="font-mono text-white text-lg">{sessionCode}</span>
+                <button type="button" className={pillButton} onClick={() => setSessionCode(generateSessionCode())}>
+                  Gerar novo código
+                </button>
+              </div>
             </div>
+          </div>
 
             <label className="space-y-2 block">
               <span className="text-xs uppercase tracking-[0.25em] text-white/60">Ficheiros</span>
@@ -210,10 +238,9 @@ export default function UploadPublicPhotoPage() {
                 className="w-full rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-6 text-sm text-white file:mr-4 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:text-gray-900 hover:border-white/40"
                 onChange={(e) => setFiles(Array.from(e.target.files || []))}
                 required
-                disabled={busy || globalLock}
+                disabled={busy || savingSession || globalLock}
               />
             </label>
-          </div>
 
           {files.length > 0 && (
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
@@ -222,8 +249,11 @@ export default function UploadPublicPhotoPage() {
           )}
 
           <div className="pt-2">
-            <button className={primaryButton} disabled={busy || files.length === 0 || !categoryId || globalLock}>
-              {busy ? "A enviar…" : "Guardar no portfólio"}
+            <button
+              className={primaryButton}
+              disabled={busy || savingSession || files.length === 0 || !sessionCode || !sessionName.trim() || globalLock}
+            >
+              {busy ? "A enviar…" : "Guardar sessão privada"}
             </button>
           </div>
         </form>
@@ -239,6 +269,42 @@ export default function UploadPublicPhotoPage() {
             </div>
           </div>
         )}
+      </section>
+
+      <section className={cardClass}>
+        <div className="space-y-5 px-6 py-6">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Partilha com o cliente</p>
+            <h3 className="text-2xl font-semibold text-white">Código da sessão</h3>
+            <p className="text-sm text-white/70">
+              Depois de terminares o upload envia este código ao cliente. Ele só precisa de visitar {sessionsPath} e introduzir o
+              identificador para escolher as fotos favoritas.
+            </p>
+          </div>
+          {lastSessionCode ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-white/60">Código</div>
+                <div className="text-2xl font-mono text-white">{lastSessionCode}</div>
+              </div>
+              <button type="button" className={pillButton} onClick={() => navigator.clipboard.writeText(lastSessionCode)}>
+                Copiar
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/15 bg-transparent px-4 py-4 text-sm text-white/60">
+              Assim que guardares uma sessão privada o código fica disponível aqui.
+            </div>
+          )}
+          <ul className="space-y-2 text-sm text-white/70">
+            <li>1. Faz upload das fotos para a pasta privada.</li>
+            <li>2. Envia o código ao cliente.</li>
+            <li>
+              3. O cliente entra em <span className="font-mono text-white">{sessionsPath}</span>, introduz o código e escolhe as fotos.
+            </li>
+            <li>4. Quando confirmares o pagamento, o download fica disponível automaticamente.</li>
+          </ul>
+        </div>
       </section>
 
       {failedUploads.length > 0 && (

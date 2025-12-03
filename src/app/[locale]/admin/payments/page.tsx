@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { auth } from "@/lib/firebase/client";
+import { AdminNotification } from "@/components/admin/Notification";
 
 type PendingOrder = {
   id: string;
@@ -47,13 +48,18 @@ export default function PendingPaymentsPage() {
   const [items, setItems] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
   const [paymentPhone, setPaymentPhone] = useState<string | null>(null);
   const [mode, setMode] = useState<"pending" | "history">("pending");
   const [history, setHistory] = useState<PendingOrder[]>([]);
   const [filter, setFilter] = useState("");
   const [pendingPage, setPendingPage] = useState(0);
   const [historyPage, setHistoryPage] = useState(0);
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "warning" | "info" | "confirm";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
+  const [actioning, setActioning] = useState<{ id: string; type: "confirm" | "cancel" | "reject" } | null>(null);
 
   const PAGE_SIZE = 5;
 
@@ -116,25 +122,68 @@ export default function PendingPaymentsPage() {
     }
   }
 
-  async function confirmPayment(orderId: string) {
-    try {
-      setConfirming(orderId);
-      const token = await getIdToken();
-      const res = await fetch(`/api/session-orders/${orderId}/confirm`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Falha ao confirmar.");
+  const runAction = useCallback(
+    async (orderId: string, type: "confirm" | "cancel" | "reject") => {
+      const endpoint =
+        type === "confirm" ? "confirm" : type === "cancel" ? "cancel" : "reject";
+      try {
+        setActioning({ id: orderId, type });
+        const token = await getIdToken();
+        const res = await fetch(`/api/session-orders/${orderId}/${endpoint}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new Error(payload?.error || "Falha ao processar.");
+        }
+        setItems((prev) => prev.filter((item) => item.id !== orderId));
+        setToast({
+          type: "success",
+          message:
+            type === "confirm"
+              ? "Pagamento confirmado."
+              : type === "cancel"
+                ? "Pagamento cancelado."
+                : "Pagamento rejeitado.",
+        });
+      } catch (err: any) {
+        setToast({
+          type: "error",
+          message: err?.message || "Não foi possível completar a ação.",
+        });
+      } finally {
+        setActioning(null);
       }
-      setItems((prev) => prev.filter((item) => item.id !== orderId));
-    } catch (err: any) {
-      alert(err?.message || "Não foi possível confirmar o pagamento.");
-    } finally {
-      setConfirming(null);
-    }
-  }
+    },
+    []
+  );
+
+  const confirmActionPrompt = useCallback(
+    (orderId: string, type: "confirm" | "cancel" | "reject") => {
+      const messages = {
+        confirm: "Confirmar o pagamento deste pedido?",
+        cancel: "Cancelar este pagamento? O cliente deixará de o ver como pendente.",
+        reject: "Rejeitar este pagamento? O cliente será informado que foi rejeitado.",
+      };
+      setToast({
+        type: "confirm",
+        message: messages[type],
+        actions: [
+          { label: "Voltar", onClick: () => setToast(null) },
+          {
+            label: "Continuar",
+            variant: "primary",
+            onClick: () => {
+              setToast(null);
+              runAction(orderId, type);
+            },
+          },
+        ],
+      });
+    },
+    [runAction]
+  );
 
   useEffect(() => {
     loadPending();
@@ -186,6 +235,7 @@ export default function PendingPaymentsPage() {
 
   return (
     <div className="space-y-8">
+      {toast ? <AdminNotification type={toast.type} message={toast.message} onClose={() => setToast(null)} /> : null}
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.35em] text-white/60">Pagamentos</p>
         <h1 className="text-3xl font-semibold text-white">Pagamentos pendentes</h1>
@@ -264,14 +314,34 @@ export default function PendingPaymentsPage() {
                     <div>{item.createdAt ? new Date(item.createdAt).toLocaleString("pt-PT") : "sem data"}</div>
                   </div>
                   <div className="flex justify-start sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() => confirmPayment(item.id)}
-                      disabled={confirming === item.id}
-                      className="w-full sm:w-auto rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-                    >
-                      {confirming === item.id ? "A confirmar…" : "Pagamento confirmado"}
-                    </button>
+                    <div className="flex flex-col gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => confirmActionPrompt(item.id, "confirm")}
+                        disabled={!!actioning}
+                        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                      >
+                        {actioning?.id === item.id && actioning.type === "confirm" ? "A confirmar…" : "Pagamento confirmado"}
+                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => confirmActionPrompt(item.id, "cancel")}
+                          disabled={!!actioning}
+                          className="flex-1 rounded-full border border-white/30 px-4 py-2 text-xs text-white transition hover:bg-white/10 disabled:opacity-40"
+                        >
+                          {actioning?.id === item.id && actioning.type === "cancel" ? "A cancelar…" : "Cancelar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => confirmActionPrompt(item.id, "reject")}
+                          disabled={!!actioning}
+                          className="flex-1 rounded-full border border-rose-300/60 px-4 py-2 text-xs text-rose-100 transition hover:bg-rose-500/10 disabled:opacity-40"
+                        >
+                          {actioning?.id === item.id && actioning.type === "reject" ? "A rejeitar…" : "Rejeitar"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

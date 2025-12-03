@@ -7,7 +7,7 @@ type NotificationAction = {
 };
 
 type NotificationProps = {
-  type?: "success" | "error" | "warning" | "info";
+  type?: "success" | "error" | "warning" | "info" | "confirm";
   message: string;
   onClose?: () => void;
   actions?: NotificationAction[];
@@ -21,6 +21,8 @@ function tone(type: NotificationProps["type"]) {
       return { border: "border-red-400/40", bg: "bg-red-500/10", text: "text-red-100", pill: "bg-red-400/80 text-gray-900" };
     case "warning":
       return { border: "border-amber-400/40", bg: "bg-amber-500/10", text: "text-amber-100", pill: "bg-amber-400/80 text-gray-900" };
+    case "confirm":
+      return { border: "border-sky-400/40", bg: "bg-sky-500/10", text: "text-sky-100", pill: "bg-sky-400/80 text-gray-900" };
     default:
       return { border: "border-white/20", bg: "bg-white/10", text: "text-white", pill: "bg-white text-gray-900" };
   }

@@ -22,8 +22,8 @@ function parseStoragePath(url: string | undefined | null) {
 
 export async function POST(req: Request) {
   try {
-    const authorized = await requireAdmin(req);
-    if (!authorized) {
+    const uid = await requireAdmin(req);
+    if (!uid) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const { id } = await req.json();
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     const db = getAdminDb();
-    const docRef = db.collection("highlights").doc(id);
+    const docRef = db.collection("trail_images").doc(id);
     const snap = await docRef.get();
     const imageUrl = snap.exists ? (snap.data()?.imageUrl as string | undefined) : undefined;
 
@@ -42,14 +42,15 @@ export async function POST(req: Request) {
       const parsed = parseStoragePath(imageUrl);
       const storage = getAdminStorage();
       const bucket = storage.bucket();
-      if (parsed && parsed.bucket === bucket.name && parsed.path.startsWith("masters/highlights/")) {
+      if (parsed && parsed.bucket === bucket.name && parsed.path.startsWith("masters/")) {
         try {
           await bucket.file(parsed.path).delete({ ignoreNotFound: true });
         } catch (err) {
-          console.error("[highlights/delete] failed to delete storage file", parsed.path, err);
+          console.error("[trail-images/delete] failed to delete storage file", parsed.path, err);
         }
       }
     }
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });

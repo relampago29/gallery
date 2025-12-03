@@ -5,17 +5,17 @@ service firebase.storage {
     // upload do master pelo admin autenticado
     match /masters/public/{path=**} {
       allow read: if false;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.isAdmin == true;
     }
 
     match /masters/highlights/{path=**} {
       allow read: if false;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.isAdmin == true;
     }
 
     match /masters/sessions/{path=**} {
       allow read: if false;
-      allow write: if request.auth != null;
+      allow write: if request.auth != null && request.auth.token.isAdmin == true;
     }
 
     // variantes públicas servidas ao site

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, signOut as firebaseSignOut, type User } from "firebase/auth";
 import { signOut as nextAuthSignOut } from "next-auth/react";
 import { auth } from "@/lib/firebase/client";
+import { LogIn } from "lucide-react";
 import logotipo from "../../../../public/brand/logo-sem-fundo-sem-nome.png";
 import "../../../styles/shared/navbar/navbar.css";
 
@@ -27,6 +28,14 @@ const NavBar: React.FC = () => {
     const qs = searchParams?.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   }, [pathname, searchParams]);
+
+  const loginHref = React.useMemo(() => {
+    const qs = new URLSearchParams();
+    const target = hrefWithQs || "/";
+    qs.set("callbackUrl", target);
+    // Link (i18n) irá prefixar o locale automaticamente
+    return `/login?${qs.toString()}`;
+  }, [hrefWithQs]);
 
   const handleLogout = async () => {
     try {
@@ -100,12 +109,12 @@ const NavBar: React.FC = () => {
       <div className="navbar-center hidden lg:flex">
         <ul className="menu menu-horizontal px-1">
             <li>
-            <Link className="text-2xl" href={pathname === "/portofolio" ? "/" : "/portofolio"}>
+            <Link className="text-base font-medium" href={pathname === "/portofolio" ? "/" : "/portofolio"}>
               {pathname === "/portofolio" ? translate("home") : translate("portfolio")}
             </Link>
             </li>
             <li>
-              <Link className="text-2xl" href="/sessions">{translate("viewSession")}</Link>
+              <Link className="text-base font-medium" href="/sessions">{translate("viewSession")}</Link>
             </li>
           {/* <li>
             <a>{translate("about")}</a>
@@ -115,7 +124,7 @@ const NavBar: React.FC = () => {
           </li> */}
           {user && (
             <li>
-              <Link href="/admin">Admin</Link>
+              <Link className="text-base font-medium" href="/admin">Admin</Link>
             </li>
           )}
         </ul>
@@ -131,6 +140,15 @@ const NavBar: React.FC = () => {
           >
             {translate("logout")}
           </button>
+        )}
+        {!user && (
+          <Link
+            href={loginHref}
+            className="btn btn-ghost mr-2 text-sm hidden lg:inline-flex items-center gap-2"
+          >
+            <LogIn size={16} />
+            {translate("login") || "Login"}
+          </Link>
         )}
         <div className="dropdown dropdown-end">
           <div tabIndex={0} role="button" className="btn btn-ghost">

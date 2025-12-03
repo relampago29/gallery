@@ -28,11 +28,12 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
           Aceder ao backoffice nunca foi tão simples.
         </h2>
         <p className="mt-3 text-sm text-white/70">
-          Utiliza a tua conta Google ou cria uma conta instantaneamente. Todo o processo é seguro e integrado com o Firebase e NextAuth.
+          Autentica-te com o teu email. Todo o processo é seguro, integrado com o Firebase e com o backoffice.
         </p>
         <ul className="mt-5 space-y-2 text-sm text-white/65">
-          <li>• Sessão sincronizada com a Dashboard.</li>
-          <li>• Suporte para múltiplos métodos de login.</li>
+          <li>• Sessão sincronizada com o painel.</li>
+          <li>• Acesso apenas por email e password.</li>
+          <li>• Criação de novas contas sob gestão de administradores.</li>
           <li>• Depois de entrares, regressas automaticamente ao admin.</li>
         </ul>
         <div className="mt-6 rounded-2xl border border-white/20 bg-black/20 px-4 py-3 text-xs uppercase tracking-[0.3em] text-white/70">
