@@ -49,7 +49,7 @@ const NavBar: React.FC = () => {
   };
 
   return (
-    <div className="navbar bg-base-100">
+    <div className="navbar bg-base-100 text-white">
       <div className="navbar-start">
         <div className="dropdown">
           <div tabIndex={0} role="button" className="btn btn-ghost px-2 lg:hidden" aria-label="Abrir menu">
@@ -69,7 +69,7 @@ const NavBar: React.FC = () => {
             </svg>
           </div>
           <div className="dropdown-content left-0 mt-3 w-56 rounded-3xl border border-white/10 bg-[#0f0f0f] p-4 text-white shadow-2xl lg:hidden">
-            <nav className="space-y-3 text-base">
+            <nav className="space-y-3 text-base ">
               <Link
                 href={pathname === "/portofolio" ? "/" : "/portofolio"}
                 className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
@@ -109,12 +109,12 @@ const NavBar: React.FC = () => {
       <div className="navbar-center hidden lg:flex">
         <ul className="menu menu-horizontal px-1">
             <li>
-            <Link className="text-base font-medium" href={pathname === "/portofolio" ? "/" : "/portofolio"}>
+            <Link className="text-base font-medium text-white" href={pathname === "/portofolio" ? "/" : "/portofolio"}>
               {pathname === "/portofolio" ? translate("home") : translate("portfolio")}
             </Link>
             </li>
             <li>
-              <Link className="text-base font-medium" href="/sessions">{translate("viewSession")}</Link>
+              <Link className="text-base font-medium text-white" href="/sessions">{translate("viewSession")}</Link>
             </li>
           {/* <li>
             <a>{translate("about")}</a>
@@ -124,7 +124,7 @@ const NavBar: React.FC = () => {
           </li> */}
           {user && (
             <li>
-              <Link className="text-base font-medium" href="/admin">Admin</Link>
+              <Link className="text-base font-medium text-white" href="/admin">Admin</Link>
             </li>
           )}
         </ul>
@@ -168,13 +168,13 @@ const NavBar: React.FC = () => {
           </div>
           <ul
             tabIndex={0}
-            className="menu menu-sm dropdown-content bg-base-100 rounded-box z-10 mt-2 w-28 p-2 shadow"
+            className="menu menu-sm dropdown-content bg-base-100 text-white rounded-box z-10 mt-2 w-28 p-2 shadow"
           >
             <li>
               <Link
                 href={hrefWithQs}
                 locale="pt"
-                className={locale === "pt" ? "active" : undefined}
+                className={`text-white ${locale === "pt" ? "active" : ""}`.trim()}
                 aria-current={locale === "pt" ? "page" : undefined}
               >
                 PT
@@ -184,7 +184,7 @@ const NavBar: React.FC = () => {
               <Link
                 href={hrefWithQs}
                 locale="en"
-                className={locale === "en" ? "active" : undefined}
+                className={`text-white ${locale === "en" ? "active" : ""}`.trim()}
                 aria-current={locale === "en" ? "page" : undefined}
               >
                 EN

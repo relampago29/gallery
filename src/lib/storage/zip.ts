@@ -1,3 +1,6 @@
+import ZipStream from "zip-stream";
+import { Readable as NodeReadable } from "node:stream";
+
 const crcTable = (() => {
   const table = new Uint32Array(256);
   for (let i = 0; i < 256; i++) {
@@ -109,6 +112,12 @@ export type ZipSource = {
   createdAt?: number | Date | null;
 };
 
+export type ZipStreamSource = {
+  filename: string;
+  createReadStream: () => NodeReadable;
+  createdAt?: number | Date | null;
+};
+
 export function sanitizeFilename(input: string) {
   return (
     input
@@ -127,4 +136,52 @@ export function buildZipFromSources(sources: ZipSource[]) {
     date: src.createdAt instanceof Date ? src.createdAt : src.createdAt ? new Date(src.createdAt) : new Date(),
   }));
   return buildZip(prepared);
+}
+
+export function buildZipStreamFromSources(sources: ZipStreamSource[]) {
+  const archive = new ZipStream({ zlib: { level: 9 } });
+
+  (async () => {
+    try {
+      const total = sources.length;
+      let processed = 0;
+      console.log("[zip] start building stream", { totalEntries: total });
+      for (const src of sources) {
+        const mtime =
+          src.createdAt instanceof Date ? src.createdAt : src.createdAt ? new Date(src.createdAt) : new Date();
+        const stream = src.createReadStream();
+        await new Promise<void>((resolve, reject) => {
+          stream.on("error", reject);
+          archive.entry(stream, { name: src.filename, date: mtime, store: true }, (err?: Error | null) => {
+            if (err) return reject(err);
+            resolve();
+          });
+        });
+        processed += 1;
+        console.log("[zip] appended entry", { name: src.filename, processed, total });
+      }
+      console.log("[zip] finalize archive", { totalEntries: total });
+      archive.finalize();
+    } catch (err) {
+      console.error("[zip] fatal error while building zip", err);
+      archive.destroy(err as Error);
+    }
+  })();
+
+  const webStream =
+    typeof NodeReadable.toWeb === "function"
+      ? NodeReadable.toWeb(archive as unknown as NodeReadable)
+      : new ReadableStream<Uint8Array>({
+          start(controller) {
+            const nodeStream = archive as unknown as NodeReadable;
+            nodeStream.on("data", (chunk) => controller.enqueue(chunk as Uint8Array));
+            nodeStream.once("end", () => controller.close());
+            nodeStream.once("error", (err) => controller.error(err));
+          },
+          cancel() {
+            (archive as unknown as NodeReadable).destroy();
+          },
+        });
+
+  return { stream: webStream, archive };
 }

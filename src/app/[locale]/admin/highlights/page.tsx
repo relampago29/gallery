@@ -10,6 +10,7 @@ import { useUploadProgress } from "@/components/admin/UploadProgressContext";
 const ALLOWED_HIGHLIGHT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/heic", "image/heif"];
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 400;
+const MAX_HIGHLIGHT_SIZE = 4 * 1024 * 1024; // ajustado para o limite da lambda na Vercel
 
 const emptyForm = {
   imageUrl: "",
@@ -139,6 +140,9 @@ export default function HighlightsAdminPage() {
     if (!file.type || !file.type.startsWith("image/")) {
       throw new Error("Apenas imagens são permitidas.");
     }
+    if (file.size > MAX_HIGHLIGHT_SIZE) {
+      throw new Error("Imagem demasiado grande (limite ~4MB). Comprime ou reduz a resolução.");
+    }
     if (ALLOWED_HIGHLIGHT_TYPES.length && !ALLOWED_HIGHLIGHT_TYPES.includes(file.type.toLowerCase())) {
       throw new Error("Formato não suportado. Usa JPG, PNG, WEBP, AVIF ou HEIC.");
     }
@@ -148,16 +152,12 @@ export default function HighlightsAdminPage() {
       async () => {
         setUploadProgressValue(0);
         setGlobalUploadProgress({ label: "Destaques", progress: 0, scope: uploadScope });
-        setUploadProgressValue(10);
-        setGlobalUploadProgress({ label: "Destaques", progress: 0.1, scope: uploadScope });
         const form = new FormData();
         form.append("file", file);
         form.append("name", file.name || "highlight");
         const res = await fetch("/api/highlights/upload", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: form,
         });
         if (!res.ok) {

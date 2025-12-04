@@ -5,8 +5,10 @@ import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { UploadCloud, Trash2 } from "lucide-react";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
+import { randomUUID } from "crypto";
 
 type TrailImage = { id: string; imageUrl: string; order?: number | null };
+const MAX_TRAIL_SIZE = 4 * 1024 * 1024; // alinhado com lambda Vercel
 
 async function fetchTrailImages(token: string): Promise<TrailImage[]> {
   const res = await fetch("/api/trail-images/list", {
@@ -19,6 +21,21 @@ async function fetchTrailImages(token: string): Promise<TrailImage[]> {
   }
   const data = await res.json();
   return Array.isArray(data.items) ? (data.items as TrailImage[]) : [];
+}
+
+async function deleteTrailImage({ id, token }: { id: string; token: string }) {
+  const res = await fetch("/api/trail-images/delete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || `Falha (${res.status}) ao remover.`);
+  }
 }
 
 async function uploadAndCreate({ file, token }: { file: File; token: string }) {
@@ -48,21 +65,6 @@ async function uploadAndCreate({ file, token }: { file: File; token: string }) {
   if (!createRes.ok) {
     const data = await createRes.json().catch(() => ({}));
     throw new Error(data?.error || `Falha (${createRes.status}) ao registar imagem.`);
-  }
-}
-
-async function deleteTrailImage({ id, token }: { id: string; token: string }) {
-  const res = await fetch("/api/trail-images/delete", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ id }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data?.error || `Falha (${res.status}) ao remover.`);
   }
 }
 
@@ -118,6 +120,11 @@ export default function TrailAdminPage() {
     }
     const file = files?.[0];
     if (!file) return;
+    if (file.size > MAX_TRAIL_SIZE) {
+      setError("Imagem demasiado grande para upload (limite ~4MB). Comprime ou reduz antes de enviar.");
+      e.target.value = "";
+      return;
+    }
     if (globalLock) {
       setError("Já existe um envio em curso. Aguarda terminar para enviar mais imagens.");
       e.target.value = "";

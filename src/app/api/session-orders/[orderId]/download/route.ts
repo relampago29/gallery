@@ -1,10 +1,10 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
-import { buildZipFromSources, sanitizeFilename } from "@/lib/storage/zip";
+import { getAdminDb } from "@/lib/firebase/admin";
 import { requireAdmin } from "../../helpers";
 
 type RouteParams = {
@@ -40,41 +40,17 @@ export async function GET(req: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Pagamento ainda não confirmado" }, { status: 409 });
     }
 
-    const selectedPhotos = Array.isArray(data.selectedPhotos) ? data.selectedPhotos : [];
-    if (!selectedPhotos.length) {
-      return NextResponse.json({ error: "Sem fotos seleccionadas" }, { status: 400 });
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const fnOrigin =
+      process.env.FIREBASE_FUNCTIONS_ORIGIN || (projectId ? `https://europe-west1-${projectId}.cloudfunctions.net` : null);
+    if (!fnOrigin) {
+      return NextResponse.json({ error: "functions origin não configurado" }, { status: 500 });
     }
 
-    const sources: { filename: string; data: Buffer; createdAt?: number | null }[] = [];
-    const usedNames = new Map<string, number>();
-    for (const photo of selectedPhotos) {
-      const masterPath = typeof photo.masterPath === "string" ? photo.masterPath : null;
-      if (!masterPath) continue;
-      try {
-        const file = bucketAdmin.file(masterPath);
-        const [buffer] = await file.download();
-        const ext = masterPath.includes(".") ? masterPath.split(".").pop() || "jpg" : "jpg";
-        const baseName = sanitizeFilename(String(photo.title || masterPath.split("/").pop() || "foto"));
-        let finalName = baseName.toLowerCase().endsWith(`.${ext}`) ? baseName : `${baseName}.${ext}`;
-        if (usedNames.has(finalName)) {
-          const count = usedNames.get(finalName)! + 1;
-          usedNames.set(finalName, count);
-          const base = finalName.replace(/\.[^.]+$/, "");
-          finalName = `${base}-${count}.${ext}`;
-        } else {
-          usedNames.set(finalName, 0);
-        }
-        sources.push({ filename: finalName, data: buffer, createdAt: photo.createdAt || null });
-      } catch (error) {
-        console.error("Falha ao transferir", masterPath, error);
-      }
-    }
+    const redirectUrl = `${fnOrigin}/downloadSessionOrder?orderId=${encodeURIComponent(orderId)}${
+      token ? `&token=${encodeURIComponent(token)}` : ""
+    }`;
 
-    if (!sources.length) {
-      return NextResponse.json({ error: "Não foi possível gerar o ZIP" }, { status: 500 });
-    }
-
-    const zipBuffer = buildZipFromSources(sources);
     await docRef.update({
       status: "fulfilled",
       fulfilledAt: FieldValue.serverTimestamp(),
@@ -82,16 +58,9 @@ export async function GET(req: Request, { params }: RouteParams) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    const zipName = sanitizeFilename(data.sessionName || data.sessionId || "sessao");
-    return new NextResponse(zipBuffer, {
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${zipName || "sessao"}.zip"`,
-        "Content-Length": String(zipBuffer.length),
-        "Cache-Control": "private, max-age=30",
-      },
-    });
+    return NextResponse.redirect(redirectUrl, { status: 307 });
   } catch (err: any) {
+    console.error("[download] unexpected error", err);
     return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
   }
 }
