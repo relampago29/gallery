@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { useParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
@@ -9,20 +9,18 @@ import { Link } from "@/i18n/navigation";
 export default function OrderDownloadPage() {
   const locale = useLocale();
   const params = useParams<{ orderId: string; locale: string }>();
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [token, setToken] = useState<string>("");
+  const token = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") || "";
+  }, []);
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const runningRef = useRef(false);
 
-  useEffect(() => {
-    setOrderId(params?.orderId || null);
-    const qsToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") || "" : "";
-    setToken(qsToken);
-  }, [params?.orderId]);
+  const orderId = params?.orderId || "";
 
   const triggerDownload = useCallback(async () => {
-    if (!token || !orderId || runningRef.current) return;
+    if (!token || runningRef.current) return;
     runningRef.current = true;
     setState("running");
     setError(null);
@@ -51,10 +49,10 @@ export default function OrderDownloadPage() {
   }, [orderId, token]);
 
   useEffect(() => {
-    if (token && orderId) {
+    if (token) {
       triggerDownload();
     }
-  }, [token, triggerDownload, orderId]);
+  }, [token, triggerDownload]);
 
   return (
     <div className="min-h-screen bg-[#030303] text-gray-100">
@@ -95,7 +93,7 @@ export default function OrderDownloadPage() {
           </Link>
         </div>
 
-        {orderId ? <div className="text-xs text-white/60">Pedido #{orderId}</div> : null}
+        <div className="text-xs text-white/60">Pedido #{orderId}</div>
       </main>
     </div>
   );

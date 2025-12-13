@@ -26,10 +26,8 @@ export function Sidebar() {
   const pathname = usePathname();
 
   const items = [
-    { label: "Início", href: `${base}`, icon: <Images size={16} /> },
     { label: "Upload", href: `${base}/public/upload`, icon: <UploadCloud size={16} /> },
     { label: "Lista", href: `${base}/public/list`, icon: <Images size={16} /> },
-    { label: "Sessões privadas", href: `${base}/sessions`, icon: <Users size={16} /> },
     { label: "Categorias", href: `${base}/categories`, icon: <Tags size={16} /> },
     { label: "Highlights", href: `${base}/highlights`, icon: <Images size={16} /> },
     { label: "Pagamentos", href: `${base}/payments`, icon: <CreditCard size={16} /> },

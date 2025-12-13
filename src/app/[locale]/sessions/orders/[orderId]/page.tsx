@@ -15,38 +15,21 @@ type OrderPayload = {
   paymentConfirmedAt: number | null;
 };
 
+const PAYMENT_PHONE = process.env.NEXT_PUBLIC_PAYMENT_PHONE?.trim() || "913 000 000";
+
 export default function OrderPaymentPage() {
   const locale = useLocale();
   const params = useParams<{ orderId: string; locale: string }>();
   const router = useRouter();
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [token, setToken] = useState<string>("");
+  const token = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") || "";
+  }, []);
   const [order, setOrder] = useState<OrderPayload | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paymentPhone, setPaymentPhone] = useState<string>(process.env.NEXT_PUBLIC_PAYMENT_PHONE?.trim() || "913 000 000");
 
-  useEffect(() => {
-    setOrderId(params?.orderId || null);
-    const qsToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("token") || "" : "";
-    setToken(qsToken);
-  }, [params?.orderId]);
-
-  useEffect(() => {
-    const loadPhone = async () => {
-      try {
-        const res = await fetch("/api/settings/payment-phone");
-        if (!res.ok) return;
-        const data = await res.json().catch(() => ({}));
-        if (typeof data?.phone === "string" && data.phone.trim().length) {
-          setPaymentPhone(data.phone.trim());
-        }
-      } catch {
-        // silent fallback
-      }
-    };
-    loadPhone();
-  }, []);
+  const orderId = params?.orderId || "";
 
   const fetchStatus = async () => {
     if (!token) return;
@@ -136,7 +119,7 @@ export default function OrderPaymentPage() {
 
             <div className="rounded-2xl border border-white/20 bg-black/20 p-4 text-white">
               <p className="text-sm text-white/60">Efetua o pagamento MBWay para</p>
-              <div className="text-3xl font-semibold tracking-wide">{paymentPhone}</div>
+              <div className="text-3xl font-semibold tracking-wide">{PAYMENT_PHONE}</div>
               <p className="text-xs uppercase tracking-[0.35em] text-white/40">necessário para avançar</p>
             </div>
 
@@ -146,11 +129,9 @@ export default function OrderPaymentPage() {
           </div>
         </div>
 
-        {orderId ? (
-          <div className="text-center text-xs text-white/50">
-            ID do pedido: <span className="font-mono text-white/80">{orderId}</span>
-          </div>
-        ) : null}
+        <div className="text-center text-xs text-white/50">
+          ID do pedido: <span className="font-mono text-white/80">{orderId}</span>
+        </div>
       </main>
     </div>
   );
