@@ -36,3 +36,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const uid = await requireAdmin(req);
+    if (!uid) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    const body = await req.json().catch(() => ({}));
+    const targetUid = typeof body?.uid === "string" ? body.uid : "";
+    if (!targetUid) {
+      return NextResponse.json({ error: "uid is required" }, { status: 400 });
+    }
+    await getAdminAuth().deleteUser(targetUid);
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+  }
+}

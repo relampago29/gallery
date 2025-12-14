@@ -8,7 +8,6 @@ import {
   startAfter,
   where,
   DocumentData,
-  addDoc,
 } from "firebase/firestore";
 import { ref, uploadBytesResumable } from "firebase/storage";
 
@@ -36,6 +35,60 @@ export type PublicPhoto = {
   sizes?: PublicPhotoSizes;
   lqip?: { blurDataURL?: string; dominant?: string };
 };
+
+const MAX_UPLOAD_RETRIES = 3;
+const MAX_DOC_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 400;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function retry<T>(fn: () => Promise<T>, attempts: number, baseDelayMs: number): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i === attempts - 1) break;
+      await sleep(baseDelayMs * Math.pow(2, i));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+async function uploadWithRetry(path: string, file: File) {
+  const contentType = file.type || "application/octet-stream";
+  await retry(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const task = uploadBytesResumable(ref(storage, path), file, { contentType });
+        task.on("state_changed", undefined, reject, () => resolve());
+      }),
+    MAX_UPLOAD_RETRIES,
+    BASE_RETRY_DELAY_MS
+  );
+}
+
+async function postJsonWithRetry(url: string, payload: any) {
+  return retry(
+    async () => {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Request failed (${res.status})`);
+      }
+      return res;
+    },
+    MAX_DOC_RETRIES,
+    BASE_RETRY_DELAY_MS
+  );
+}
 
 export function pickThumb(
   p: PublicPhoto
@@ -125,44 +178,18 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
   const masterPath = `masters/public/${photoId}.${ext}`;
 
   // Upload para o Firebase Storage (requer utilizador Firebase Auth no cliente)
-  const task = uploadBytesResumable(ref(storage, masterPath), opts.file, {
-    contentType: opts.file.type,
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    task.on("state_changed", undefined, reject, () => resolve());
-  });
+  await uploadWithRetry(masterPath, opts.file);
 
   const createdAt = Date.now();
 
-  // Cria o doc "processing" preferindo a API server (Admin SDK). Se falhar, faz fallback.
-  try {
-    const res = await fetch("/api/public-photos/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: opts.title || null,
-        alt: opts.alt || opts.title || null,
-        categoryId: opts.categoryId,
-        createdAt,
-        masterPath,
-        sequenceNumber: opts.sequenceNumber,
-      }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-  } catch {
-    // fallback: grava direto no client (irá falhar se rules não permitirem write)
-    await addDoc(collection(db, "public_photos"), {
-      title: opts.title || null,
-      alt: opts.alt || opts.title || null,
-      categoryId: opts.categoryId,
-      createdAt,
-      published: false,
-      status: "processing",
-      masterPath,
-      sequenceNumber: opts.sequenceNumber,
-    });
-  }
+  await postJsonWithRetry("/api/public-photos/create", {
+    title: opts.title || null,
+    alt: opts.alt || opts.title || null,
+    categoryId: opts.categoryId,
+    createdAt,
+    masterPath,
+    sequenceNumber: opts.sequenceNumber,
+  });
 
   return { photoId, masterPath, createdAt };
 }
@@ -212,13 +239,7 @@ export async function uploadPrivateMaster({ file, sessionId }: PrivateUploadOpts
       : String(Date.now());
   const masterPath = `masters/sessions/${cleanSession}/${photoId}.${ext}`;
 
-  const task = uploadBytesResumable(ref(storage, masterPath), file, {
-    contentType: file.type,
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    task.on("state_changed", undefined, reject, () => resolve());
-  });
+  await uploadWithRetry(masterPath, file);
 
   return { photoId, masterPath, createdAt: Date.now(), sessionId: cleanSession };
 }
@@ -233,20 +254,13 @@ type RegisterPrivatePhotoOpts = {
 };
 
 export async function registerPrivateSessionPhoto(opts: RegisterPrivatePhotoOpts) {
-  const res = await fetch("/api/session-photos/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: opts.sessionId,
-      masterPath: opts.masterPath,
-      title: opts.title ?? null,
-      alt: opts.alt ?? opts.title ?? null,
-      createdAt: opts.createdAt ?? Date.now(),
-      sequenceNumber: opts.sequenceNumber,
-    }),
+  const res = await postJsonWithRetry("/api/session-photos/register", {
+    sessionId: opts.sessionId,
+    masterPath: opts.masterPath,
+    title: opts.title ?? null,
+    alt: opts.alt ?? opts.title ?? null,
+    createdAt: opts.createdAt ?? Date.now(),
+    sequenceNumber: opts.sequenceNumber,
   });
-  if (!res.ok) {
-    throw new Error(await res.text());
-  }
   return res.json().catch(() => ({}));
 }

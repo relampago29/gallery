@@ -17,7 +17,7 @@ import {
 import { motion } from "framer-motion";
 
 const menuItems = [
-  { name: "Dashboard", href: "/pt/admin", icon: LayoutDashboard },
+  { name: "Painel", href: "/pt/admin", icon: LayoutDashboard },
   { name: "Galeria", href: "/pt/admin/gallery", icon: ImageIcon },
   { name: "Vídeos", href: "/pt/admin/videos", icon: VideoIcon },
   { name: "Documentos", href: "/pt/admin/docs", icon: FileTextIcon },
@@ -84,7 +84,7 @@ export function Sidebar() {
             }}
           >
             <LogOut size={16} />
-            Terminar Sessao
+            Terminar sessão
           </button>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAdmin } from "../../session-orders/helpers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,20 +18,6 @@ type Body = {
 function clampHeight(value: number | undefined | null) {
   if (typeof value !== "number" || Number.isNaN(value)) return undefined;
   return Math.min(700, Math.max(220, Math.round(value)));
-}
-
-async function requireAdmin(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return null;
-  }
-  try {
-    await getAdminAuth().verifyIdToken(token);
-    return true;
-  } catch {
-    return null;
-  }
 }
 
 export async function POST(req: Request) {

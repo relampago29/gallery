@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminNotification } from "@/components/admin/Notification";
 
 type Category = { id: string; name: string; description?: string | null; active: boolean; createdAt?: number };
 
@@ -9,6 +10,11 @@ export default function CategoriesAdminPage() {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "warning";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
 
   async function load() {
     const res = await fetch("/api/categories", { cache: "no-store" });
@@ -34,8 +40,9 @@ export default function CategoriesAdminPage() {
       setName("");
       setDescription("");
       load();
+      setToast({ type: "success", message: "Categoria criada com sucesso." });
     } else {
-      alert("Falha ao criar categoria.");
+      setToast({ type: "error", message: "Falha ao criar categoria." });
     }
   }
 
@@ -47,21 +54,42 @@ export default function CategoriesAdminPage() {
       body: JSON.stringify({ id, patch: { active } }),
     });
     setBusy(false);
-    if (res.ok) load();
-    else alert("Falha ao atualizar.");
+    if (res.ok) {
+      load();
+      setToast({ type: "success", message: "Categoria atualizada." });
+    } else {
+      setToast({ type: "error", message: "Falha ao atualizar." });
+    }
   }
 
-  async function remove(id: string) {
-    if (!confirm("Apagar esta categoria?")) return;
-    setBusy(true);
-    const res = await fetch("/api/categories/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
+  function confirmRemove(id: string) {
+    setToast({
+      type: "warning",
+      message: "Apagar esta categoria? Esta ação não pode ser desfeita.",
+      actions: [
+        { label: "Cancelar", onClick: () => setToast(null) },
+        {
+          label: "Apagar",
+          variant: "primary",
+          onClick: async () => {
+            setToast(null);
+            setBusy(true);
+            const res = await fetch("/api/categories/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id }),
+            });
+            setBusy(false);
+            if (res.ok) {
+              load();
+              setToast({ type: "success", message: "Categoria apagada." });
+            } else {
+              setToast({ type: "error", message: "Falha ao apagar." });
+            }
+          },
+        },
+      ],
     });
-    setBusy(false);
-    if (res.ok) load();
-    else alert("Falha ao apagar.");
   }
 
   const cardClass =
@@ -77,6 +105,7 @@ export default function CategoriesAdminPage() {
 
   return (
     <div className="space-y-10">
+      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
         <h1 className="text-4xl font-semibold text-white tracking-tight">Categorias</h1>
@@ -133,7 +162,7 @@ export default function CategoriesAdminPage() {
                   <button className={subtleBtn} onClick={() => toggleActive(c.id, !c.active)} disabled={busy}>
                     {c.active ? "Desativar" : "Ativar"}
                   </button>
-                  <button className={dangerBtn} onClick={() => remove(c.id)} disabled={busy}>
+                  <button className={dangerBtn} onClick={() => confirmRemove(c.id)} disabled={busy}>
                     Apagar
                   </button>
                 </div>

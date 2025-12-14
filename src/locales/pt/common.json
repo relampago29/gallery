@@ -6,7 +6,8 @@
         "team": "Equipa",
         "home": "Início",
         "logout": "Terminar sessão",
-        "viewSession": "Vê a tua sessão"
+        "viewSession": "Vê a tua sessão",
+        "login": "Entrar"
     },
     "protofolioHomePage": {
         "highlights": "Destaques"

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { listActiveCategories } from "@/lib/categories";
 import { listPublicPhotos, pickThumb, type PublicPhoto, deletePublicPhoto } from "@/lib/publicPhotos";
+import { AdminNotification } from "@/components/admin/Notification";
 
 type SessionPhoto = {
   id: string;
@@ -36,6 +37,11 @@ export default function PublicListPage() {
   const [privateShareUrl, setPrivateShareUrl] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [purging, setPurging] = useState(false);
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -100,15 +106,29 @@ export default function PublicListPage() {
     return items.filter((p) => (p.title || "").toLowerCase().includes(s));
   }, [items, q]);
 
-  async function handleDelete(id: string) {
-    if (!confirm("Apagar esta foto?")) return;
-    try {
-      await deletePublicPhoto(id);
-      setItems((prev) => prev.filter((p) => p.id !== id));
-    } catch (e: any) {
-      console.error("delete failed", e);
-      alert(e?.message || "Falha ao apagar");
-    }
+  function confirmDelete(id: string) {
+    setToast({
+      type: "warning",
+      message: "Apagar esta foto do portfólio?",
+      actions: [
+        { label: "Cancelar", onClick: () => setToast(null) },
+        {
+          label: "Apagar",
+          variant: "primary",
+          onClick: async () => {
+            setToast(null);
+            try {
+              await deletePublicPhoto(id);
+              setItems((prev) => prev.filter((p) => p.id !== id));
+              setToast({ type: "success", message: "Foto apagada." });
+            } catch (e: any) {
+              console.error("delete failed", e);
+              setToast({ type: "error", message: e?.message || "Falha ao apagar" });
+            }
+          },
+        },
+      ],
+    });
   }
 
   const cardClass =
@@ -158,6 +178,7 @@ export default function PublicListPage() {
 
   return (
     <div className="space-y-10">
+        {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
         <header className="space-y-6 text-center sm:text-left">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -241,25 +262,39 @@ export default function PublicListPage() {
               <button
                 type="button"
                 className="rounded-full border border-red-400/60 px-4 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-500/10 disabled:opacity-40"
-                onClick={async () => {
+                onClick={() => {
                   if (purging) return;
-                  if (!confirm("Isto vai apagar TODAS as fotos públicas. Continuar?")) return;
-                  setPurging(true);
-                  try {
-                    const res = await fetch("/api/public-photos/delete-all", { method: "POST" });
-                    if (!res.ok) {
-                      const data = await res.json().catch(() => ({}));
-                      throw new Error(data?.error || `Falha (${res.status})`);
-                    }
-                    setItems([]);
-                    setCursor(null);
-                    setEnd(true);
-                    setMsg("Todas as fotos públicas foram removidas.");
-                  } catch (err: any) {
-                    alert(err?.message || "Não foi possível apagar todas as fotos.");
-                  } finally {
-                    setPurging(false);
-                  }
+                  setToast({
+                    type: "warning",
+                    message: "Isto vai apagar TODAS as fotos públicas. Continuar?",
+                    actions: [
+                      { label: "Cancelar", onClick: () => setToast(null) },
+                      {
+                        label: "Apagar tudo",
+                        variant: "primary",
+                        onClick: async () => {
+                          setToast(null);
+                          setPurging(true);
+                          try {
+                            const res = await fetch("/api/public-photos/delete-all", { method: "POST" });
+                            if (!res.ok) {
+                              const data = await res.json().catch(() => ({}));
+                              throw new Error(data?.error || `Falha (${res.status})`);
+                            }
+                            setItems([]);
+                            setCursor(null);
+                            setEnd(true);
+                            setMsg("Todas as fotos públicas foram removidas.");
+                            setToast({ type: "success", message: "Todas as fotos foram apagadas." });
+                          } catch (err: any) {
+                            setToast({ type: "error", message: err?.message || "Não foi possível apagar todas as fotos." });
+                          } finally {
+                            setPurging(false);
+                          }
+                        },
+                      },
+                    ],
+                  });
                 }}
                 disabled={purging || items.length === 0}
               >
@@ -310,7 +345,7 @@ export default function PublicListPage() {
                         <div className="truncate text-base font-medium">{p.title || "(sem título)"}</div>
                         <div className="text-xs uppercase tracking-wide text-white/50">{p.status || "—"}</div>
                       </div>
-                      <button className="rounded-full border border-red-400/70 px-4 py-1 text-xs text-red-100 hover:bg-red-500/10" onClick={() => handleDelete(p.id)}>
+                      <button className="rounded-full border border-red-400/70 px-4 py-1 text-xs text-red-100 hover:bg-red-500/10" onClick={() => confirmDelete(p.id)}>
                         Apagar
                       </button>
                     </div>

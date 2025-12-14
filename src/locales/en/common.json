@@ -6,7 +6,8 @@
         "team": "Team",
         "home": "Home",
         "logout": "Log out",
-        "viewSession": "View your session"
+        "viewSession": "View your session",
+        "login": "Login"
     },
     "protofolioHomePage": {
         "highlights": "High Lights"

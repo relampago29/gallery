@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
-import { buildZipFromSources, sanitizeFilename } from "@/lib/storage/zip";
+import { buildZipStreamFromSources, sanitizeFilename, type ZipStreamSource } from "@/lib/storage/zip";
 
 function sanitizeSessionId(raw: string) {
   return raw
@@ -51,10 +52,18 @@ async function getSessionFileEntries(sessionId: string) {
   }
 
   const usedNames = new Map<string, number>();
-  const buffers: { filename: string; data: Buffer; createdAt?: number }[] = [];
+  const seenPaths = new Set<string>();
+  const streams: ZipStreamSource[] = [];
+
   for (const entry of entries) {
+    if (seenPaths.has(entry.path)) continue;
     const file = bucketAdmin.file(entry.path);
-    const [data] = await file.download();
+    const [exists] = await file.exists().catch(() => [false]);
+    if (!exists) {
+      console.error("[download-all] ficheiro não encontrado", entry.path);
+      continue;
+    }
+
     const rawName = sanitizeFilename(entry.name || entry.path.split("/").pop() || "foto");
     const ext = entry.path.includes(".") ? entry.path.split(".").pop() || "jpg" : "jpg";
     let finalName = rawName.toLowerCase().endsWith(`.${ext}`) ? rawName : `${rawName}.${ext}`;
@@ -66,13 +75,15 @@ async function getSessionFileEntries(sessionId: string) {
     } else {
       usedNames.set(finalName, 0);
     }
-    buffers.push({
+    streams.push({
       filename: finalName,
-      data,
-      createdAt: entry.createdAt,
+      createdAt: typeof entry.createdAt === "number" ? entry.createdAt : null,
+      createReadStream: () => file.createReadStream(),
     });
+    seenPaths.add(entry.path);
   }
-  return buffers;
+
+  return streams;
 }
 
 export async function GET(req: Request) {
@@ -89,12 +100,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "sem ficheiros para esta sessão" }, { status: 404 });
     }
 
-    const zipBuffer = buildZipFromSources(entries);
-    return new NextResponse(zipBuffer, {
+    console.log("[download-all] preparing zip", { sessionId, count: entries.length });
+    const { stream: zipStream, archive } = buildZipStreamFromSources(entries);
+    archive.on("error", (err: unknown) => console.error("[download-all] erro no stream do zip", err));
+    archive.once("end", () => console.log("[download-all] zip stream finished", { sessionId }));
+    const body = zipStream as unknown as BodyInit;
+    return new NextResponse(body, {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${sessionId || "sessao"}.zip"`,
-        "Content-Length": String(zipBuffer.length),
         "Cache-Control": "private, max-age=60",
       },
     });

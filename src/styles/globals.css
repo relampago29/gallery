@@ -17,6 +17,16 @@ body {
   font-family: var(--fontFamily);
 }
 
+.admin-shell button:not(:disabled),
+.admin-shell [role="button"]:not([aria-disabled="true"]),
+.admin-shell .clickable {
+  cursor: pointer;
+}
+
+.admin-shell button:disabled {
+  cursor: not-allowed;
+}
+
 
 
 .portofolioHomePage{
@@ -28,4 +38,3 @@ body {
   display: flex;
    background-color: var(--defaultColor);
 }
-

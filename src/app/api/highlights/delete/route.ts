@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
+import { requireAdmin } from "../../session-orders/helpers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function requireAdmin(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return null;
-  }
+function parseStoragePath(url: string | undefined | null) {
+  if (!url) return null;
   try {
-    await getAdminAuth().verifyIdToken(token);
-    return true;
+    const u = new URL(url);
+    if (!u.hostname.includes("firebasestorage.googleapis.com")) return null;
+    const match = u.pathname.match(/\/b\/([^/]+)\/o\/([^?]+)/);
+    if (!match) return null;
+    const bucket = match[1];
+    const path = decodeURIComponent(match[2]);
+    return { bucket, path };
   } catch {
     return null;
   }
@@ -29,7 +31,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "missing id" }, { status: 400 });
     }
 
-    await getAdminDb().collection("highlights").doc(id).delete();
+    const db = getAdminDb();
+    const docRef = db.collection("highlights").doc(id);
+    const snap = await docRef.get();
+    const imageUrl = snap.exists ? (snap.data()?.imageUrl as string | undefined) : undefined;
+
+    await docRef.delete();
+
+    if (imageUrl) {
+      const parsed = parseStoragePath(imageUrl);
+      const storage = getAdminStorage();
+      const bucket = storage.bucket();
+      if (parsed && parsed.bucket === bucket.name && parsed.path.startsWith("masters/highlights/")) {
+        try {
+          await bucket.file(parsed.path).delete({ ignoreNotFound: true });
+        } catch (err) {
+          console.error("[highlights/delete] failed to delete storage file", parsed.path, err);
+        }
+      }
+    }
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
