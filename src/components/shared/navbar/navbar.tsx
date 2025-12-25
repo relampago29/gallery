@@ -176,14 +176,6 @@ const NavBar: React.FC = () => {
                   </Link>
                 </>
               )}
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
-                >
-                  Admin
-                </Link>
-              )}
               {user ? (
                 <button
                   type="button"
