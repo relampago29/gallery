@@ -145,6 +145,73 @@ export default function PendingPaymentsPage() {
     [runAction]
   );
 
+  const normalizedFilter = filter.trim().toLowerCase();
+
+  const filteredPending = useMemo(() => {
+    if (!normalizedFilter) return items;
+    return items.filter((item) => {
+      const text = `${item.sessionName || ""} ${item.sessionId || ""}`.toLowerCase();
+      return text.includes(normalizedFilter);
+    });
+  }, [items, normalizedFilter]);
+
+  const filteredHistory = useMemo(() => {
+    if (!normalizedFilter) return history;
+    return history.filter((item) => {
+      const text = `${item.sessionName || ""} ${item.sessionId || ""}`.toLowerCase();
+      return text.includes(normalizedFilter);
+    });
+  }, [history, normalizedFilter]);
+
+  useEffect(() => {
+    setPendingPage(0);
+    setHistoryPage(0);
+  }, [normalizedFilter]);
+
+  const pendingTotalPages = Math.max(1, Math.ceil(filteredPending.length / PAGE_SIZE));
+  const pendingPageSafe = Math.min(pendingPage, pendingTotalPages - 1);
+  const pendingHasPrev = pendingPageSafe > 0;
+  const pendingHasNext = pendingPageSafe < pendingTotalPages - 1;
+  const pendingPageList = useMemo(() => {
+    const pages: (number | "ellipsis")[] = [];
+    const total = pendingTotalPages;
+    const current = pendingPageSafe;
+    for (let i = 0; i < total; i++) {
+      if (i === 0 || i === total - 1 || Math.abs(i - current) <= 1) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== "ellipsis") {
+        pages.push("ellipsis");
+      }
+    }
+    return pages;
+  }, [pendingPageSafe, pendingTotalPages]);
+  const visiblePending = useMemo(
+    () => filteredPending.slice(pendingPageSafe * PAGE_SIZE, pendingPageSafe * PAGE_SIZE + PAGE_SIZE),
+    [filteredPending, pendingPageSafe]
+  );
+
+  const historyTotalPages = Math.max(1, Math.ceil(filteredHistory.length / PAGE_SIZE));
+  const historyPageSafe = Math.min(historyPage, historyTotalPages - 1);
+  const historyHasPrev = historyPageSafe > 0;
+  const historyHasNext = historyPageSafe < historyTotalPages - 1;
+  const historyPageList = useMemo(() => {
+    const pages: (number | "ellipsis")[] = [];
+    const total = historyTotalPages;
+    const current = historyPageSafe;
+    for (let i = 0; i < total; i++) {
+      if (i === 0 || i === total - 1 || Math.abs(i - current) <= 1) {
+        pages.push(i);
+      } else if (pages[pages.length - 1] !== "ellipsis") {
+        pages.push("ellipsis");
+      }
+    }
+    return pages;
+  }, [historyPageSafe, historyTotalPages]);
+  const visibleHistory = useMemo(
+    () => filteredHistory.slice(historyPageSafe * PAGE_SIZE, historyPageSafe * PAGE_SIZE + PAGE_SIZE),
+    [filteredHistory, historyPageSafe]
+  );
+
   useEffect(() => {
     loadPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -327,33 +394,70 @@ export default function PendingPaymentsPage() {
         )
       ) : loading ? (
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">A carregar…</div>
-      ) : items.length === 0 ? (
+      ) : filteredHistory.length === 0 ? (
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
-          Não há pagamentos pendentes neste momento.
+          Não há histórico para mostrar.
         </div>
       ) : (
         <div className="space-y-4">
-          {items.map((item) => (
+          {visibleHistory.map((item) => (
             <div key={item.id} className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">{item.sessionId}</p>
-                  <div className="text-lg font-semibold text-white">{item.sessionName}</div>
-                  <p className="text-sm text-white/60">{item.selectedCount} foto(s) · {item.createdAt ? new Date(item.createdAt).toLocaleString("pt-PT") : "sem data"}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => confirmPayment(item.id)}
-                    disabled={confirming === item.id}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-                  >
-                    {confirming === item.id ? "A confirmar…" : "Pagamento confirmado"}
-                  </button>
-                </div>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-[0.35em] text-white/50">{item.sessionId}</p>
+                <div className="text-lg font-semibold text-white">{item.sessionName || "Sessão sem nome"}</div>
+                <p className="text-sm text-white/60">
+                  {item.selectedCount} foto(s) · {item.createdAt ? new Date(item.createdAt).toLocaleString("pt-PT") : "sem data"}
+                </p>
               </div>
             </div>
           ))}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-xs text-white/60">
+              Página {historyPageSafe + 1} de {historyTotalPages} · Máximo de {PAGE_SIZE} registos por página.
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => historyHasPrev && setHistoryPage((prev) => Math.max(prev - 1, 0))}
+                disabled={!historyHasPrev || loading}
+                className="rounded-full border border-white/25 px-4 py-2 text-sm text-white transition hover:bg-white/10 disabled:opacity-50"
+              >
+                Anterior
+              </button>
+              <div className="flex items-center gap-2">
+                {historyPageList.map((entry, idx) =>
+                  entry === "ellipsis" ? (
+                    <span key={`ellipsis-h-${idx}`} className="px-2 text-sm text-white/70">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={`history-${entry}`}
+                      type="button"
+                      onClick={() => setHistoryPage(entry)}
+                      disabled={loading || historyPage === entry}
+                      aria-current={historyPage === entry ? "page" : undefined}
+                      className={`min-w-10 rounded-full px-3 py-1.5 text-sm transition ${
+                        historyPage === entry
+                          ? "bg-white text-gray-900"
+                          : "border border-white/20 text-white hover:bg-white/10 disabled:opacity-50"
+                      }`}
+                    >
+                      {entry + 1}
+                    </button>
+                  )
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => historyHasNext && setHistoryPage((prev) => Math.min(prev + 1, historyTotalPages - 1))}
+                disabled={!historyHasNext || loading}
+                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-50"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

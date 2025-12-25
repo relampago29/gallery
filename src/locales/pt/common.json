@@ -7,7 +7,31 @@
         "home": "Início",
         "logout": "Terminar sessão",
         "viewSession": "Vê a tua sessão",
-        "login": "Entrar"
+        "login": "Entrar",
+        "customerArea": "Área do cliente",
+        "history": "Histórico de compras"
+    },
+    "dashboard": {
+        "title": "Área do cliente",
+        "subtitle": "Gere o perfil e acompanha as compras.",
+        "sessionEnds": "Sessão termina em",
+        "infoTab": "Informação",
+        "historyTab": "Histórico",
+        "nameLabel": "Nome a mostrar",
+        "namePlaceholder": "Como queres ser apresentado",
+        "saveName": "Guardar nome",
+        "passwordLabel": "Nova password",
+        "currentPassword": "Password atual",
+        "newPassword": "Nova password",
+        "confirmPassword": "Confirmar password",
+        "savePassword": "Atualizar password",
+        "historyPlaceholder": "Ainda não tens histórico de compras.",
+        "successName": "Nome atualizado.",
+        "successPassword": "Password atualizada.",
+        "errorGeneric": "Algo correu mal. Tenta novamente.",
+        "passwordMismatch": "As passwords têm de coincidir.",
+        "passwordMissing": "Indica a password atual.",
+        "checking": "A verificar sessão..."
     },
     "protofolioHomePage": {
         "highlights": "Destaques"

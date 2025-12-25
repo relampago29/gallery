@@ -3,16 +3,14 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { Sidebar } from "@/components/ui/auth/Sidebar";
 import RequireAuth from "@/components/ui/auth/RequireAuth";
 import { Toaster } from "sonner";
-import { ensureFirebaseUser } from "@/lib/firebase/ensureAuth";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { UploadProgressProvider, useUploadProgress } from "@/components/admin/UploadProgressContext";
+import { clearAuthExpiry, getAuthExpiry, remainingAuthMs, setAuthExpiry } from "@/lib/firebase/sessionExpiry";
+import { routing } from "@/i18n/routing";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    ensureFirebaseUser().catch(console.error);
-  }, []);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -21,11 +19,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sessionExpiry, setSessionExpiry] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  const SESSION_MS = 2 * 60 * 60 * 1000;
-  const GRACE_MS = 5 * 60 * 1000;
-  const keyExpiry = "adminSessionExpiry";
-  const keyLastActive = "adminSessionLastActive";
+  const localeFromPath = useMemo(() => {
+    const seg = pathname?.split("/")[1];
+    return routing.locales.includes(seg as (typeof routing.locales)[number]) ? (seg as (typeof routing.locales)[number]) : routing.defaultLocale;
+  }, [pathname]);
 
   const fallbackCallbackUrl = useMemo(() => {
     const qs = searchParams?.toString();
@@ -37,44 +34,64 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const forceSignOut = useCallback(async () => {
     try {
       await auth.signOut();
+      clearAuthExpiry();
     } catch (err) {
       console.error("Erro ao terminar sessão", err);
     } finally {
-      router.replace("/login");
+      router.replace(`/${localeFromPath}/login`);
       router.refresh();
     }
-  }, [router]);
+  }, [router, localeFromPath]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      setUserEmail(user?.email ?? null);
-      setUserAvatar(user?.photoURL ?? null);
+      const verify = async () => {
+        setUserEmail(user?.email ?? null);
+        setUserAvatar(user?.photoURL ?? null);
 
-      if (!user || typeof window === "undefined") {
-        setSessionExpiry(null);
-        setRemainingMs(null);
-        return;
-      }
-
-      const now = Date.now();
-      const storedExpiry = Number(localStorage.getItem(keyExpiry));
-      const lastActive = Number(localStorage.getItem(keyLastActive));
-      let nextExpiry = storedExpiry;
-
-      if (!storedExpiry || storedExpiry <= now) {
-        if (lastActive && now - lastActive <= GRACE_MS) {
-          nextExpiry = now + SESSION_MS;
-        } else {
-          nextExpiry = now + SESSION_MS;
+        if (!user || typeof window === "undefined") {
+          setSessionExpiry(null);
+          setRemainingMs(null);
+          return;
         }
-      }
 
-      localStorage.setItem(keyExpiry, String(nextExpiry));
-      localStorage.setItem(keyLastActive, String(now));
-      setSessionExpiry(nextExpiry);
+        const expiry = getAuthExpiry();
+        let nextExpiry = expiry;
+        if (!expiry) {
+          nextExpiry = setAuthExpiry();
+        } else if (expiry <= Date.now()) {
+          forceSignOut();
+          return;
+        } else {
+          // keep existing expiry
+        }
+
+        try {
+          const token = await user.getIdTokenResult();
+          const claims = token.claims || {};
+          const adminClaim =
+            claims.isAdmin === true ||
+            (claims as any)?.claims?.isAdmin === true ||
+            (claims as any)?.["https://hasura.io/jwt/claims"]?.["x-hasura-default-role"] === "admin";
+          if (!adminClaim) {
+            forceSignOut();
+            return;
+          }
+        } catch (err) {
+          console.error("Falha ao validar admin", err);
+          forceSignOut();
+          return;
+        }
+
+        const refreshed = nextExpiry ?? setAuthExpiry();
+        setSessionExpiry(refreshed ?? nextExpiry ?? null);
+        setRemainingMs(remainingAuthMs());
+      };
+
+      verify();
     });
     return () => unsub();
-  }, [GRACE_MS, SESSION_MS, keyExpiry, keyLastActive, forceSignOut]);
+  }, [forceSignOut]);
 
   useEffect(() => {
     if (sessionExpiry === null) {
@@ -82,8 +99,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     const tick = () => {
-      const now = Date.now();
-      const remaining = sessionExpiry - now;
+      const remaining = remainingAuthMs();
+      if (remaining === null) {
+        forceSignOut();
+        return;
+      }
       setRemainingMs(remaining > 0 ? remaining : 0);
       if (remaining <= 0) {
         forceSignOut();
@@ -97,22 +117,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const refreshTokenIfNeeded = useCallback(async () => {
     if (refreshing) return;
     const now = Date.now();
-    const THRESHOLD = 15 * 60 * 1000;
-    if (sessionExpiry === null || sessionExpiry - now > THRESHOLD) return;
+    const expiry = getAuthExpiry();
+    const THRESHOLD = 5 * 60 * 1000;
+    if (!expiry) return;
+    if (expiry - now > THRESHOLD) return;
     if (!auth.currentUser) return;
     setRefreshing(true);
     try {
       await auth.currentUser.getIdToken(true);
-      const next = Date.now() + SESSION_MS;
-      localStorage.setItem(keyExpiry, String(next));
-      setSessionExpiry(next);
-      localStorage.setItem(keyLastActive, String(Date.now()));
+      const next = setAuthExpiry();
+      setSessionExpiry(next ?? expiry);
     } catch (err) {
       console.error("Falha ao renovar token", err);
     } finally {
       setRefreshing(false);
     }
-  }, [sessionExpiry, refreshing, SESSION_MS, keyExpiry, keyLastActive]);
+  }, [sessionExpiry, refreshing]);
 
   return (
     <UploadProgressProvider>
@@ -195,7 +215,7 @@ function Header({
         cache: "no-store",
       });
       if (!res.ok) throw new Error("Falha ao obter notificações.");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ items: [] }));
       const items = Array.isArray(data?.items) ? data.items : [];
       const mapped = items.slice(0, 5).map((item: any) => ({
         id: item.id || String(item.sessionId || Math.random()),
@@ -207,6 +227,7 @@ function Header({
       setNotifications(mapped);
     } catch (err) {
       console.error("[Header] notificações", err);
+      setNotifications([]);
     } finally {
       setNotifLoading(false);
     }

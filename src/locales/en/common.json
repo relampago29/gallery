@@ -7,7 +7,31 @@
         "home": "Home",
         "logout": "Log out",
         "viewSession": "View your session",
-        "login": "Login"
+        "login": "Login",
+        "customerArea": "Customer area",
+        "history": "Order history"
+    },
+    "dashboard": {
+        "title": "Customer area",
+        "subtitle": "Manage your profile and keep track of purchases.",
+        "sessionEnds": "Session ends in",
+        "infoTab": "Information",
+        "historyTab": "History",
+        "nameLabel": "Display name",
+        "namePlaceholder": "How you want to appear",
+        "saveName": "Save name",
+        "passwordLabel": "New password",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm password",
+        "savePassword": "Update password",
+        "historyPlaceholder": "No purchase history yet.",
+        "successName": "Name updated.",
+        "successPassword": "Password updated.",
+        "errorGeneric": "Something went wrong. Try again.",
+        "passwordMismatch": "Passwords must match.",
+        "passwordMissing": "Enter your current password.",
+        "checking": "Checking session..."
     },
     "protofolioHomePage": {
         "highlights": "High Lights"

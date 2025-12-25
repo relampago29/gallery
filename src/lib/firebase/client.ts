@@ -1,6 +1,6 @@
 // src/lib/firebase/client.ts
 import { getApps, initializeApp, type FirebaseOptions } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserSessionPersistence, getAuth, setPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 
@@ -19,6 +19,13 @@ const app = getApps().length ? getApps()[0] : initializeApp(config);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Browser-only: keep auth data in sessionStorage and expire with the tab.
+if (typeof window !== "undefined") {
+  setPersistence(auth, browserSessionPersistence).catch((err) => {
+    console.error("[firebase] failed to set session persistence", err);
+  });
+}
 
 // Optional: connect to local Storage emulator for offline/corporate networks
 if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FIREBASE_EMULATORS === "true") {

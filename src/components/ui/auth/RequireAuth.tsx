@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useRouter } from "next/navigation";
+import { clearAuthExpiry, getAuthExpiry, isAuthExpired, setAuthExpiry } from "@/lib/firebase/sessionExpiry";
 
 type Props = {
   children: ReactNode;
@@ -17,7 +18,25 @@ export default function RequireAuth({ children, fallbackCallbackUrl }: Props) {
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!u) {
+        clearAuthExpiry();
+        setUser(null);
+        setChecking(false);
+        return;
+      }
+      const expiry = getAuthExpiry();
+      if (!expiry) {
+        setAuthExpiry();
+      } else if (isAuthExpired()) {
+        await auth.signOut().catch(() => {});
+        clearAuthExpiry();
+        setUser(null);
+        setChecking(false);
+        return;
+      } else {
+        // keep existing expiry
+      }
       setUser(u);
       setChecking(false);
     });
