@@ -163,7 +163,14 @@ export default function DashboardPage() {
         </header>
 
         <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur lg:sticky lg:top-8 self-start">
+          <aside className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur lg:sticky lg:top-8 self-start space-y-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/${locale}`)}
+              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-left text-sm text-white hover:bg-white/15 transition"
+            >
+              ← Voltar ao início
+            </button>
             <div className="text-xs uppercase tracking-[0.25em] text-white/60 mb-3">Navegação</div>
             <nav className="space-y-2 text-sm">
               <button

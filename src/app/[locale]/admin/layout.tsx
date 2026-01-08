@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <UploadProgressProvider>
-      <div className="admin-shell relative flex min-h-screen overflow-hidden bg-[#030303] text-gray-100">
+      <div className="admin-shell relative flex h-screen max-h-screen overflow-hidden bg-[#030303] text-gray-100">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_60%)]" />
           <div className="absolute -left-20 top-24 h-72 w-72 rounded-full bg-[#7c3aed1f] blur-3xl" />
@@ -147,7 +147,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Sidebar />
         </aside>
 
-        <div className="relative z-10 flex flex-1 flex-col">
+        <div className="relative z-10 flex flex-1 flex-col min-h-0">
           <Header
             userEmail={userEmail}
             userAvatar={userAvatar}
@@ -156,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onRefreshToken={refreshTokenIfNeeded}
           />
 
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto min-h-0">
             <div className="mx-auto max-w-7xl px-6 py-10">
               <RequireAuth fallbackCallbackUrl={fallbackCallbackUrl}>{children}</RequireAuth>
             </div>

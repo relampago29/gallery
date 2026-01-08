@@ -307,14 +307,19 @@ const NavBar: React.FC = () => {
                   <div className="text-xs text-white/60">{sessionLabel ? `Sessão: ${sessionLabel}` : null}</div>
                 </div>
                 <div className="space-y-2">
-                  <Link href="/dashboard" className="block rounded-xl px-3 py-2 text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
+                  <Link
+                    href="/dashboard"
+                    className="block rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/20 transition"
+                    onClick={() => setMenuOpen(false)}
+                  >
                     {translate("customerArea")}
                   </Link>
-                  <Link href="/dashboard?tab=history" className="block rounded-xl px-3 py-2 text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
-                    {translate("history")}
-                  </Link>
                   {isAdmin && (
-                    <Link href="/admin" className="block rounded-xl px-3 py-2 text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>
+                    <Link
+                      href="/admin"
+                      className="block rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/20 transition"
+                      onClick={() => setMenuOpen(false)}
+                    >
                       Admin
                     </Link>
                   )}
