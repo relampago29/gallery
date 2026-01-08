@@ -151,20 +151,34 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              className={`rounded-xl px-4 py-2 text-center font-semibold transition ${
+              className={`rounded-xl px-4 py-2 text-center font-semibold transition cursor-pointer ${
                 mode === "login" ? "bg-white text-gray-900 shadow" : "text-white/80 hover:bg-white/10"
               }`}
-              onClick={() => setMode("login")}
+              onClick={() => {
+                setMode("login");
+                setFirebasePassword("");
+                setConfirmPassword("");
+                setFirebaseEmail("");
+                setUsername("");
+                setFirebaseError(null);
+              }}
               disabled={mode === "login"}
             >
               Entrar
             </button>
             <button
               type="button"
-              className={`rounded-xl px-4 py-2 text-center font-semibold transition ${
+              className={`rounded-xl px-4 py-2 text-center font-semibold transition cursor-pointer ${
                 mode === "signup" ? "bg-white text-gray-900 shadow" : "text-white/80 hover:bg-white/10"
               }`}
-              onClick={() => setMode("signup")}
+              onClick={() => {
+                setMode("signup");
+                setFirebasePassword("");
+                setConfirmPassword("");
+                setFirebaseEmail("");
+                setUsername("");
+                setFirebaseError(null);
+              }}
               disabled={mode === "signup"}
             >
               Criar conta
@@ -217,7 +231,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
             <span>Password</span>
             <div className="relative">
               <input
-                className="input input-bordered w-full bg-white/5 text-white pr-10"
+                className="input input-bordered w-full bg-white/5 text-white pr-12"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={firebasePassword}
@@ -227,8 +241,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-2 flex items-center text-white/70 hover:text-white"
+                className="absolute inset-y-0 right-2 z-10 flex h-full items-center justify-center rounded-full bg-white/0 px-2 text-white/70 hover:text-white hover:bg-white/10 transition pointer-events-auto cursor-pointer"
                 aria-label={showPassword ? "Esconder password" : "Mostrar password"}
+                aria-pressed={showPassword}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -240,7 +255,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
               <span>Confirmar password</span>
               <div className="relative">
                 <input
-                  className="input input-bordered w-full bg-white/5 text-white pr-10"
+                  className="input input-bordered w-full bg-white/5 text-white pr-12"
                   type={showConfirm ? "text" : "password"}
                   placeholder="Repete a password"
                   value={confirmPassword}
@@ -250,8 +265,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute inset-y-0 right-2 flex items-center text-white/70 hover:text-white"
+                  className="absolute inset-y-0 right-2 z-10 flex h-full items-center justify-center rounded-full bg-white/0 px-2 text-white/70 hover:text-white hover:bg-white/10 transition pointer-events-auto cursor-pointer"
                   aria-label={showConfirm ? "Esconder confirmação" : "Mostrar confirmação"}
+                  aria-pressed={showConfirm}
                 >
                   {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>

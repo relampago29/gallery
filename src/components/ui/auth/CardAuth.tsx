@@ -2,6 +2,7 @@
 import React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
+import { Link } from "@/i18n/navigation";
 import EmailPasswordForm from "./EmailPasswordForm";
 
 type Props = {
@@ -21,7 +22,15 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
     (pathname?.startsWith(`/${locale}`) ? `/${locale}/admin` : "/");
 
   return (
-    <div className="rounded-[32px] border border-white/10 bg-[#040404]/95 p-4 shadow-2xl lg:p-8">
+    <div className="rounded-[32px] border border-white/10 bg-[#040404]/95 p-4 shadow-2xl lg:p-8 space-y-4">
+      <div className="flex justify-start">
+        <Link
+          href={`/`}
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10 transition"
+        >
+          ← Voltar ao início
+        </Link>
+      </div>
       <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-white/5">
         <div className="absolute inset-0">
           <img
