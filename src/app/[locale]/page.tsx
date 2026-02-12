@@ -16,8 +16,8 @@ export default function Home() {
       <Hero></Hero>
       <LazyPortfolio/>
    
-    {/*   <TeamHomePage/>
-      <Contact/>  */}
+     <TeamHomePage/>
+      <Contact/> 
     </div>
   );
 }

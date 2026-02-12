@@ -2,14 +2,14 @@
 "use client";
 
 import React from "react";
-import manFoto from "../../../../public/brand/team/man.png";
-import womanFoto from "../../../../public/brand/team/woman.png";
+import fernandoFoto from "../../../../public/images/fernando_fernandes.jpg";
+import vanessaFoto from "../../../../public/images/vanessa_alves.jpg";
 import CardGlare from "../../reactBits/glareHover/GlareHover";
 
 type TeamMember = { name: string; avatar: string };
 const team: TeamMember[] = [
-  { name: "Inês Duarte", avatar: womanFoto.src },
-  { name: "Miguel Rocha", avatar: manFoto.src },
+  { name: "Vanessa", avatar: vanessaFoto.src },
+  { name: "Fernando", avatar: fernandoFoto.src },
 ];
 
 const Highlight = ({ children }: { children: React.ReactNode }) => (
@@ -28,26 +28,32 @@ export default function TeamHomePage() {
           Momentos, <Highlight>histórias autênticas</Highlight>
         </h2>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Acreditamos que cada sessão é um encontro entre <Highlight>luz</Highlight> e{" "}
-          <Highlight>verdade</Highlight>. Não perseguimos poses; procuramos o instante
-          em que a respiração abranda e a pessoa se revela. É aí que a fotografia
-          deixa de ser imagem e se transforma em <Highlight>memória</Highlight>.
+          <Highlight>Momentos</Highlight> nasceu da paixão de transformar momentos em{" "}
+          <Highlight>memórias</Highlight> que atravessam <Highlight>gerações</Highlight>.
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Trabalhamos com <Highlight>luz natural</Highlight>, direção leve e um
-          cuidado quase artesanal na edição. Queremos que se veja nas fotos como
-          se sente por dentro: sem ruído, com espaço para o que realmente importa —{" "}
-          <Highlight>proximidade</Highlight>, <Highlight>ternura</Highlight>,{" "}
-          <Highlight>intimidade</Highlight>.
+          Desde sempre que a <Highlight>fotografia</Highlight> faz parte da nossa história;
+          primeiro como hobby passando a uma forma de linguagem/comunicação através da
+          captura de <Highlight>emoções</Highlight>, eternizando aquilo que muitas vezes
+          passa despercebido aos olhos…
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Chamamos-nos “Momentos” porque é isso que prometemos: pequenas pausas no
-          tempo, guardadas com <Highlight>delicadeza</Highlight> e{" "}
-          <Highlight>respeito</Highlight>. Se vierem connosco, levamos o resto com
-          calma: um roteiro simples, localizações com <Highlight>boa luz</Highlight> e
-          uma entrega rápida numa galeria privada — para reviver, partilhar e voltar
-          a sentir.
+          Oferecer um olhar <Highlight>sensível</Highlight>, <Highlight>artístico</Highlight> e{" "}
+          <Highlight>profissional</Highlight> sobre momentos importantes, foi a convicção que
+          levou à criação de Momentos.
         </p>
+        <div className="max-w-3xl mx-auto text-base md:text-lg opacity-90 space-y-2 text-left">
+          <p className="font-semibold">Os nossos objetivos principais:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Captar imagens que contenham <Highlight>histórias</Highlight>;</li>
+            <li>Garantir <Highlight>qualidade</Highlight> técnica e estética em cada projeto;</li>
+            <li>Disponibilizar um serviço <Highlight>personalizado</Highlight> e adaptado às necessidades de cada cliente;</li>
+            <li>
+              Construir relações duradouras baseadas em <Highlight>confiança</Highlight>,
+              <Highlight> profissionalismo</Highlight> e <Highlight>criatividade</Highlight>.
+            </li>
+          </ul>
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button className="btn btn-primary">Marcar sessão</button>
           <button className="btn btn-ghost">Ver portefólio</button>
@@ -56,13 +62,13 @@ export default function TeamHomePage() {
 
       <div className="divider mx-auto w-11/12">A equipa</div>
 
-      {/* --- Cards (80% foto / 20% nome) + glare/tilt --- */}
+      {/* --- Cards (85% foto / 15% nome) + glare/tilt --- */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           {team.map((m) => (
             <CardGlare
               key={m.name}
-              className="rounded-2xl"
+              className="rounded-2xl w-full max-w-[380px] mx-auto"
               tilt={10}          // 3D
               glare={0.32}       // brilho radial
               radius={260}       // raio do brilho
@@ -73,19 +79,20 @@ export default function TeamHomePage() {
               <article
                 className="card bg-base-100 shadow-xl overflow-hidden relative
                            rounded-2xl transform-gpu
-                           h-[420px] sm:h-[520px] md:h-[560px]"
+                           h-[360px] sm:h-[440px] md:h-[500px]
+                           w-full"
               >
                 {/* Foto (80%) */}
-                <div className="h-[80%] w-full">
+                <div className="h-[85%] w-full bg-neutral-800/70 overflow-hidden flex items-center justify-center">
                   <img
                     src={m.avatar}
                     alt={m.name}
-                    className="w-full h-full object-cover select-none pointer-events-none"
+                    className="w-11/12 h-full object-cover object-center select-none pointer-events-none transition-transform duration-200"
                     draggable={false}
                   />
                 </div>
                 {/* Nome (20%) */}
-                <div className="h-[20%] w-full flex items-center justify-center border-t border-base-300">
+                <div className="h-[15%] w-full flex items-center justify-center border-t border-base-300 px-4 text-center">
                   <h3 className="text-lg md:text-xl font-semibold">{m.name}</h3>
                 </div>
               </article>
