@@ -4,11 +4,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getIdTokenResult, onAuthStateChanged, signOut as firebaseSignOut, type User } from "firebase/auth";
+import {
+  getIdTokenResult,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+  type User,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { LogIn } from "lucide-react";
 import logotipo from "../../../../public/brand/logo-sem-fundo-sem-nome.png";
-import { clearAuthExpiry, getAuthExpiry, isAuthExpired, remainingAuthMs, setAuthExpiry } from "@/lib/firebase/sessionExpiry";
+import {
+  clearAuthExpiry,
+  getAuthExpiry,
+  isAuthExpired,
+  remainingAuthMs,
+  setAuthExpiry,
+} from "@/lib/firebase/sessionExpiry";
 import "../../../styles/shared/navbar/navbar.css";
 import { useRef } from "react";
 
@@ -57,7 +68,9 @@ const NavBar: React.FC = () => {
         const adminClaim =
           claims.isAdmin === true ||
           (claims as any)?.claims?.isAdmin === true ||
-          (claims as any)?.["https://hasura.io/jwt/claims"]?.["x-hasura-default-role"] === "admin";
+          (claims as any)?.["https://hasura.io/jwt/claims"]?.[
+            "x-hasura-default-role"
+          ] === "admin";
         setIsAdmin(adminClaim);
       } catch {
         setIsAdmin(false);
@@ -135,7 +148,12 @@ const NavBar: React.FC = () => {
     <div className="navbar bg-base-100 text-white">
       <div className="navbar-start">
         <div className="dropdown">
-          <div tabIndex={0} role="button" className="btn btn-ghost px-2 lg:hidden" aria-label="Abrir menu">
+          <div
+            tabIndex={0}
+            role="button"
+            className="btn btn-ghost px-2 lg:hidden"
+            aria-label="Abrir menu"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-6 w-6"
@@ -143,7 +161,12 @@ const NavBar: React.FC = () => {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h8m-8 6h16"
+              />
             </svg>
           </div>
           <div className="dropdown-content left-0 mt-3 w-64 rounded-3xl border border-white/10 bg-[#0f0f0f] p-4 text-white shadow-2xl lg:hidden">
@@ -152,13 +175,21 @@ const NavBar: React.FC = () => {
                 href={pathname === "/portofolio" ? "/" : "/portofolio"}
                 className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
               >
-                {pathname === "/portofolio" ? translate("home") : translate("portfolio")}
+                {pathname === "/portofolio"
+                  ? translate("home")
+                  : translate("portfolio")}
               </Link>
               <Link
                 href="/sessions"
                 className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
               >
                 {translate("viewSession")}
+              </Link>
+              <Link
+                href="/events"
+                className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
+              >
+                Eventos
               </Link>
               {user && (
                 <>
@@ -202,13 +233,23 @@ const NavBar: React.FC = () => {
       <div className="navbar-center hidden lg:flex">
         <ul className="menu menu-horizontal px-1">
           <li>
-            <Link className="text-base font-medium text-white" href={pathname === "/portofolio" ? "/" : "/portofolio"}>
-              {pathname === "/portofolio" ? translate("home") : translate("portfolio")}
+            <Link
+              className="text-base font-medium text-white"
+              href={pathname === "/portofolio" ? "/" : "/portofolio"}
+            >
+              {pathname === "/portofolio"
+                ? translate("home")
+                : translate("portfolio")}
             </Link>
           </li>
           <li>
             <Link className="text-base font-medium text-white" href="/sessions">
               {translate("viewSession")}
+            </Link>
+          </li>
+          <li>
+            <Link className="text-base font-medium text-white" href="/events">
+              Eventos
             </Link>
           </li>
           {isAdmin && (
@@ -224,14 +265,22 @@ const NavBar: React.FC = () => {
       <div className="navbar-end">
         {!user && (
           <>
-            <Link href={loginHref} className="btn btn-ghost mr-2 text-sm hidden lg:inline-flex items-center gap-2">
+            <Link
+              href={loginHref}
+              className="btn btn-ghost mr-2 text-sm hidden lg:inline-flex items-center gap-2"
+            >
               <LogIn size={16} />
               {translate("login") || "Login"}
             </Link>
             <div className="dropdown dropdown-end">
               <div tabIndex={0} role="button" className="btn btn-ghost">
                 {locale.toUpperCase()}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 ml-1"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
                   <path
                     fillRule="evenodd"
                     d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.08 1.04l-4.25 4.25a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
@@ -247,7 +296,9 @@ const NavBar: React.FC = () => {
                   <Link
                     href={hrefWithQs}
                     locale="pt"
-                    className={`text-white ${locale === "pt" ? "active" : ""}`.trim()}
+                    className={`text-white ${
+                      locale === "pt" ? "active" : ""
+                    }`.trim()}
                     aria-current={locale === "pt" ? "page" : undefined}
                   >
                     PT
@@ -257,7 +308,9 @@ const NavBar: React.FC = () => {
                   <Link
                     href={hrefWithQs}
                     locale="en"
-                    className={`text-white ${locale === "en" ? "active" : ""}`.trim()}
+                    className={`text-white ${
+                      locale === "en" ? "active" : ""
+                    }`.trim()}
                     aria-current={locale === "en" ? "page" : undefined}
                   >
                     EN
@@ -282,17 +335,19 @@ const NavBar: React.FC = () => {
           >
             <button
               type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold uppercase text-white shadow-sm hover:border-white/40 transition"
-            onClick={() => setMenuOpen((v) => !v)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setMenuOpen((v) => !v);
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-semibold uppercase text-white shadow-sm hover:border-white/40 transition"
+              onClick={() => setMenuOpen((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setMenuOpen((v) => !v);
                 }
               }}
               aria-expanded={menuOpen}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">{avatarLetter}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+                {avatarLetter}
+              </span>
               {sessionLabel && (
                 <span className="absolute -right-2 -top-2 rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold text-black shadow">
                   {sessionLabel}
@@ -302,9 +357,15 @@ const NavBar: React.FC = () => {
             {menuOpen && (
               <div className="absolute right-0 mt-3 w-72 rounded-3xl border border-white/10 bg-[#0b0b0b]/95 p-4 text-white shadow-2xl backdrop-blur z-50">
                 <div className="mb-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">Conta</div>
-                  <div className="mt-1 text-sm font-semibold">{user.displayName || user.email || "Utilizador"}</div>
-                  <div className="text-xs text-white/60">{sessionLabel ? `Sessão: ${sessionLabel}` : null}</div>
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">
+                    Conta
+                  </div>
+                  <div className="mt-1 text-sm font-semibold">
+                    {user.displayName || user.email || "Utilizador"}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    {sessionLabel ? `Sessão: ${sessionLabel}` : null}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Link
@@ -325,13 +386,17 @@ const NavBar: React.FC = () => {
                   )}
                 </div>
                 <div className="mt-4 space-y-2">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">Idioma</div>
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">
+                    Idioma
+                  </div>
                   <div className="flex gap-2">
                     <Link
                       href={hrefWithQs}
                       locale="pt"
                       className={`flex-1 rounded-full px-3 py-1 text-sm ${
-                        locale === "pt" ? "bg-white text-gray-900" : "border border-white/25 text-white hover:bg-white/10"
+                        locale === "pt"
+                          ? "bg-white text-gray-900"
+                          : "border border-white/25 text-white hover:bg-white/10"
                       }`}
                       onClick={() => setMenuOpen(false)}
                     >
@@ -341,7 +406,9 @@ const NavBar: React.FC = () => {
                       href={hrefWithQs}
                       locale="en"
                       className={`flex-1 rounded-full px-3 py-1 text-sm ${
-                        locale === "en" ? "bg-white text-gray-900" : "border border-white/25 text-white hover:bg-white/10"
+                        locale === "en"
+                          ? "bg-white text-gray-900"
+                          : "border border-white/25 text-white hover:bg-white/10"
                       }`}
                       onClick={() => setMenuOpen(false)}
                     >

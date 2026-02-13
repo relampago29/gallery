@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { auth } from "@/lib/firebase/client";
 import {
   EmailAuthProvider,
@@ -10,11 +10,52 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { clearAuthExpiry, getAuthExpiry, isAuthExpired, remainingAuthMs, setAuthExpiry } from "@/lib/firebase/sessionExpiry";
+import {
+  clearAuthExpiry,
+  getAuthExpiry,
+  isAuthExpired,
+  remainingAuthMs,
+  setAuthExpiry,
+} from "@/lib/firebase/sessionExpiry";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
+import NavBar from "@/components/shared/navbar/navbar";
+import {
+  UserCircle,
+  ShieldCheck,
+  Clock,
+  ArrowLeft,
+  CalendarDays,
+  Camera,
+  Download,
+  ExternalLink,
+} from "lucide-react";
+import Link from "next/link";
 
 type Tab = "info" | "history";
+type HistorySub = "events" | "sessions";
+
+type EventOrder = {
+  id: string;
+  status: string;
+  itemCount: number;
+  totalPrice: number;
+  eventNames: Record<string, string>;
+  createdAt: number | null;
+  paymentConfirmedAt: number | null;
+  fulfilledAt: number | null;
+  publicToken: string;
+};
+
+type SessionOrder = {
+  id: string;
+  status: string;
+  sessionId: string;
+  sessionName: string;
+  selectedCount: number;
+  createdAt: number | null;
+  token: string;
+};
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
@@ -26,8 +67,15 @@ export default function DashboardPage() {
   const [checking, setChecking] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("info");
   const [displayName, setDisplayName] = useState("");
-  const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
-  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [passwords, setPasswords] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+  const [status, setStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
 
   useEffect(() => {
@@ -98,6 +146,12 @@ export default function DashboardPage() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }, [remainingMs]);
 
+  const avatarLetter = useMemo(() => {
+    if (user?.displayName) return user.displayName[0]?.toUpperCase() ?? "U";
+    if (user?.email) return user.email[0]?.toUpperCase() ?? "U";
+    return "U";
+  }, [user]);
+
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -129,7 +183,10 @@ export default function DashboardPage() {
       return;
     }
     try {
-      const credential = EmailAuthProvider.credential(user.email || "", passwords.current);
+      const credential = EmailAuthProvider.credential(
+        user.email || "",
+        passwords.current
+      );
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, passwords.next);
       setStatus({ type: "success", message: t("successPassword") });
@@ -143,131 +200,495 @@ export default function DashboardPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
-        <p className="text-sm text-white/70">{t("checking")}</p>
+      <div className="min-h-screen bg-[#030303] text-white flex items-center justify-center">
+        <p className="text-sm text-white/60">{t("checking")}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
-      <div className="mx-auto max-w-5xl px-4 py-10 space-y-8 lg:px-6">
-        <header className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">{t("title")}</p>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-3xl font-semibold">{t("subtitle")}</h1>
-            <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
-              {t("sessionEnds")} {sessionLabel}
-            </div>
-          </div>
-        </header>
+    <div className="relative min-h-screen overflow-hidden bg-[#030303] text-gray-100">
+      {/* Background decoration */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)]" />
+        <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-[#7c3aed1a] blur-3xl" />
+        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b61a] blur-3xl" />
+      </div>
 
-        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur lg:sticky lg:top-8 self-start space-y-3">
+      <div className="relative z-10">
+        <NavBar />
+
+        <div className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+          {/* Back link */}
+          <Link
+            href={`/${locale}`}
+            className="inline-flex items-center gap-1.5 text-xs text-white/50 transition hover:text-white"
+          >
+            <ArrowLeft size={14} /> Voltar ao início
+          </Link>
+
+          {/* Header */}
+          <header className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xl font-bold text-white shadow-lg backdrop-blur-sm">
+                {avatarLetter}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                  {t("title")}
+                </p>
+                <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                  {user?.displayName || user?.email || t("subtitle")}
+                </h1>
+                {user?.email && user?.displayName && (
+                  <p className="text-sm text-white/50">{user.email}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70 backdrop-blur-sm">
+              <Clock size={14} className="text-white/40" />
+              {t("sessionEnds")}{" "}
+              <span className="font-semibold text-white">{sessionLabel}</span>
+            </div>
+          </header>
+
+          {/* Tab switcher */}
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => router.push(`/${locale}`)}
-              className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-left text-sm text-white hover:bg-white/15 transition"
+              onClick={() => setActiveTab("info")}
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm transition ${
+                activeTab === "info"
+                  ? "bg-white text-gray-900 font-semibold shadow-lg"
+                  : "border border-white/15 text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
             >
-              ← Voltar ao início
+              <UserCircle size={15} />
+              {t("infoTab")}
             </button>
-            <div className="text-xs uppercase tracking-[0.25em] text-white/60 mb-3">Navegação</div>
-            <nav className="space-y-2 text-sm">
-              <button
-                type="button"
-                onClick={() => setActiveTab("info")}
-                className={`w-full rounded-xl px-4 py-2 text-left transition ${
-                  activeTab === "info" ? "bg-white text-gray-900 font-semibold" : "bg-white/5 text-white hover:bg-white/10"
-                }`}
-              >
-                {t("infoTab")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                className={`w-full rounded-xl px-4 py-2 text-left transition ${
-                  activeTab === "history" ? "bg-white text-gray-900 font-semibold" : "bg-white/5 text-white hover:bg-white/10"
-                }`}
-              >
-                {t("historyTab")}
-              </button>
-            </nav>
-          </aside>
+            <button
+              type="button"
+              onClick={() => setActiveTab("history")}
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm transition ${
+                activeTab === "history"
+                  ? "bg-white text-gray-900 font-semibold shadow-lg"
+                  : "border border-white/15 text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Clock size={15} />
+              {t("historyTab")}
+            </button>
+          </div>
 
-          <main className="rounded-3xl border border-white/10 bg-white/5 p-4 lg:p-6 shadow-lg backdrop-blur">
-            {activeTab === "info" && (
-              <div className="space-y-6">
-                <form className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0b0b] p-6 max-w-3xl" onSubmit={handleSaveName}>
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="text-sm font-semibold text-white/80">{t("nameLabel")}</label>
-                    <span className="text-xs text-white/60">{user?.email}</span>
+          {/* Status notification */}
+          {status && (
+            <div
+              className={`rounded-2xl border px-5 py-4 text-sm ${
+                status.type === "success"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+                  : "border-red-500/30 bg-red-500/10 text-red-200"
+              }`}
+            >
+              {status.message}
+            </div>
+          )}
+
+          {/* Info tab */}
+          {activeTab === "info" && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Name card */}
+              <form
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm lg:p-8"
+                onSubmit={handleSaveName}
+              >
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                    <UserCircle size={18} className="text-white/60" />
                   </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-white">
+                      {t("nameLabel")}
+                    </h2>
+                    <p className="text-xs text-white/50">
+                      Como queres aparecer na plataforma
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
                   <input
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="input input-bordered w-full bg-white/5 text-white"
+                    className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                     placeholder={t("namePlaceholder")}
                   />
-                  <button type="submit" className="btn btn-outline">
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
+                  >
                     {t("saveName")}
                   </button>
-                </form>
+                </div>
+              </form>
 
-                <form className="space-y-3 rounded-2xl border border-white/10 bg-[#0b0b0b] p-6 max-w-3xl" onSubmit={handleUpdatePassword}>
-                  <div className="text-sm font-semibold text-white/80">{t("passwordLabel")}</div>
+              {/* Password card */}
+              <form
+                className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm lg:p-8"
+                onSubmit={handleUpdatePassword}
+              >
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                    <ShieldCheck size={18} className="text-white/60" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-white">
+                      {t("passwordLabel")}
+                    </h2>
+                    <p className="text-xs text-white/50">
+                      Protege a tua conta com uma password forte
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-4">
                   <input
                     type="password"
                     value={passwords.current}
-                    onChange={(e) => setPasswords((prev) => ({ ...prev, current: e.target.value }))}
-                    className="input input-bordered w-full bg-white/5 text-white"
+                    onChange={(e) =>
+                      setPasswords((prev) => ({
+                        ...prev,
+                        current: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                     placeholder={t("currentPassword")}
                     autoComplete="current-password"
                   />
                   <input
                     type="password"
                     value={passwords.next}
-                    onChange={(e) => setPasswords((prev) => ({ ...prev, next: e.target.value }))}
-                    className="input input-bordered w-full bg-white/5 text-white"
+                    onChange={(e) =>
+                      setPasswords((prev) => ({
+                        ...prev,
+                        next: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                     placeholder={t("newPassword")}
                     autoComplete="new-password"
                   />
                   <input
                     type="password"
                     value={passwords.confirm}
-                    onChange={(e) => setPasswords((prev) => ({ ...prev, confirm: e.target.value }))}
-                    className="input input-bordered w-full bg-white/5 text-white"
+                    onChange={(e) =>
+                      setPasswords((prev) => ({
+                        ...prev,
+                        confirm: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm text-white outline-none transition focus:border-white/30"
                     placeholder={t("confirmPassword")}
                     autoComplete="new-password"
                   />
-                  <button type="submit" className="btn btn-outline">
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
+                  >
                     {t("savePassword")}
                   </button>
-                </form>
-              </div>
-            )}
+                </div>
+              </form>
+            </div>
+          )}
 
-            {activeTab === "history" && (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-[#0b0b0b]/80 p-10 text-center text-white/70">
-                <p className="text-lg font-semibold">{t("historyTab")}</p>
-                <p className="mt-2 text-sm">{t("historyPlaceholder")}</p>
-              </div>
-            )}
-
-            {status && (
-              <div
-                className={`mt-6 rounded-2xl border px-4 py-3 text-sm ${
-                  status.type === "success"
-                    ? "border-green-500/40 bg-green-500/10 text-green-200"
-                    : "border-red-500/40 bg-red-500/10 text-red-100"
-                }`}
-              >
-                {status.message}
-              </div>
-            )}
-          </main>
+          {/* History tab */}
+          {activeTab === "history" && <HistoryPanel locale={locale} />}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Purchase History Component ── */
+function HistoryPanel({ locale }: { locale: string }) {
+  const t = useTranslations("dashboard");
+  const [sub, setSub] = useState<HistorySub>("events");
+  const [eventOrders, setEventOrders] = useState<EventOrder[]>([]);
+  const [sessionOrders, setSessionOrders] = useState<SessionOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadEventOrders = useCallback(async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/event-orders", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEventOrders(Array.isArray(data.orders) ? data.orders : []);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const loadSessionOrders = useCallback(async () => {
+    // We don't have a "my session orders" endpoint yet, so we leave it empty for now
+    // TODO: Implement /api/session-orders/mine once needed
+    setSessionOrders([]);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadEventOrders(), loadSessionOrders()]).finally(() =>
+      setLoading(false)
+    );
+  }, [loadEventOrders, loadSessionOrders]);
+
+  function statusBadge(status: string) {
+    switch (status) {
+      case "pending":
+        return (
+          <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200">
+            Pendente
+          </span>
+        );
+      case "paid":
+        return (
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-200">
+            Pago
+          </span>
+        );
+      case "fulfilled":
+        return (
+          <span className="rounded-full border border-sky-400/40 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-200">
+            Entregue
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="rounded-full border border-red-400/40 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-medium text-red-200">
+            Rejeitado
+          </span>
+        );
+      default:
+        return (
+          <span className="rounded-full border border-white/20 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-white/60">
+            {status}
+          </span>
+        );
+    }
+  }
+
+  function formatDate(ts: number | null) {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleDateString("pt-PT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setSub("events")}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
+            sub === "events"
+              ? "bg-white/10 text-white font-semibold border border-white/20"
+              : "border border-white/10 text-white/50 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <CalendarDays size={14} />
+          Eventos
+        </button>
+        <button
+          type="button"
+          onClick={() => setSub("sessions")}
+          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
+            sub === "sessions"
+              ? "bg-white/10 text-white font-semibold border border-white/20"
+              : "border border-white/10 text-white/50 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Camera size={14} />
+          Sessões privadas
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center text-sm text-white/50">
+          A carregar histórico…
+        </div>
+      ) : sub === "events" ? (
+        eventOrders.length === 0 ? (
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+              <CalendarDays size={28} className="text-white/30" />
+            </div>
+            <p className="text-lg font-semibold text-white">Eventos</p>
+            <p className="mt-2 text-sm text-white/50">
+              Ainda não tens compras de fotos de eventos.
+            </p>
+            <Link
+              href={`/${locale}/events`}
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              Explorar eventos <ExternalLink size={13} />
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Pending orders section */}
+            {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
+                  A aguardar pagamento
+                </h3>
+                {eventOrders
+                  .filter((o) => o.status === "pending")
+                  .map((order) => {
+                    const eventNameStr =
+                      Object.values(order.eventNames || {}).join(", ") ||
+                      "Evento";
+                    return (
+                      <div
+                        key={order.id}
+                        className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white truncate max-w-xs">
+                              {eventNameStr}
+                            </p>
+                            {statusBadge(order.status)}
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                            <span>{order.itemCount} fotos</span>
+                            <span>{order.totalPrice.toFixed(2)}€</span>
+                            <span>{formatDate(order.createdAt)}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Link
+                            href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                          >
+                            <Clock size={13} /> Ver pagamento
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* Other orders (paid, fulfilled, rejected) */}
+            {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
+              <div className="space-y-3">
+                {eventOrders.filter((o) => o.status === "pending").length >
+                  0 && (
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+                    Histórico
+                  </h3>
+                )}
+                {eventOrders
+                  .filter((o) => o.status !== "pending")
+                  .map((order) => {
+                    const eventNameStr =
+                      Object.values(order.eventNames || {}).join(", ") ||
+                      "Evento";
+                    const canDownload =
+                      order.status === "paid" || order.status === "fulfilled";
+                    return (
+                      <div
+                        key={order.id}
+                        className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-white truncate max-w-xs">
+                              {eventNameStr}
+                            </p>
+                            {statusBadge(order.status)}
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                            <span>{order.itemCount} fotos</span>
+                            <span>{order.totalPrice.toFixed(2)}€</span>
+                            <span>{formatDate(order.createdAt)}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {canDownload && (
+                            <Link
+                              href={`/${locale}/events/orders/${order.id}/download?token=${order.publicToken}`}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
+                            >
+                              <Download size={13} /> Download
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )
+      ) : /* sessions */ sessionOrders.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+            <Camera size={28} className="text-white/30" />
+          </div>
+          <p className="text-lg font-semibold text-white">Sessões privadas</p>
+          <p className="mt-2 text-sm text-white/50">
+            Ainda não tens sessões privadas.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sessionOrders.map((order) => {
+            const canDownload =
+              order.status === "paid" || order.status === "fulfilled";
+            return (
+              <div
+                key={order.id}
+                className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-white">
+                      {order.sessionName}
+                    </p>
+                    {statusBadge(order.status)}
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                    <span>{order.selectedCount} fotos</span>
+                    <span>{formatDate(order.createdAt)}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {canDownload && (
+                    <Link
+                      href={`/${locale}/sessions/orders/${order.id}/download?token=${order.token}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
+                    >
+                      <Download size={13} /> Download
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

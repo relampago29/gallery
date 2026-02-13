@@ -3,12 +3,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { usePathname } from "next/navigation";
-import { Images, UploadCloud, Tags, CreditCard, Users, Shuffle, ChevronDown } from "lucide-react";
+import {
+  Images,
+  UploadCloud,
+  Tags,
+  CreditCard,
+  Users,
+  Shuffle,
+  ChevronDown,
+  CalendarDays,
+} from "lucide-react";
 
 type NavLink = { label: string; href: string; icon: React.ReactNode };
 type NavSection = { label: string; items: NavLink[] };
 
-function NavItem({ href, active, icon, children }: { href: string; active?: boolean; icon: React.ReactNode; children: React.ReactNode }) {
+function NavItem({
+  href,
+  active,
+  icon,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <li>
       <Link
@@ -37,38 +56,93 @@ export function Sidebar() {
     {
       label: "Envio de sessões",
       items: [
-        { label: "Portfólio público", href: `${base}/public/upload`, icon: <UploadCloud size={16} /> },
-        { label: "Sessões privadas", href: `${base}/sessions/upload`, icon: <UploadCloud size={16} /> },
+        {
+          label: "Portfólio público",
+          href: `${base}/public/upload`,
+          icon: <UploadCloud size={16} />,
+        },
+        {
+          label: "Sessões privadas",
+          href: `${base}/sessions/upload`,
+          icon: <UploadCloud size={16} />,
+        },
       ],
     },
     {
       label: "Gestão pública",
       items: [
-        { label: "Lista", href: `${base}/public/list`, icon: <Images size={16} /> },
-        { label: "Trilho de imagens", href: `${base}/trail`, icon: <Shuffle size={16} /> },
-        { label: "Destaques", href: `${base}/highlights`, icon: <Images size={16} /> },
+        {
+          label: "Lista",
+          href: `${base}/public/list`,
+          icon: <Images size={16} />,
+        },
+        {
+          label: "Trilho de imagens",
+          href: `${base}/trail`,
+          icon: <Shuffle size={16} />,
+        },
+        {
+          label: "Destaques",
+          href: `${base}/highlights`,
+          icon: <Images size={16} />,
+        },
+      ],
+    },
+    {
+      label: "Eventos",
+      items: [
+        {
+          label: "Lista de eventos",
+          href: `${base}/events`,
+          icon: <CalendarDays size={16} />,
+        },
+        {
+          label: "Criar evento",
+          href: `${base}/events/create`,
+          icon: <UploadCloud size={16} />,
+        },
       ],
     },
     {
       label: "Sessões privadas",
-      items: [{ label: "Sessões privadas", href: `${base}/sessions`, icon: <Users size={16} /> }],
+      items: [
+        {
+          label: "Sessões privadas",
+          href: `${base}/sessions`,
+          icon: <Users size={16} />,
+        },
+      ],
     },
     {
       label: "Configuração",
       items: [
-        { label: "Categorias", href: `${base}/categories`, icon: <Tags size={16} /> },
-        { label: "Pagamentos", href: `${base}/payments`, icon: <CreditCard size={16} /> },
-        { label: "Utilizadores", href: `${base}/users`, icon: <Users size={16} /> },
+        {
+          label: "Categorias",
+          href: `${base}/categories`,
+          icon: <Tags size={16} />,
+        },
+        {
+          label: "Pagamentos",
+          href: `${base}/payments`,
+          icon: <CreditCard size={16} />,
+        },
+        {
+          label: "Utilizadores",
+          href: `${base}/users`,
+          icon: <Users size={16} />,
+        },
       ],
     },
   ];
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    sections.forEach((section) => {
-      initial[section.label] = true;
-    });
-    return initial;
-  });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+    () => {
+      const initial: Record<string, boolean> = {};
+      sections.forEach((section) => {
+        initial[section.label] = true;
+      });
+      return initial;
+    }
+  );
 
   const toggleSection = (label: string) => {
     setOpenSections((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -77,10 +151,12 @@ export function Sidebar() {
   return (
     <aside className="h-full flex flex-col">
       <div className="h-16 px-6 border-b border-white/10 text-white flex flex-col justify-center">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/60 leading-none">ADMIN</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-white/60 leading-none">
+          ADMIN
+        </p>
         <p className="text-lg font-semibold leading-tight text-white">Painel</p>
       </div>
-      <nav className="p-3">
+      <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
         <div className="space-y-4 text-white">
           {sections.map((section) => (
             <div key={section.label}>
@@ -92,14 +168,23 @@ export function Sidebar() {
               >
                 <ChevronDown
                   size={16}
-                  className={`transition-transform ${openSections[section.label] === false ? "-rotate-90" : "rotate-0"}`}
+                  className={`transition-transform ${
+                    openSections[section.label] === false
+                      ? "-rotate-90"
+                      : "rotate-0"
+                  }`}
                 />
                 {section.label}
               </button>
               {openSections[section.label] !== false && (
                 <ul className="space-y-1">
                   {section.items.map((it) => (
-                    <NavItem key={it.href} href={it.href} icon={it.icon} active={pathname?.startsWith(it.href)}>
+                    <NavItem
+                      key={it.href}
+                      href={it.href}
+                      icon={it.icon}
+                      active={pathname?.startsWith(it.href)}
+                    >
                       {it.label}
                     </NavItem>
                   ))}
@@ -116,7 +201,9 @@ export function Sidebar() {
         >
           ← Voltar ao site
         </Link>
-        <div className="text-xs text-white/60">© {new Date().getFullYear()}</div>
+        <div className="text-xs text-white/60">
+          © {new Date().getFullYear()}
+        </div>
       </div>
     </aside>
   );

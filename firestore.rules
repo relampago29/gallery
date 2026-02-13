@@ -19,6 +19,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Eventos: leitura aberta (publicados), escrita via Admin SDK
+    match /events/{eventId} {
+      allow read: if resource.data.published == true;
+      allow write: if false;
+      match /photos/{photoId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Pedidos de fotos de eventos: leitura pelo próprio user, escrita via Admin SDK
+    match /event_orders/{orderId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
     // Sessões privadas (bloqueadas por agora)
     match /client_sessions/{sessionId} {
       allow read, write: if false;

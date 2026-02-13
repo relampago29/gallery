@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downloadSessionOrder = exports.onPublicPhotoDelete = exports.onPublicMasterUpload = void 0;
+exports.downloadEventOrder = exports.downloadSessionOrder = exports.onEventPhotoDelete = exports.onEventMasterUpload = exports.onPublicPhotoDelete = exports.onPublicMasterUpload = void 0;
 const admin = __importStar(require("firebase-admin"));
 const sharp_1 = __importDefault(require("sharp"));
 const uuid_1 = require("uuid");
@@ -181,6 +181,131 @@ exports.onPublicPhotoDelete = (0, firestore_1.onDocumentDeleted)("public_photos/
         console.error("[onPublicPhotoDelete] cleanup failed:", e);
     }
 });
+/**
+ * Trigger v2: quando um master é carregado em masters/events/{eventId}/{photoId}.{ext}
+ * Gera variantes (jpg/webp/avif) e atualiza Firestore (events/{eventId}/photos) com sizes + published:true.
+ */
+exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)(async (event) => {
+    const object = event.data;
+    if (!object)
+        return;
+    const name = object.name ?? "";
+    const contentType = object.contentType ?? "";
+    const bucketName = object.bucket ?? admin.storage().bucket().name;
+    if (!name || !contentType)
+        return;
+    // Formato: masters/events/{eventId}/{photoId}.{ext}
+    if (!name.startsWith("masters/events/"))
+        return;
+    // Ignora capas (masters/events/covers/...)
+    if (name.startsWith("masters/events/covers/"))
+        return;
+    const parts = name.replace("masters/events/", "").split("/");
+    if (parts.length < 2)
+        return;
+    const eventId = parts[0];
+    const fileName = parts[parts.length - 1];
+    const photoId = fileName.replace(/\.[^.]+$/, "");
+    const bucket = admin.storage().bucket(bucketName);
+    const [masterBuffer] = await bucket.file(name).download();
+    const baseMeta = await (0, sharp_1.default)(masterBuffer).metadata();
+    const masterW = baseMeta.width ?? SIZES[SIZES.length - 1];
+    const masterH = baseMeta.height ?? SIZES[SIZES.length - 1];
+    const sizes = {};
+    for (const targetW of SIZES) {
+        const width = Math.min(targetW, masterW);
+        const height = Math.round((masterH * width) / masterW);
+        const pipeline = (0, sharp_1.default)(masterBuffer).rotate().resize({
+            width,
+            withoutEnlargement: true,
+        });
+        const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
+            pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
+            pipeline.clone().webp({ quality: 82 }).toBuffer(),
+            pipeline.clone().avif({ quality: 60 }).toBuffer(),
+        ]);
+        const basePrefix = `variants/events/${eventId}/${photoId}`;
+        const jpgPath = `${basePrefix}/${width}.jpg`;
+        const webpPath = `${basePrefix}/${width}.webp`;
+        const avifPath = `${basePrefix}/${width}.avif`;
+        const t1 = (0, uuid_1.v4)();
+        const t2 = (0, uuid_1.v4)();
+        const t3 = (0, uuid_1.v4)();
+        await Promise.all([
+            bucket.file(jpgPath).save(jpgBuf, {
+                resumable: false,
+                contentType: "image/jpeg",
+                metadata: {
+                    cacheControl: "public,max-age=31536000,immutable",
+                    metadata: { firebaseStorageDownloadTokens: t1 },
+                },
+            }),
+            bucket.file(webpPath).save(webpBuf, {
+                resumable: false,
+                contentType: "image/webp",
+                metadata: {
+                    cacheControl: "public,max-age=31536000,immutable",
+                    metadata: { firebaseStorageDownloadTokens: t2 },
+                },
+            }),
+            bucket.file(avifPath).save(avifBuf, {
+                resumable: false,
+                contentType: "image/avif",
+                metadata: {
+                    cacheControl: "public,max-age=31536000,immutable",
+                    metadata: { firebaseStorageDownloadTokens: t3 },
+                },
+            }),
+        ]);
+        sizes[String(width)] = {
+            jpg: makeDownloadUrl(bucketName, jpgPath, t1),
+            webp: makeDownloadUrl(bucketName, webpPath, t2),
+            avif: makeDownloadUrl(bucketName, avifPath, t3),
+            width,
+            height,
+        };
+    }
+    // Atualiza Firestore: localizar foto pelo masterPath na subcoleção do evento
+    const db = admin.firestore();
+    const photosRef = db.collection("events").doc(eventId).collection("photos");
+    const snap = await photosRef.where("masterPath", "==", name).limit(1).get();
+    if (!snap.empty) {
+        await snap.docs[0].ref.update({
+            status: "ready",
+            published: true,
+            sizes,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    else {
+        await photosRef.doc(photoId).set({
+            status: "ready",
+            published: true,
+            sizes,
+            masterPath: name,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
+});
+/**
+ * Trigger v2: ao apagar um doc de events/{eventId}/photos/{photoId}
+ * Limpa variants e master correspondentes.
+ */
+exports.onEventPhotoDelete = (0, firestore_1.onDocumentDeleted)("events/{eventId}/photos/{photoId}", async (event) => {
+    const { eventId, photoId } = event.params;
+    const bucket = admin.storage().bucket();
+    try {
+        await Promise.all([
+            bucket.deleteFiles({
+                prefix: `variants/events/${eventId}/${photoId}/`,
+            }),
+            bucket.deleteFiles({ prefix: `masters/events/${eventId}/${photoId}` }),
+        ]);
+    }
+    catch (e) {
+        console.error("[onEventPhotoDelete] cleanup failed:", e);
+    }
+});
 function sanitizeName(input, fallback = "foto") {
     return ((input || fallback)
         .trim()
@@ -206,7 +331,9 @@ exports.downloadSessionOrder = (0, https_1.onRequest)({
         const orderId = req.query.orderId || "";
         const token = req.query.token || null;
         const authHeader = req.headers.authorization || "";
-        const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        const bearer = authHeader.startsWith("Bearer ")
+            ? authHeader.slice(7)
+            : null;
         if (!orderId) {
             res.status(400).json({ error: "missing orderId" });
             return;
@@ -243,7 +370,9 @@ exports.downloadSessionOrder = (0, https_1.onRequest)({
             res.status(409).json({ error: "Pagamento ainda não confirmado" });
             return;
         }
-        const selectedPhotos = Array.isArray(data.selectedPhotos) ? data.selectedPhotos : [];
+        const selectedPhotos = Array.isArray(data.selectedPhotos)
+            ? data.selectedPhotos
+            : [];
         if (!selectedPhotos.length) {
             res.status(400).json({ error: "Sem fotos seleccionadas" });
             return;
@@ -257,15 +386,22 @@ exports.downloadSessionOrder = (0, https_1.onRequest)({
             const masterPath = typeof photo.masterPath === "string" ? photo.masterPath : null;
             if (!masterPath || seenPaths.has(masterPath))
                 continue;
-            const [exists] = await bucket.file(masterPath).exists().catch(() => [false]);
+            const [exists] = await bucket
+                .file(masterPath)
+                .exists()
+                .catch(() => [false]);
             if (!exists) {
                 console.warn("[downloadSessionOrder] file missing", masterPath);
                 continue;
             }
             seenPaths.add(masterPath);
-            const ext = masterPath.includes(".") ? masterPath.split(".").pop() || "jpg" : "jpg";
+            const ext = masterPath.includes(".")
+                ? masterPath.split(".").pop() || "jpg"
+                : "jpg";
             const baseName = sanitizeName(String(photo.title || masterPath.split("/").pop() || "foto"));
-            let finalName = baseName.toLowerCase().endsWith(`.${ext}`) ? baseName : `${baseName}.${ext}`;
+            let finalName = baseName.toLowerCase().endsWith(`.${ext}`)
+                ? baseName
+                : `${baseName}.${ext}`;
             if (usedNames.has(finalName)) {
                 const count = usedNames.get(finalName) + 1;
                 usedNames.set(finalName, count);
@@ -310,14 +446,22 @@ exports.downloadSessionOrder = (0, https_1.onRequest)({
             try {
                 await new Promise((resolve, reject) => {
                     stream.on("error", reject);
-                    zip.entry(stream, { name: entry.name, date: entry.createdAt ? new Date(entry.createdAt) : new Date(), store: true }, (err) => {
+                    zip.entry(stream, {
+                        name: entry.name,
+                        date: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+                        store: true,
+                    }, (err) => {
                         if (err)
                             return reject(err);
                         resolve();
                     });
                 });
                 appended += 1;
-                console.log("[downloadSessionOrder] appended", { name: entry.name, appended, total: entries.length });
+                console.log("[downloadSessionOrder] appended", {
+                    name: entry.name,
+                    appended,
+                    total: entries.length,
+                });
             }
             catch (err) {
                 console.error("[downloadSessionOrder] entry failed", entry.name, err);
@@ -352,6 +496,195 @@ exports.downloadSessionOrder = (0, https_1.onRequest)({
     }
     catch (err) {
         console.error("[downloadSessionOrder] unexpected", err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: err?.message || "server error" });
+        }
+        else {
+            res.end();
+        }
+    }
+});
+/**
+ * downloadEventOrder — Cloud Function v2 que gera ZIP de fotos de eventos
+ * Similar a downloadSessionOrder mas lê da coleção event_orders
+ */
+exports.downloadEventOrder = (0, https_1.onRequest)({
+    region: "europe-west1",
+    timeoutSeconds: 540,
+    memory: "1GiB",
+    cors: true,
+}, async (req, res) => {
+    try {
+        if (req.method !== "GET") {
+            res.status(405).json({ error: "method not allowed" });
+            return;
+        }
+        const orderId = req.query.orderId || "";
+        const token = req.query.token || null;
+        const authHeader = req.headers.authorization || "";
+        const bearer = authHeader.startsWith("Bearer ")
+            ? authHeader.slice(7)
+            : null;
+        if (!orderId) {
+            res.status(400).json({ error: "missing orderId" });
+            return;
+        }
+        const db = admin.firestore();
+        const docRef = db.collection("event_orders").doc(orderId);
+        const snap = await docRef.get();
+        if (!snap.exists) {
+            res.status(404).json({ error: "pedido não encontrado" });
+            return;
+        }
+        let uid = null;
+        if (bearer) {
+            try {
+                const decoded = await admin.auth().verifyIdToken(bearer);
+                const isAdmin = decoded?.isAdmin === true ||
+                    decoded?.claims?.isAdmin === true;
+                if (isAdmin)
+                    uid = decoded.uid;
+            }
+            catch (err) {
+                console.error("[downloadEventOrder] token verification failed", err);
+            }
+        }
+        const data = snap.data() || {};
+        if (!uid) {
+            if (!token || token !== data.publicToken) {
+                res.status(401).json({ error: "unauthorized" });
+                return;
+            }
+        }
+        if (data.status !== "paid" && data.status !== "fulfilled") {
+            res.status(409).json({ error: "Pagamento ainda não confirmado" });
+            return;
+        }
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (!items.length) {
+            res.status(400).json({ error: "Sem fotos no pedido" });
+            return;
+        }
+        const bucket = admin.storage().bucket();
+        const seenPaths = new Set();
+        const usedNames = new Map();
+        const entries = [];
+        for (const item of items) {
+            const masterPath = typeof item.masterPath === "string" ? item.masterPath : null;
+            if (!masterPath || seenPaths.has(masterPath))
+                continue;
+            const [exists] = await bucket
+                .file(masterPath)
+                .exists()
+                .catch(() => [false]);
+            if (!exists) {
+                console.warn("[downloadEventOrder] file missing", masterPath);
+                continue;
+            }
+            seenPaths.add(masterPath);
+            const ext = masterPath.includes(".")
+                ? masterPath.split(".").pop() || "jpg"
+                : "jpg";
+            const baseName = sanitizeName(String(item.title || masterPath.split("/").pop() || "foto"));
+            let finalName = baseName.toLowerCase().endsWith(`.${ext}`)
+                ? baseName
+                : `${baseName}.${ext}`;
+            if (usedNames.has(finalName)) {
+                const count = usedNames.get(finalName) + 1;
+                usedNames.set(finalName, count);
+                const base = finalName.replace(/\.[^.]+$/, "");
+                finalName = `${base}-${count}.${ext}`;
+            }
+            else {
+                usedNames.set(finalName, 0);
+            }
+            entries.push({
+                name: finalName,
+                path: masterPath,
+                createdAt: typeof item.createdAt === "number" ? item.createdAt : null,
+            });
+        }
+        if (!entries.length) {
+            res.status(500).json({ error: "Não foi possível gerar o ZIP" });
+            return;
+        }
+        const zip = new zip_stream_1.default({ zlib: { level: 0 } });
+        res.setHeader("Content-Type", "application/zip");
+        const eventNames = data.eventNames || {};
+        const firstEventName = Object.values(eventNames)[0] || "evento";
+        const zipName = sanitizeName(String(firstEventName));
+        res.setHeader("Content-Disposition", `attachment; filename=\"${zipName}.zip\"`);
+        res.setHeader("Cache-Control", "private, max-age=30");
+        zip.on("error", (err) => {
+            console.error("[downloadEventOrder] zip error", err);
+            res.destroy(err instanceof Error ? err : new Error(String(err)));
+        });
+        zip.pipe(res);
+        let appended = 0;
+        let aborted = false;
+        const abortHandler = () => {
+            aborted = true;
+            zip.destroy(new Error("client closed connection"));
+        };
+        res.once("close", abortHandler);
+        for (const entry of entries) {
+            if (aborted)
+                break;
+            const file = bucket.file(entry.path);
+            const stream = file.createReadStream();
+            try {
+                await new Promise((resolve, reject) => {
+                    stream.on("error", reject);
+                    zip.entry(stream, {
+                        name: entry.name,
+                        date: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+                        store: true,
+                    }, (err) => {
+                        if (err)
+                            return reject(err);
+                        resolve();
+                    });
+                });
+                appended += 1;
+                console.log("[downloadEventOrder] appended", {
+                    name: entry.name,
+                    appended,
+                    total: entries.length,
+                });
+            }
+            catch (err) {
+                console.error("[downloadEventOrder] entry failed", entry.name, err);
+                aborted = true;
+                zip.destroy(err instanceof Error ? err : new Error(String(err)));
+                break;
+            }
+        }
+        if (!aborted) {
+            zip.finalize();
+        }
+        await new Promise((resolve, reject) => {
+            const onEnd = () => resolve();
+            const onError = (err) => reject(err instanceof Error ? err : new Error(String(err)));
+            zip.once("finish", onEnd);
+            zip.once("end", onEnd);
+            zip.once("error", onError);
+            res.once("error", onError);
+        });
+        res.off("close", abortHandler);
+        try {
+            await docRef.update({
+                status: "fulfilled",
+                fulfilledAt: admin.firestore.FieldValue.serverTimestamp(),
+                fulfilledAtMs: Date.now(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        catch (err) {
+            console.error("[downloadEventOrder] failed to update order", err);
+        }
+    }
+    catch (err) {
+        console.error("[downloadEventOrder] unexpected", err);
         if (!res.headersSent) {
             res.status(500).json({ error: err?.message || "server error" });
         }
