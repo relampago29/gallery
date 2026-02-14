@@ -15,6 +15,7 @@ import {
   Lock,
   List,
   Star,
+  Settings,
 } from "lucide-react";
 
 type NavLink = { label: string; href: string; icon: React.ReactNode };
@@ -128,6 +129,11 @@ export function Sidebar() {
           label: "Utilizadores",
           href: `${base}/users`,
           icon: <Users size={16} />,
+        },
+        {
+          label: "Informações do site",
+          href: `${base}/settings`,
+          icon: <Settings size={16} />,
         },
       ],
     },

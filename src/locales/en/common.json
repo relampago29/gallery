@@ -332,6 +332,17 @@
     "processingError": "Error processing the order.",
     "createOrderFailed": "Failed to create order"
   },
+  "studioLocation": {
+    "badge": "Location",
+    "title": "Where to find us",
+    "subtitle": "Visit our studio or get in touch to book your session.",
+    "mapTitle": "Momentos studio map",
+    "addressLabel": "Address",
+    "hoursLabel": "Opening hours",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "openMaps": "Open in Google Maps"
+  },
   "footer": {
     "tagline": "Moments kept forever. Professional photography with a sensitive and artistic eye.",
     "navTitle": "Navigation",

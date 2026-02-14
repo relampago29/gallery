@@ -6,6 +6,7 @@ import Hero from "@/components/hero/hero";
 import LazyPortfolio from "@/components/sections/portofolio/LazyPortfolio";
 import TeamHomePage from "@/components/sections/team/teamHomePage";
 import Contact from "@/components/sections/conatct/Contact";
+import StudioLocation from "@/components/sections/location/StudioLocation";
 import Footer from "@/components/shared/footer/Footer";
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
       <Hero></Hero>
       <LazyPortfolio />
       <TeamHomePage />
+      <StudioLocation />
       {/* <Contact /> */}
       <Footer />
     </div>

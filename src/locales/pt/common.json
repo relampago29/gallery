@@ -332,6 +332,17 @@
     "processingError": "Erro ao processar o pedido.",
     "createOrderFailed": "Falha ao criar pedido"
   },
+  "studioLocation": {
+    "badge": "Localização",
+    "title": "Onde nos encontrar",
+    "subtitle": "Visita o nosso estúdio ou entra em contacto para agendarmos a tua sessão.",
+    "mapTitle": "Mapa do estúdio Momentos",
+    "addressLabel": "Morada",
+    "hoursLabel": "Horário",
+    "emailLabel": "Email",
+    "phoneLabel": "Telefone",
+    "openMaps": "Abrir no Google Maps"
+  },
   "footer": {
     "tagline": "Momentos guardados para sempre. Fotografia profissional com um olhar sensível e artístico.",
     "navTitle": "Navegação",

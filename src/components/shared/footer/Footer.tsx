@@ -3,12 +3,18 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useSiteInfo } from "@/hooks/useSiteInfo";
 import { Instagram, Facebook, Mail, MapPin, Camera } from "lucide-react";
 import logotipo from "../../../../public/brand/logo-sem-fundo-sem-nome.png";
 
 export default function Footer() {
   const t = useTranslations("footer");
+  const { info } = useSiteInfo();
   const year = new Date().getFullYear();
+
+  const locationDisplay = [info.address, info.city, info.country]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <footer className="relative w-full border-t border-white/10 bg-black">
@@ -29,31 +35,37 @@ export default function Footer() {
             </p>
             {/* Social icons */}
             <div className="flex items-center gap-3 pt-1">
-              <a
-                href="https://www.instagram.com/momentos.fotografia_"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
-              >
-                <Instagram size={16} />
-              </a>
-              <a
-                href="https://www.facebook.com/momentos.fotografia"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
-              >
-                <Facebook size={16} />
-              </a>
-              <a
-                href="mailto:contacto@momentos-fotografia.pt"
-                aria-label="Email"
-                className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
-              >
-                <Mail size={16} />
-              </a>
+              {info.instagram && (
+                <a
+                  href={info.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
+                >
+                  <Instagram size={16} />
+                </a>
+              )}
+              {info.facebook && (
+                <a
+                  href={info.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
+                >
+                  <Facebook size={16} />
+                </a>
+              )}
+              {info.email && (
+                <a
+                  href={`mailto:${info.email}`}
+                  aria-label="Email"
+                  className="rounded-full border border-white/10 p-2 text-white/50 transition hover:border-white/30 hover:text-white"
+                >
+                  <Mail size={16} />
+                </a>
+              )}
             </div>
           </div>
 
@@ -121,17 +133,30 @@ export default function Footer() {
               {t("contactTitle")}
             </h3>
             <div className="flex flex-col gap-3">
-              <a
-                href="mailto:contacto@momentos-fotografia.pt"
-                className="flex items-start gap-2 text-sm text-white/60 transition hover:text-white"
-              >
-                <Mail size={14} className="mt-0.5 shrink-0 text-white/30" />
-                contacto@momentos-fotografia.pt
-              </a>
-              <div className="flex items-start gap-2 text-sm text-white/60">
-                <MapPin size={14} className="mt-0.5 shrink-0 text-white/30" />
-                {t("location")}
-              </div>
+              {info.email && (
+                <a
+                  href={`mailto:${info.email}`}
+                  className="flex items-start gap-2 text-sm text-white/60 transition hover:text-white"
+                >
+                  <Mail size={14} className="mt-0.5 shrink-0 text-white/30" />
+                  {info.email}
+                </a>
+              )}
+              {info.phone && (
+                <a
+                  href={`tel:${info.phone.replace(/\s/g, "")}`}
+                  className="flex items-start gap-2 text-sm text-white/60 transition hover:text-white"
+                >
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-white/30" />
+                  {info.phone}
+                </a>
+              )}
+              {locationDisplay && (
+                <div className="flex items-start gap-2 text-sm text-white/60">
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-white/30" />
+                  {locationDisplay}
+                </div>
+              )}
             </div>
           </div>
         </div>
