@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CalendarDays } from "lucide-react";
 
 type EventItem = {
@@ -17,6 +17,7 @@ type EventItem = {
 
 export default function PublicEventsPage() {
   const locale = useLocale();
+  const t = useTranslations("eventsPage");
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +28,11 @@ export default function PublicEventsPage() {
         const res = await fetch("/api/events/list?published=true", {
           cache: "no-store",
         });
-        if (!res.ok) throw new Error("Falha ao carregar eventos");
+        if (!res.ok) throw new Error(t("loadError"));
         const data = await res.json();
         setEvents(Array.isArray(data.items) ? data.items : []);
       } catch (err: any) {
-        setError(err?.message || "Erro ao carregar eventos.");
+        setError(err?.message || t("loadErrorGeneric"));
       } finally {
         setLoading(false);
       }
@@ -45,20 +46,19 @@ export default function PublicEventsPage() {
       <main className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <header className="space-y-4 text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            Galeria
+            {t("badge")}
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-            Eventos
+            {t("title")}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-white/70">
-            Explora os nossos eventos fotográficos. Encontra o teu evento e
-            adquire as fotos que mais gostas.
+            {t("subtitle")}
           </p>
         </header>
 
         {loading ? (
           <div className="py-20 text-center text-sm text-white/60">
-            A carregar eventos…
+            {t("loading")}
           </div>
         ) : error ? (
           <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-5 text-center text-sm text-red-100">
@@ -66,7 +66,7 @@ export default function PublicEventsPage() {
           </div>
         ) : events.length === 0 ? (
           <div className="py-20 text-center text-sm text-white/60">
-            Ainda não existem eventos publicados.
+            {t("noEvents")}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -100,9 +100,13 @@ export default function PublicEventsPage() {
                   <div className="flex items-center gap-3 text-xs text-white/50">
                     <span>{ev.date}</span>
                     <span>·</span>
-                    <span>{ev.photoCount || 0} fotos</span>
+                    <span>
+                      {ev.photoCount || 0} {t("photos")}
+                    </span>
                     <span>·</span>
-                    <span>{ev.pricePerPhoto?.toFixed(2)}€ / foto</span>
+                    <span>
+                      {ev.pricePerPhoto?.toFixed(2)}€ {t("pricePerPhoto")}
+                    </span>
                   </div>
                 </div>
               </Link>

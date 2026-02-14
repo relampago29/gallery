@@ -5,6 +5,7 @@ import React from "react";
 import fernandoFoto from "../../../../public/images/fernando_fernandes.jpg";
 import vanessaFoto from "../../../../public/images/vanessa_alves.jpg";
 import CardGlare from "../../reactBits/glareHover/GlareHover";
+import { useTranslations } from "next-intl";
 
 type TeamMember = { name: string; avatar: string };
 const team: TeamMember[] = [
@@ -19,61 +20,65 @@ const Highlight = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function TeamHomePage() {
+  const t = useTranslations("teamHomePage");
+
   return (
     <section className="w-full bg-black">
       {/* --- Contexto (igual ao teu) --- */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8  py-10 text-center space-y-6">
-        <div className="badge badge-primary badge-lg">Sobre nós</div>
+        <div className="badge badge-primary badge-lg">{t("badge")}</div>
         <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-          Momentos, <Highlight>histórias autênticas</Highlight>
+          {t.rich("heading", {
+            highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+          })}
         </h2>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          <Highlight>Momentos</Highlight> nasceu da paixão de transformar
-          momentos em <Highlight>memórias</Highlight> que atravessam{" "}
-          <Highlight>gerações</Highlight>.
+          {t.rich("paragraph1", {
+            highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+          })}
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Desde sempre que a <Highlight>fotografia</Highlight> faz parte da
-          nossa história; primeiro como hobby passando a uma forma de
-          linguagem/comunicação através da captura de{" "}
-          <Highlight>emoções</Highlight>, eternizando aquilo que muitas vezes
-          passa despercebido aos olhos…
+          {t.rich("paragraph2", {
+            highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+          })}
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Oferecer um olhar <Highlight>sensível</Highlight>,{" "}
-          <Highlight>artístico</Highlight> e <Highlight>profissional</Highlight>{" "}
-          sobre momentos importantes, foi a convicção que levou à criação de
-          Momentos.
+          {t.rich("paragraph3", {
+            highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+          })}
         </p>
         <div className="max-w-3xl mx-auto text-base md:text-lg opacity-90 space-y-2 text-left">
-          <p className="font-semibold">Os nossos objetivos principais:</p>
+          <p className="font-semibold">{t("objectivesTitle")}</p>
           <ul className="list-disc list-inside space-y-1">
             <li>
-              Captar imagens que contenham <Highlight>histórias</Highlight>;
+              {t.rich("objective1", {
+                highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+              })}
             </li>
             <li>
-              Garantir <Highlight>qualidade</Highlight> técnica e estética em
-              cada projeto;
+              {t.rich("objective2", {
+                highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+              })}
             </li>
             <li>
-              Disponibilizar um serviço <Highlight>personalizado</Highlight> e
-              adaptado às necessidades de cada cliente;
+              {t.rich("objective3", {
+                highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+              })}
             </li>
             <li>
-              Construir relações duradouras baseadas em{" "}
-              <Highlight>confiança</Highlight>,
-              <Highlight> profissionalismo</Highlight> e{" "}
-              <Highlight>criatividade</Highlight>.
+              {t.rich("objective4", {
+                highlight: (chunks) => <Highlight>{chunks}</Highlight>,
+              })}
             </li>
           </ul>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <button className="btn btn-primary">Marcar sessão</button>
-          <button className="btn btn-ghost">Ver portefólio</button>
+          <button className="btn btn-primary">{t("ctaBookSession")}</button>
+          <button className="btn btn-ghost">{t("ctaViewPortfolio")}</button>
         </div>
       </div>
 
-      <div className="divider mx-auto w-11/12">A equipa</div>
+      <div className="divider mx-auto w-11/12">{t("teamDivider")}</div>
 
       {/* --- Cards (foto + nome) + glare/tilt --- */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">

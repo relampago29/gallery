@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   sessionId: string;
@@ -9,14 +10,19 @@ type Props = {
 
 export function DownloadAllButton({ sessionId, className }: Props) {
   const [downloading, setDownloading] = useState(false);
+  const t = useTranslations("sessionSharePage");
 
   async function handleClick() {
     try {
       setDownloading(true);
-      const res = await fetch(`/api/session-photos/download-all?sessionId=${encodeURIComponent(sessionId)}`);
+      const res = await fetch(
+        `/api/session-photos/download-all?sessionId=${encodeURIComponent(
+          sessionId
+        )}`
+      );
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "Falha ao gerar o download");
+        throw new Error(text || t("downloadFailed"));
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -28,7 +34,7 @@ export function DownloadAllButton({ sessionId, className }: Props) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err?.message || "Não foi possível transferir todas as fotos.");
+      alert(err?.message || t("downloadAllFailed"));
     } finally {
       setDownloading(false);
     }
@@ -39,10 +45,11 @@ export function DownloadAllButton({ sessionId, className }: Props) {
       type="button"
       onClick={handleClick}
       disabled={downloading}
-      className={`inline-flex items-center justify-center rounded-full border border-white/30 px-4 py-1.5 text-sm text-white transition hover:bg-white/10 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50 ${className || ""}`}
+      className={`inline-flex items-center justify-center rounded-full border border-white/30 px-4 py-1.5 text-sm text-white transition hover:bg-white/10 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50 ${
+        className || ""
+      }`}
     >
-      {downloading ? "A preparar…" : "Transferir todas"}
+      {downloading ? t("downloadAllPreparing") : t("downloadAll")}
     </button>
   );
 }
-

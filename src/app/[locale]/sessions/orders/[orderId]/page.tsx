@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
 
@@ -17,6 +17,7 @@ type OrderPayload = {
 
 export default function OrderPaymentPage() {
   const locale = useLocale();
+  const t = useTranslations("sessionOrderPayment");
   const params = useParams<{ orderId: string; locale: string }>();
   const router = useRouter();
   const token = useMemo(() => {
@@ -55,15 +56,13 @@ export default function OrderPaymentPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(
-          payload?.error || "Não conseguimos verificar o pagamento."
-        );
+        throw new Error(payload?.error || t("checkFailed"));
       }
       const data = (await res.json()) as OrderPayload;
       setOrder(data);
       setStatusError(null);
     } catch (err: any) {
-      setStatusError(err?.message || "Falha ao verificar o pagamento");
+      setStatusError(err?.message || t("paymentCheckFailed"));
     } finally {
       setLoading(false);
     }
@@ -96,17 +95,17 @@ export default function OrderPaymentPage() {
   }, [order, router, locale, orderId, token]);
 
   const statusLabel = useMemo(() => {
-    if (!order) return "a validar";
+    if (!order) return t("statusValidating");
     switch (order.status) {
       case "paid":
       case "fulfilled":
-        return "Pagamento confirmado";
+        return t("statusConfirmed");
       case "rejected":
-        return "Pagamento rejeitado";
+        return t("statusRejected");
       case "cancelled":
-        return "Pagamento cancelado";
+        return t("statusCancelled");
       default:
-        return "A aguardar confirmação";
+        return t("statusPending");
     }
   }, [order]);
 
@@ -116,21 +115,17 @@ export default function OrderPaymentPage() {
       <main className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <header className="space-y-3 text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            Pagamento
+            {t("badge")}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-white">
-            Confirmação do teu pedido
+            {t("title")}
           </h1>
-          <p className="text-sm text-white/70">
-            Assim que o pagamento for confirmado vamos avançar automaticamente
-            para o download das fotos escolhidas.
-          </p>
+          <p className="text-sm text-white/70">{t("subtitle")}</p>
         </header>
 
         {!token ? (
           <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-5 text-center text-sm text-red-100">
-            Falta o token de acesso. Reabre o link enviado após a seleção das
-            fotos.
+            {t("missingToken")}
           </div>
         ) : null}
 
@@ -138,7 +133,7 @@ export default function OrderPaymentPage() {
           <div className="space-y-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                Estado
+                {t("statusLabel")}
               </p>
               <div className="text-lg font-semibold text-white">
                 {statusLabel}
@@ -147,43 +142,38 @@ export default function OrderPaymentPage() {
                 <p className="text-sm text-red-300">{statusError}</p>
               ) : null}
               {loading ? (
-                <p className="text-sm text-white/60">A confirmar dados…</p>
+                <p className="text-sm text-white/60">{t("confirmingData")}</p>
               ) : null}
             </div>
             {order ? (
               <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
                 <div className="flex justify-between">
-                  <span>Sessão</span>
+                  <span>{t("session")}</span>
                   <strong>{order.sessionName || order.sessionId}</strong>
                 </div>
                 <div className="mt-2 flex justify-between">
-                  <span>Fotos seleccionadas</span>
+                  <span>{t("photosSelected")}</span>
                   <strong>{order.selectedCount}</strong>
                 </div>
               </div>
             ) : null}
 
             <div className="rounded-2xl border border-white/20 bg-black/20 p-4 text-white">
-              <p className="text-sm text-white/60">
-                Efetua o pagamento MBWay para
-              </p>
+              <p className="text-sm text-white/60">{t("mbwayLabel")}</p>
               <div className="text-3xl font-semibold tracking-wide">
                 {paymentPhone}
               </div>
               <p className="text-xs uppercase tracking-[0.35em] text-white/40">
-                necessário para avançar
+                {t("mbwayRequired")}
               </p>
             </div>
 
-            <div className="text-xs text-white/60">
-              Mal confirmarmos o pagamento vais receber automaticamente o
-              download das fotos. Mantém esta página aberta.
-            </div>
+            <div className="text-xs text-white/60">{t("waitingMessage")}</div>
           </div>
         </div>
 
         <div className="text-center text-xs text-white/50">
-          ID do pedido:{" "}
+          {t("orderId")}{" "}
           <span className="font-mono text-white/80">{orderId}</span>
         </div>
       </main>

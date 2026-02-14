@@ -152,7 +152,7 @@ const NavBar: React.FC = () => {
             tabIndex={0}
             role="button"
             className="btn btn-ghost px-2 lg:hidden"
-            aria-label="Abrir menu"
+            aria-label={translate("openMenu")}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -189,7 +189,7 @@ const NavBar: React.FC = () => {
                 href="/events"
                 className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
               >
-                Eventos
+                {translate("events")}
               </Link>
               {user && (
                 <>
@@ -249,7 +249,7 @@ const NavBar: React.FC = () => {
           </li>
           <li>
             <Link className="text-base font-medium text-white" href="/events">
-              Eventos
+              {translate("events")}
             </Link>
           </li>
           {isAdmin && (
@@ -358,13 +358,15 @@ const NavBar: React.FC = () => {
               <div className="absolute right-0 mt-3 w-72 rounded-3xl border border-white/10 bg-[#0b0b0b]/95 p-4 text-white shadow-2xl backdrop-blur z-50">
                 <div className="mb-3">
                   <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">
-                    Conta
+                    {translate("account")}
                   </div>
                   <div className="mt-1 text-sm font-semibold">
-                    {user.displayName || user.email || "Utilizador"}
+                    {user.displayName || user.email || translate("user")}
                   </div>
                   <div className="text-xs text-white/60">
-                    {sessionLabel ? `Sessão: ${sessionLabel}` : null}
+                    {sessionLabel
+                      ? translate("sessionLabel", { time: sessionLabel })
+                      : null}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -387,7 +389,7 @@ const NavBar: React.FC = () => {
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="text-[11px] uppercase tracking-[0.2em] text-white/60">
-                    Idioma
+                    {translate("language")}
                   </div>
                   <div className="flex gap-2">
                     <Link

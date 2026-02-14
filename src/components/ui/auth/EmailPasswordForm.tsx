@@ -18,6 +18,7 @@ import {
   setAuthExpiry,
 } from "@/lib/firebase/sessionExpiry";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type Props = {
   callbackUrl?: string;
@@ -27,6 +28,7 @@ type Mode = "login" | "signup";
 
 export default function EmailPasswordForm({ callbackUrl }: Props) {
   const router = useRouter();
+  const t = useTranslations("auth");
 
   const [firebaseEmail, setFirebaseEmail] = useState("");
   const [firebasePassword, setFirebasePassword] = useState("");
@@ -76,7 +78,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       router.replace("/");
       router.refresh();
     } catch (err: any) {
-      setFirebaseError(err?.message ?? "Erro ao terminar sessão.");
+      setFirebaseError(err?.message ?? t("signOutError"));
     } finally {
       setSignOutLoading(false);
     }
@@ -85,7 +87,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
   async function onFirebaseSignIn(e: React.FormEvent) {
     e.preventDefault();
     if (!firebaseEmail.trim() || !firebasePassword.trim()) {
-      setFirebaseError("Indica email e password.");
+      setFirebaseError(t("emailPasswordRequired"));
       return;
     }
     setFirebaseLoading(true);
@@ -104,9 +106,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         code === "auth/invalid-credential" ||
         code === "auth/user-not-found"
       ) {
-        setFirebaseError("Credenciais inválidas.");
+        setFirebaseError(t("invalidCredentials"));
       } else {
-        setFirebaseError(err?.message ?? "Falha no login Firebase.");
+        setFirebaseError(err?.message ?? t("loginFailed"));
       }
     } finally {
       setFirebaseLoading(false);
@@ -116,11 +118,11 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
   async function onFirebaseSignUp(e: React.FormEvent) {
     e.preventDefault();
     if (!firebaseEmail.trim() || !firebasePassword.trim() || !username.trim()) {
-      setFirebaseError("Preenche email, username e password.");
+      setFirebaseError(t("allFieldsRequired"));
       return;
     }
     if (firebasePassword !== confirmPassword) {
-      setFirebaseError("As passwords não coincidem.");
+      setFirebaseError(t("passwordsDontMatch"));
       return;
     }
     setFirebaseLoading(true);
@@ -139,11 +141,11 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
     } catch (err: any) {
       const code = err?.code || "";
       if (code === "auth/email-already-in-use") {
-        setFirebaseError("Já existe uma conta com este email.");
+        setFirebaseError(t("emailAlreadyInUse"));
       } else if (code === "auth/weak-password") {
-        setFirebaseError("Password demasiado fraca. Tenta outra.");
+        setFirebaseError(t("weakPassword"));
       } else {
-        setFirebaseError(err?.message ?? "Falha na criação da conta.");
+        setFirebaseError(err?.message ?? t("signupFailed"));
       }
     } finally {
       setFirebaseLoading(false);
@@ -177,7 +179,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
             }}
             disabled={mode === "login"}
           >
-            Entrar
+            {t("loginTab")}
           </button>
           <button
             type="button"
@@ -196,7 +198,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
             }}
             disabled={mode === "signup"}
           >
-            Criar conta
+            {t("signupTab")}
           </button>
         </div>
       </div>
@@ -207,7 +209,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         onSubmit={mode === "login" ? onFirebaseSignIn : onFirebaseSignUp}
       >
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-white/70">Email</span>
+          <span className="text-sm font-medium text-white/70">
+            {t("emailLabel")}
+          </span>
           <input
             className="input input-bordered w-full bg-white/5 text-white placeholder:text-white/30"
             type="email"
@@ -221,7 +225,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         {mode === "signup" && (
           <label className="block space-y-1.5">
             <span className="text-sm font-medium text-white/70">
-              Nome de utilizador
+              {t("usernameLabel")}
             </span>
             <input
               className="input input-bordered w-full bg-white/5 text-white placeholder:text-white/30"
@@ -235,7 +239,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         )}
 
         <label className="block space-y-1.5">
-          <span className="text-sm font-medium text-white/70">Password</span>
+          <span className="text-sm font-medium text-white/70">
+            {t("passwordLabel")}
+          </span>
           <div className="relative">
             <input
               className="input input-bordered w-full bg-white/5 text-white pr-12 placeholder:text-white/30"
@@ -251,9 +257,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute inset-y-0 right-2 z-10 flex h-full items-center justify-center rounded-full px-2 text-white/50 hover:text-white transition cursor-pointer"
-              aria-label={
-                showPassword ? "Esconder password" : "Mostrar password"
-              }
+              aria-label={showPassword ? t("hidePassword") : t("showPassword")}
               aria-pressed={showPassword}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -264,13 +268,13 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         {mode === "signup" && (
           <label className="block space-y-1.5">
             <span className="text-sm font-medium text-white/70">
-              Confirmar password
+              {t("confirmPasswordLabel")}
             </span>
             <div className="relative">
               <input
                 className="input input-bordered w-full bg-white/5 text-white pr-12 placeholder:text-white/30"
                 type={showConfirm ? "text" : "password"}
-                placeholder="Repete a password"
+                placeholder={t("confirmPasswordPlaceholder")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -279,9 +283,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
                 className="absolute inset-y-0 right-2 z-10 flex h-full items-center justify-center rounded-full px-2 text-white/50 hover:text-white transition cursor-pointer"
-                aria-label={
-                  showConfirm ? "Esconder confirmação" : "Mostrar confirmação"
-                }
+                aria-label={showConfirm ? t("hideConfirm") : t("showConfirm")}
                 aria-pressed={showConfirm}
               >
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -302,10 +304,10 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           disabled={firebaseLoading}
         >
           {firebaseLoading
-            ? "A processar..."
+            ? t("processing")
             : mode === "login"
-            ? "Entrar"
-            : "Criar conta"}
+            ? t("loginTab")
+            : t("signupTab")}
         </button>
 
         {firebaseUser && (
@@ -316,8 +318,8 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
             disabled={firebaseLoading || signOutLoading}
           >
             {signOutLoading
-              ? "A terminar..."
-              : `Terminar sessão (${sessionLabel})`}
+              ? t("signingOut")
+              : t("signOut", { label: sessionLabel ?? "" })}
           </button>
         )}
       </form>

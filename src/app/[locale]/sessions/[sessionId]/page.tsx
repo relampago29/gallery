@@ -1,5 +1,6 @@
 ﻿import "server-only";
 
+import { getTranslations } from "next-intl/server";
 import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
 import { DownloadAllButton } from "@/components/sessions/DownloadAllButton";
 import { clampHours } from "@/lib/sessions/share";
@@ -215,34 +216,46 @@ async function listSessionFiles(
 
 export const runtime = "nodejs";
 
-export default async function SessionSharePage({ params, searchParams }: PageProps) {
+export default async function SessionSharePage({
+  params,
+  searchParams,
+}: PageProps) {
   const resolvedParams = await params;
   const resolvedSearch = searchParams ? await searchParams : undefined;
   const requestedId = decodeURIComponent(resolvedParams.sessionId || "");
   const sessionId = sanitizeSessionId(requestedId);
-  const hoursParam = Array.isArray(resolvedSearch?.hours) ? resolvedSearch?.hours[0] : resolvedSearch?.hours;
+  const hoursParam = Array.isArray(resolvedSearch?.hours)
+    ? resolvedSearch?.hours[0]
+    : resolvedSearch?.hours;
   const hours = clampHours(hoursParam ? Number(hoursParam) : 48);
+  const t = await getTranslations("sessionSharePage");
 
   if (!sessionId) {
     return (
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto py-16 px-4 text-center space-y-4">
-          <h1 className="text-2xl font-semibold">SessÃ£o invÃ¡lida</h1>
-          <p className="text-gray-600">Confirma se o link estÃ¡ correto ou pede um novo link ao fotÃ³grafo.</p>
+          <h1 className="text-2xl font-semibold">{t("invalidSession")}</h1>
+          <p className="text-gray-600">{t("invalidSessionHint")}</p>
         </div>
       </main>
     );
   }
 
-  let filesData: { files: SessionPhoto[]; expiresAt: Date; sessionName?: string | null };
+  let filesData: {
+    files: SessionPhoto[];
+    expiresAt: Date;
+    sessionName?: string | null;
+  };
   try {
     filesData = await listSessionFiles(sessionId, hours);
   } catch (err: any) {
     return (
       <main className="min-h-screen bg-gray-50">
         <div className="max-w-3xl mx-auto py-16 px-4 text-center space-y-4">
-          <h1 className="text-2xl font-semibold">NÃ£o conseguimos listar esta sessÃ£o</h1>
-          <p className="text-gray-600">Erro: {err?.message || String(err)}. Por favor pede um novo link ao fotÃ³grafo.</p>
+          <h1 className="text-2xl font-semibold">{t("listError")}</h1>
+          <p className="text-gray-600">
+            {t("listErrorHint", { error: err?.message || String(err) })}
+          </p>
         </div>
       </main>
     );
@@ -253,8 +266,8 @@ export default async function SessionSharePage({ params, searchParams }: PagePro
     sessionName && sessionName.trim().length
       ? sessionName
       : requestedId && requestedId.trim().length > 0
-        ? requestedId.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
-        : sessionId;
+      ? requestedId.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
+      : sessionId;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#030303] text-gray-100">
@@ -268,21 +281,30 @@ export default async function SessionSharePage({ params, searchParams }: PagePro
         <header className="space-y-4 text-center sm:text-left">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/60">Galeria privada</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+                {t("badge")}
+              </p>
               <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight">
                 {friendlyName || sessionId}
               </h1>
             </div>
-            {files.length > 0 ? <DownloadAllButton sessionId={sessionId} /> : null}
+            {files.length > 0 ? (
+              <DownloadAllButton sessionId={sessionId} />
+            ) : null}
           </div>
           <p className="text-sm text-white/70">
-            Link ativo por {hours}h Â· expira em {expiresAt.toLocaleString("pt-PT")}. Recarrega para atualizar os ficheiros.
+            {t("linkActive", {
+              hours,
+              expiry: expiresAt.toLocaleString(
+                resolvedParams.locale === "en" ? "en-GB" : "pt-PT"
+              ),
+            })}
           </p>
         </header>
 
         {files.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center text-white/70 backdrop-blur-sm">
-            Ainda nÃ£o existem fotos nesta sessÃ£o. Volta a abrir o link em alguns minutos.
+            {t("noPhotos")}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -296,20 +318,25 @@ export default async function SessionSharePage({ params, searchParams }: PagePro
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={file.url}
-                    alt={file.title || "Foto"}
+                    alt={file.title || t("noTitle")}
                     className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     loading="lazy"
                   />
                 </div>
                 <div className="space-y-3 p-5">
-                  <div className="text-base font-medium text-white truncate">{file.title || "(sem tÃ­tulo)"}</div>
+                  <div className="text-base font-medium text-white truncate">
+                    {file.title || t("noTitle")}
+                  </div>
                   {file.createdAt ? (
                     <div className="text-xs text-white/60 uppercase tracking-wide">
-                      {new Date(file.createdAt).toLocaleDateString("pt-PT", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {new Date(file.createdAt).toLocaleDateString(
+                        resolvedParams.locale === "en" ? "en-GB" : "pt-PT",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        }
+                      )}
                     </div>
                   ) : null}
                   <a
@@ -317,7 +344,7 @@ export default async function SessionSharePage({ params, searchParams }: PagePro
                     download={file.downloadName || undefined}
                     className="inline-flex w-full items-center justify-center rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
                   >
-                    Transferir
+                    {t("transferBtn")}
                   </a>
                 </div>
               </div>

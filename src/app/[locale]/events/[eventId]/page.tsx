@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft, CalendarDays, Check, ShoppingCart } from "lucide-react";
@@ -52,6 +52,7 @@ function pickPhotoThumb(photo: EventPhoto): string {
 
 export default function PublicEventDetailPage() {
   const locale = useLocale();
+  const t = useTranslations("eventDetailPage");
   const params = useParams<{ eventId: string }>();
   const eventId = params?.eventId || "";
   const cart = useCart();
@@ -68,7 +69,7 @@ export default function PublicEventDetailPage() {
           fetch(`/api/events/${eventId}`, { cache: "no-store" }),
           fetch(`/api/events/${eventId}/photos`, { cache: "no-store" }),
         ]);
-        if (!evRes.ok) throw new Error("Evento não encontrado");
+        if (!evRes.ok) throw new Error(t("notFound"));
         const evData = await evRes.json();
         setEvent(evData);
 
@@ -77,7 +78,7 @@ export default function PublicEventDetailPage() {
           setPhotos(Array.isArray(phData.items) ? phData.items : []);
         }
       } catch (err: any) {
-        setError(err?.message || "Falha ao carregar evento.");
+        setError(err?.message || t("loadError"));
       } finally {
         setLoading(false);
       }
@@ -115,12 +116,12 @@ export default function PublicEventDetailPage() {
           locale={locale}
           className="inline-flex items-center gap-1 text-xs text-white/60 hover:text-white transition"
         >
-          <ArrowLeft size={14} /> Voltar aos eventos
+          <ArrowLeft size={14} /> {t("backToEvents")}
         </Link>
 
         {loading ? (
           <div className="py-20 text-center text-sm text-white/60">
-            A carregar…
+            {t("loading")}
           </div>
         ) : error ? (
           <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-5 text-center text-sm text-red-100">
@@ -150,7 +151,7 @@ export default function PublicEventDetailPage() {
                     <CalendarDays size={14} /> {event.date}
                   </span>
                   <span>
-                    {event.photoCount || publishedPhotos.length} fotos
+                    {event.photoCount || publishedPhotos.length} {t("photos")}
                   </span>
                   <span className="rounded-full border border-white/20 px-3 py-0.5 text-xs text-white/80">
                     {event.pricePerPhoto?.toFixed(2)}€ / foto
@@ -169,11 +170,11 @@ export default function PublicEventDetailPage() {
               <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-5 py-3 backdrop-blur-sm">
                 <p className="text-sm text-white/60">
                   <ShoppingCart size={14} className="mr-1.5 inline" />
-                  Seleciona as fotos que queres comprar
+                  {t("selectPhotosHint")}
                 </p>
                 {cart.count > 0 && (
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-900">
-                    {cart.count} no carrinho · {cart.total.toFixed(2)}€
+                    {cart.count} {t("inCart")} · {cart.total.toFixed(2)}€
                   </span>
                 )}
               </div>
@@ -182,7 +183,7 @@ export default function PublicEventDetailPage() {
             {/* Grid de fotos */}
             {publishedPhotos.length === 0 ? (
               <div className="py-16 text-center text-sm text-white/60">
-                As fotos deste evento estarão disponíveis em breve.
+                {t("photosAvailableSoon")}
               </div>
             ) : (
               <div className="photo-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -205,7 +206,7 @@ export default function PublicEventDetailPage() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={thumb}
-                            alt={p.title || "Foto do evento"}
+                            alt={p.title || t("photoAlt")}
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                             loading="lazy"
                             decoding="async"
@@ -213,8 +214,8 @@ export default function PublicEventDetailPage() {
                         ) : (
                           <div className="flex h-full items-center justify-center text-xs text-white/70">
                             {p.status === "processing"
-                              ? "A processar…"
-                              : "Sem preview"}
+                              ? t("processing")
+                              : t("noPreview")}
                           </div>
                         )}
                       </div>

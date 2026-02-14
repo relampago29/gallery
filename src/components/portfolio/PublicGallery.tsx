@@ -7,12 +7,13 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { pickThumb, type PublicPhoto } from "@/lib/publicPhotos";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-function formatDate(ts?: number) {
+function formatDate(ts: number | undefined, locale: string) {
   if (!ts) return "";
   try {
-    return new Intl.DateTimeFormat("pt-PT", {
+    return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "pt-PT", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -24,6 +25,7 @@ function formatDate(ts?: number) {
 
 export function PublicGallery({ categoryId }: { categoryId?: string }) {
   const t = useTranslations("portofolioPage");
+  const locale = useLocale();
   const [photos, setPhotos] = useState<PublicPhoto[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -36,6 +38,22 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
     () => photos.find((photo) => photo.id === selectedPhotoId) || null,
     [photos, selectedPhotoId]
   );
+
+  const selectedIndex = useMemo(
+    () =>
+      selectedPhotoId ? photos.findIndex((p) => p.id === selectedPhotoId) : -1,
+    [photos, selectedPhotoId]
+  );
+
+  const hasPrev = selectedIndex > 0;
+  const hasNext = selectedIndex >= 0 && selectedIndex < photos.length - 1;
+
+  function goToPrev() {
+    if (hasPrev) setSelectedPhotoId(photos[selectedIndex - 1].id);
+  }
+  function goToNext() {
+    if (hasNext) setSelectedPhotoId(photos[selectedIndex + 1].id);
+  }
 
   const PAGE_SIZE = 12;
 
@@ -71,10 +89,7 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
         setCursor(batch.nextCursor);
         setEnd(!batch.nextCursor);
       } catch (err: any) {
-        setError(
-          err?.message ||
-            "Falha ao carregar o portfólio. Tenta novamente em instantes."
-        );
+        setError(err?.message || t("loadError"));
         setPhotos([]);
         setCursor(null);
         setEnd(true);
@@ -94,7 +109,7 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
       setCursor(batch.nextCursor);
       setEnd(!batch.nextCursor || batch.items.length === 0);
     } catch (err: any) {
-      setError(err?.message || "Erro ao carregar mais histórias.");
+      setError(err?.message || t("loadMoreError"));
     } finally {
       setLoadingMore(false);
     }
@@ -106,6 +121,18 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedPhotoId(null);
+      } else if (event.key === "ArrowLeft") {
+        setSelectedPhotoId((prev) => {
+          const idx = photos.findIndex((p) => p.id === prev);
+          return idx > 0 ? photos[idx - 1].id : prev;
+        });
+      } else if (event.key === "ArrowRight") {
+        setSelectedPhotoId((prev) => {
+          const idx = photos.findIndex((p) => p.id === prev);
+          return idx >= 0 && idx < photos.length - 1
+            ? photos[idx + 1].id
+            : prev;
+        });
       }
     };
 
@@ -117,12 +144,12 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
       window.removeEventListener("keydown", handleKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [selectedPhoto]);
+  }, [selectedPhoto, photos]);
 
   if (initialLoading) {
     return (
       <div className="py-16 text-center text-sm text-white/70">
-        A preparar as imagens…
+        {t("preparingImages")}
       </div>
     );
   }
@@ -130,9 +157,7 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
   if (error) {
     return (
       <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-6 text-sm text-red-100">
-        {error.includes("index")
-          ? "Precisamos de publicar o índice do Firestore para concluir esta secção."
-          : error}
+        {error.includes("index") ? t("indexError") : error}
       </div>
     );
   }
@@ -186,31 +211,31 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cover.src}
-              alt={p.alt || p.title || "Portfólio"}
+              alt={p.alt || p.title || t("defaultAlt")}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
               loading="lazy"
               decoding="async"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-white/60">
-              {p.status === "processing" ? "A gerar variantes…" : "Sem preview"}
+              {p.status === "processing" ? t("processing") : t("noPreview")}
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
         </div>
         <div className="space-y-2 px-5 py-4">
           <h3 className="text-lg font-semibold text-white truncate">
-            {p.title || "(sem título)"}
+            {p.title || t("noTitle")}
           </h3>
           <p className="text-sm text-white/70 truncate">
-            {p.alt || "História captada recentemente"}
+            {p.alt || t("recentCapture")}
           </p>
           <div className="text-xs text-white/50 uppercase tracking-wide">
-            <span>{formatDate(p.createdAt)}</span>
+            <span>{formatDate(p.createdAt, locale)}</span>
           </div>
           {p.lqip?.blurDataURL && (
             <div className="text-[10px] text-white/40">
-              {p.status === "processing" ? "A processar" : "Publicado"}
+              {p.status === "processing" ? t("processing") : t("published")}
             </div>
           )}
         </div>
@@ -248,32 +273,62 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setSelectedPhotoId(null)}
         >
+          {/* Previous arrow */}
+          {hasPrev && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrev();
+              }}
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/50 p-2 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white sm:left-4 sm:p-3"
+              aria-label={t("prevPhoto")}
+            >
+              <ChevronLeft size={24} />
+            </button>
+          )}
+
+          {/* Next arrow */}
+          {hasNext && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/50 p-2 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white sm:right-4 sm:p-3"
+              aria-label={t("nextPhoto")}
+            >
+              <ChevronRight size={24} />
+            </button>
+          )}
+
           <div
             className="relative w-full max-w-4xl space-y-4 rounded-3xl bg-black/40 p-4 text-white shadow-2xl backdrop-blur"
             onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
-              className="absolute right-4 top-4 rounded-full border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/70 hover:text-white"
+              className="absolute right-4 top-4 z-10 rounded-full border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/70 hover:text-white"
               onClick={() => setSelectedPhotoId(null)}
             >
-              Fechar
+              {t("close")}
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={selectedCover.src}
-              alt={selectedPhoto.alt || selectedPhoto.title || "Portfólio"}
+              alt={selectedPhoto.alt || selectedPhoto.title || t("defaultAlt")}
               className="max-h-[80vh] w-full rounded-2xl object-contain"
             />
             <div className="space-y-1 px-1">
               <h3 className="text-xl font-semibold">
-                {selectedPhoto.title || "(sem título)"}
+                {selectedPhoto.title || t("noTitle")}
               </h3>
               <p className="text-sm text-white/70">
-                {selectedPhoto.alt || "História captada recentemente"}
+                {selectedPhoto.alt || t("recentCapture")}
               </p>
               <div className="text-xs uppercase tracking-wide text-white/50">
-                {formatDate(selectedPhoto.createdAt)}
+                {formatDate(selectedPhoto.createdAt, locale)}
               </div>
             </div>
           </div>

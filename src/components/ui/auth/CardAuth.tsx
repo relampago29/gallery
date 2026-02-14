@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import EmailPasswordForm from "./EmailPasswordForm";
@@ -14,6 +14,7 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const locale = useLocale();
+  const t = useTranslations("auth");
 
   const queryCallback = React.useMemo(
     () => searchParams?.get("callbackUrl"),
@@ -33,9 +34,9 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Momentos
+            {t("brand")}
           </h1>
-          <p className="mt-1 text-sm text-white/50">Bem-vindo de volta</p>
+          <p className="mt-1 text-sm text-white/50">{t("welcome")}</p>
         </div>
       </div>
 
@@ -50,7 +51,7 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
           href={`/`}
           className="inline-flex items-center gap-1.5 text-sm text-white/40 transition hover:text-white/70"
         >
-          ← Voltar ao início
+          ← {t("backToHome")}
         </Link>
       </div>
     </div>

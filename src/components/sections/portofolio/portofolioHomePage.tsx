@@ -2,18 +2,32 @@ import HighlightsMasonry from "@/components/highlights/HighlightsMasonry";
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { Highlight } from "@/lib/highlights";
-import teste4 from "../../../../public/images/bryanminear-themframes-06.png"
+import teste4 from "../../../../public/images/bryanminear-themframes-06.png";
 
 const fallbackItems = [
-  { id: "placeholder-1", imageUrl: "https://picsum.photos/id/1015/600/900?grayscale", height: 420 },
-  { id: "placeholder-2", imageUrl: "https://picsum.photos/id/1011/600/750?grayscale", height: 260 },
-  { id: "placeholder-3", imageUrl: "https://picsum.photos/id/1020/600/800?grayscale", height: 600 },
+  {
+    id: "placeholder-1",
+    imageUrl: "https://picsum.photos/id/1015/600/900?grayscale",
+    height: 420,
+  },
+  {
+    id: "placeholder-2",
+    imageUrl: "https://picsum.photos/id/1011/600/750?grayscale",
+    height: 260,
+  },
+  {
+    id: "placeholder-3",
+    imageUrl: "https://picsum.photos/id/1020/600/800?grayscale",
+    height: 600,
+  },
   { id: "placeholder-4", imageUrl: teste4.src, height: 300 },
 ];
 
 const PortofolioHomePage = () => {
   const translate = useTranslations("protofolioHomePage");
-  const [items, setItems] = useState<{ id: string; img: string; height: number }[]>([]);
+  const [items, setItems] = useState<
+    { id: string; img: string; height: number }[]
+  >([]);
 
   useEffect(() => {
     let mounted = true;
@@ -26,7 +40,13 @@ const PortofolioHomePage = () => {
       .then((highlights) => {
         if (!mounted) return;
         if (!highlights.length) {
-          setItems(fallbackItems.map((it) => ({ id: it.id, img: it.imageUrl, height: it.height })));
+          setItems(
+            fallbackItems.map((it) => ({
+              id: it.id,
+              img: it.imageUrl,
+              height: it.height,
+            }))
+          );
           return;
         }
         setItems(
@@ -39,7 +59,13 @@ const PortofolioHomePage = () => {
       })
       .catch(() => {
         if (mounted) {
-          setItems(fallbackItems.map((it) => ({ id: it.id, img: it.imageUrl, height: it.height })));
+          setItems(
+            fallbackItems.map((it) => ({
+              id: it.id,
+              img: it.imageUrl,
+              height: it.height,
+            }))
+          );
         }
       });
     return () => {
@@ -50,8 +76,10 @@ const PortofolioHomePage = () => {
   if (!items.length) {
     return (
       <div className="relative bg-black portofolioHomePage w-full h-[650px] p-10">
-        <h1 className="text-3xl font-bold text-white">{translate("highlights")}</h1>
-        <p className="mt-6 text-white/70">Sem destaques de momento.</p>
+        <h1 className="text-3xl font-bold text-white">
+          {translate("highlights")}
+        </h1>
+        <p className="mt-6 text-white/70">{translate("noHighlights")}</p>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
 
@@ -17,6 +17,7 @@ type OrderPayload = {
 
 export default function EventOrderPaymentPage() {
   const locale = useLocale();
+  const t = useTranslations("eventOrderPayment");
   const params = useParams<{ orderId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,15 +54,13 @@ export default function EventOrderPaymentPage() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(
-          payload?.error || "Não conseguimos verificar o pagamento."
-        );
+        throw new Error(payload?.error || t("checkFailed"));
       }
       const data = (await res.json()) as OrderPayload;
       setOrder(data);
       setStatusError(null);
     } catch (err: any) {
-      setStatusError(err?.message || "Falha ao verificar o pagamento");
+      setStatusError(err?.message || t("paymentCheckFailed"));
     } finally {
       setLoading(false);
     }
@@ -92,19 +91,19 @@ export default function EventOrderPaymentPage() {
   }, [order, router, locale, orderId, token]);
 
   const statusLabel = useMemo(() => {
-    if (!order) return "a validar";
+    if (!order) return t("statusValidating");
     switch (order.status) {
       case "paid":
       case "fulfilled":
-        return "Pagamento confirmado";
+        return t("statusConfirmed");
       case "rejected":
-        return "Pagamento rejeitado";
+        return t("statusRejected");
       case "cancelled":
-        return "Pagamento cancelado";
+        return t("statusCancelled");
       default:
-        return "A aguardar confirmação";
+        return t("statusPending");
     }
-  }, [order]);
+  }, [order, t]);
 
   const eventNamesList = useMemo(() => {
     if (!order?.eventNames) return "";
@@ -117,21 +116,17 @@ export default function EventOrderPaymentPage() {
       <main className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <header className="space-y-3 text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            Pagamento
+            {t("badge")}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-white">
-            Confirmação do teu pedido
+            {t("title")}
           </h1>
-          <p className="text-sm text-white/70">
-            Assim que o pagamento for confirmado vamos avançar automaticamente
-            para o download das fotos escolhidas.
-          </p>
+          <p className="text-sm text-white/70">{t("subtitle")}</p>
         </header>
 
         {!token ? (
           <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-5 text-center text-sm text-red-100">
-            Falta o token de acesso. Reabre o link enviado após a seleção das
-            fotos.
+            {t("missingToken")}
           </div>
         ) : null}
 
@@ -139,7 +134,7 @@ export default function EventOrderPaymentPage() {
           <div className="space-y-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                Estado
+                {t("statusLabel")}
               </p>
               <div className="text-lg font-semibold text-white">
                 {statusLabel}
@@ -148,24 +143,24 @@ export default function EventOrderPaymentPage() {
                 <p className="text-sm text-red-300">{statusError}</p>
               ) : null}
               {loading ? (
-                <p className="text-sm text-white/60">A confirmar dados…</p>
+                <p className="text-sm text-white/60">{t("confirmingData")}</p>
               ) : null}
             </div>
 
             {order ? (
               <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80 space-y-2">
                 <div className="flex justify-between">
-                  <span>Evento(s)</span>
+                  <span>{t("events")}</span>
                   <strong className="text-right max-w-[60%] truncate">
                     {eventNamesList}
                   </strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Fotos</span>
+                  <span>{t("photos")}</span>
                   <strong>{order.itemCount}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Total</span>
+                  <span>{t("total")}</span>
                   <strong className="text-white">
                     {order.totalPrice.toFixed(2)}€
                   </strong>
@@ -174,26 +169,21 @@ export default function EventOrderPaymentPage() {
             ) : null}
 
             <div className="rounded-2xl border border-white/20 bg-black/20 p-4 text-white">
-              <p className="text-sm text-white/60">
-                Efetua o pagamento MBWay para
-              </p>
+              <p className="text-sm text-white/60">{t("mbwayLabel")}</p>
               <div className="text-3xl font-semibold tracking-wide">
                 {paymentPhone}
               </div>
               <p className="text-xs uppercase tracking-[0.35em] text-white/40">
-                necessário para avançar
+                {t("mbwayRequired")}
               </p>
             </div>
 
-            <div className="text-xs text-white/60">
-              Mal confirmarmos o pagamento vais receber automaticamente o
-              download das fotos. Mantém esta página aberta.
-            </div>
+            <div className="text-xs text-white/60">{t("waitingMessage")}</div>
           </div>
         </div>
 
         <div className="text-center text-xs text-white/50">
-          ID do pedido:{" "}
+          {t("orderId")}{" "}
           <span className="font-mono text-white/80">{orderId}</span>
         </div>
       </main>

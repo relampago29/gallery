@@ -2,6 +2,7 @@
 @plugin "daisyui";
 /*2a1e40*/
 :root {
+  color-scheme: dark;
   --defaultColor: #000000;
   --font-sans: "Inter";
   --font-serif: "Source Serif 4";

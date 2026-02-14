@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
@@ -24,9 +24,13 @@ function estimateTotalMs(count: number | null) {
 
 export default function EventOrderDownloadPage() {
   const locale = useLocale();
+  const t = useTranslations("eventOrderDownload");
   const params = useParams<{ orderId: string }>();
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [token, setToken] = useState("");
+  const orderId = params?.orderId || "";
+  const token =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("token") || ""
+      : "";
   const [state, setState] = useState<"idle" | "running" | "done" | "error">(
     "idle"
   );
@@ -37,15 +41,6 @@ export default function EventOrderDownloadPage() {
   const runningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    setOrderId(params?.orderId || null);
-    const qsToken =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search).get("token") || ""
-        : "";
-    setToken(qsToken);
-  }, [params?.orderId]);
 
   useEffect(() => {
     if (!orderId || !token) return;
@@ -128,7 +123,7 @@ export default function EventOrderDownloadPage() {
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Falha no download");
+        throw new Error(payload?.error || t("downloadFailed"));
       }
 
       // If somehow we got the blob directly (no redirect), handle it
@@ -147,7 +142,7 @@ export default function EventOrderDownloadPage() {
       setState("done");
     } catch (err: any) {
       clearProgress();
-      setError(err?.message || "Falha no download");
+      setError(err?.message || t("downloadFailed"));
       setState("error");
     } finally {
       runningRef.current = false;
@@ -166,14 +161,12 @@ export default function EventOrderDownloadPage() {
       <main className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <header className="space-y-3 text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            Download
+            {t("badge")}
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-white">
-            As tuas fotos estão prontas
+            {t("title")}
           </h1>
-          <p className="text-sm text-white/70">
-            Pagamento confirmado! Clica no botão abaixo para começar o download.
-          </p>
+          <p className="text-sm text-white/70">{t("subtitle")}</p>
         </header>
 
         <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
@@ -184,14 +177,14 @@ export default function EventOrderDownloadPage() {
                 onClick={startDownload}
                 className="mx-auto inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
               >
-                Iniciar download
+                {t("startDownload")}
               </button>
             )}
 
             {state === "running" && (
               <div className="space-y-3">
                 <p className="text-sm text-white/70">
-                  A preparar ZIP… {progressPercent}%
+                  {t("preparingZip", { percent: progressPercent })}
                 </p>
                 <div className="h-2 overflow-hidden rounded-full bg-white/10">
                   <div
@@ -200,7 +193,7 @@ export default function EventOrderDownloadPage() {
                   />
                 </div>
                 <p className="text-xs text-white/50">
-                  Tempo decorrido: {formatDuration(elapsedMs)}
+                  {t("timeElapsed", { time: formatDuration(elapsedMs) })}
                 </p>
               </div>
             )}
@@ -208,17 +201,15 @@ export default function EventOrderDownloadPage() {
             {state === "done" && (
               <div className="space-y-3">
                 <p className="text-lg font-semibold text-emerald-300">
-                  ✓ Download completo!
+                  {t("downloadComplete")}
                 </p>
-                <p className="text-sm text-white/60">
-                  Verifica a pasta de downloads do teu computador.
-                </p>
+                <p className="text-sm text-white/60">{t("checkDownloads")}</p>
                 <Link
                   href="/dashboard?tab=history"
                   locale={locale}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm text-white/80 transition hover:bg-white/10"
                 >
-                  Ver histórico de compras
+                  {t("viewHistory")}
                 </Link>
               </div>
             )}
@@ -231,7 +222,7 @@ export default function EventOrderDownloadPage() {
                   onClick={startDownload}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
                 >
-                  Tentar novamente
+                  {t("tryAgain")}
                 </button>
               </div>
             )}
@@ -239,7 +230,7 @@ export default function EventOrderDownloadPage() {
         </div>
 
         <div className="text-center text-xs text-white/50">
-          ID do pedido:{" "}
+          {t("orderId")}{" "}
           <span className="font-mono text-white/80">{orderId}</span>
         </div>
       </main>

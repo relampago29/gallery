@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState, useEffect } from "react";
 import NavBar from "@/components/shared/navbar/navbar";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 
@@ -28,6 +28,8 @@ type ExistingOrder = {
 };
 
 export default function SessionsEntryPage() {
+  const t = useTranslations("sessionsPage");
+
   return (
     <div className="min-h-screen bg-[#030303] text-gray-100">
       <NavBar />
@@ -35,15 +37,12 @@ export default function SessionsEntryPage() {
         <div className="space-y-8">
           <header className="text-center space-y-3">
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-              Sessões privadas
+              {t("badge")}
             </p>
             <h1 className="text-4xl font-semibold tracking-tight">
-              Vê a tua sessão
+              {t("title")}
             </h1>
-            <p className="text-sm text-white/70">
-              Introduz o código que recebeste para desbloquear a galeria privada
-              e escolhe as fotos que queres transferir.
-            </p>
+            <p className="text-sm text-white/70">{t("subtitle")}</p>
           </header>
           <SessionFlow />
         </div>
@@ -54,6 +53,7 @@ export default function SessionsEntryPage() {
 
 function SessionFlow() {
   const locale = useLocale();
+  const t = useTranslations("sessionsPage");
   const router = useRouter();
   const searchParams = useSearchParams();
   const [code, setCode] = useState("");
@@ -86,16 +86,16 @@ function SessionFlow() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Não encontrámos essa sessão");
+        throw new Error(payload?.error || t("sessionNotFound"));
       }
       const data = (await res.json()) as SessionPayload;
       if (!data?.files?.length) {
-        throw new Error("Ainda não existem fotos nessa sessão.");
+        throw new Error(t("noPhotosYet"));
       }
       setSession(data);
       void fetchExistingOrder(data.sessionId);
     } catch (err: any) {
-      setError(err?.message || "Falha ao procurar essa sessão.");
+      setError(err?.message || t("searchFailed"));
     } finally {
       setLoading(false);
     }
@@ -121,16 +121,16 @@ function SessionFlow() {
           );
           if (!res.ok) {
             const payload = await res.json().catch(() => ({}));
-            throw new Error(payload?.error || "Não encontrámos essa sessão");
+            throw new Error(payload?.error || t("sessionNotFound"));
           }
           const data = (await res.json()) as SessionPayload;
           if (!data?.files?.length) {
-            throw new Error("Ainda não existem fotos nessa sessão.");
+            throw new Error(t("noPhotosYet"));
           }
           setSession(data);
           void fetchExistingOrder(data.sessionId);
         } catch (err: any) {
-          setError(err?.message || "Falha ao procurar essa sessão.");
+          setError(err?.message || t("searchFailed"));
         } finally {
           setLoading(false);
         }
@@ -172,18 +172,16 @@ function SessionFlow() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-              Sessão
+              {t("sessionLabel")}
             </p>
             <h2 className="text-2xl font-semibold text-white">
               {session.sessionName}
             </h2>
-            <p className="text-sm text-white/70">
-              Escolhe as fotos preferidas para continuar.
-            </p>
+            <p className="text-sm text-white/70">{t("choosePhotos")}</p>
           </div>
           <div className="space-y-2 text-sm">
             <div className="text-white">
-              Selecionadas:{" "}
+              {t("selected")}:{" "}
               <span className="font-semibold">{selectionCount}</span>
             </div>
             <div className="flex gap-2 text-xs uppercase tracking-wide text-white/60">
@@ -193,7 +191,7 @@ function SessionFlow() {
                 onClick={selectAll}
                 disabled={!session.files.length}
               >
-                Selecionar todas
+                {t("selectAll")}
               </button>
 
               <button
@@ -201,7 +199,7 @@ function SessionFlow() {
                 className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
                 onClick={clearSelection}
               >
-                Limpar
+                {t("clear")}
               </button>
             </div>
           </div>
@@ -220,9 +218,7 @@ function SessionFlow() {
       );
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(
-          payload?.error || "Não foi possível verificar pedidos anteriores."
-        );
+        throw new Error(payload?.error || t("checkOrdersFailed"));
       }
       const data = await res.json();
       const ord = data?.order || null;
@@ -233,9 +229,7 @@ function SessionFlow() {
       }
     } catch (err: any) {
       setExistingOrder(null);
-      setExistingOrderError(
-        err?.message || "Falhou ao procurar pedidos anteriores."
-      );
+      setExistingOrderError(err?.message || t("fetchOrdersFailed"));
     } finally {
       setCheckingOrder(false);
     }
@@ -255,17 +249,17 @@ function SessionFlow() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Não foi possível avançar.");
+        throw new Error(payload?.error || t("proceedFailed"));
       }
       const payload = await res.json();
       const orderId = payload?.orderId;
       const token = payload?.token;
       if (!orderId || !token) {
-        throw new Error("Falha a criar o pedido.");
+        throw new Error(t("createOrderFailed"));
       }
       router.push(`/${locale}/sessions/orders/${orderId}?token=${token}`);
     } catch (err: any) {
-      setError(err?.message || "Não conseguimos avançar.");
+      setError(err?.message || t("proceedError"));
     } finally {
       setCreatingOrder(false);
     }
@@ -282,42 +276,68 @@ function SessionFlow() {
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-2xl">
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm"
-        >
-          <label className="block text-sm font-medium text-white/70">
-            Código da sessão
-          </label>
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-            <input
-              type="text"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="Ex.: abc123xy"
-              className="flex-1 rounded-2xl border border-white/10 bg-[#050505] px-4 py-3 text-sm text-white outline-none focus:border-white/40"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !code.trim()}
-              className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-            >
-              {loading ? "A procurar…" : "Ver sessão"}
-            </button>
-            {code.trim() ? (
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(code.trim())}
-                className="rounded-2xl border border-white/30 px-4 py-3 text-sm text-white transition hover:bg-white/10"
+      <div className="mx-auto max-w-lg">
+        <div className="rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+          {/* Decorative top bar */}
+          <div className="flex items-center justify-center border-b border-white/10 px-6 py-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-white/70"
               >
-                Copiar código
-              </button>
-            ) : null}
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
           </div>
-          {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
-        </form>
+
+          <form onSubmit={handleSubmit} className="space-y-5 p-6">
+            <div className="space-y-1 text-center">
+              <h2 className="text-lg font-semibold text-white">
+                {t("enterCode")}
+              </h2>
+              <p className="text-xs text-white/50">{t("codeHint")}</p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                placeholder={t("codePlaceholder")}
+                className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3.5 text-center text-base font-medium tracking-widest text-white placeholder-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+                disabled={loading}
+                autoFocus
+              />
+
+              <button
+                type="submit"
+                disabled={loading || !code.trim()}
+                className="w-full rounded-2xl bg-white px-5 py-3.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+              >
+                {loading ? t("searching") : t("unlockSession")}
+              </button>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200">
+                {error}
+              </div>
+            )}
+
+            <p className="text-center text-[11px] text-white/30">
+              {t("noCodeHelp")}
+            </p>
+          </form>
+        </div>
       </div>
     );
   }
@@ -326,17 +346,17 @@ function SessionFlow() {
     <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-          Pedido em curso
+          {t("existingOrderLabel")}
         </p>
         <h2 className="text-2xl font-semibold text-white">
-          Já existe um pedido para esta sessão
+          {t("existingOrderTitle")}
         </h2>
         <p className="text-sm text-white/70">
           {existingOrder.status === "pending"
-            ? "Terminaste a seleção. Volta à página de pagamento para confirmar o MBWay."
+            ? t("existingOrderPending")
             : existingOrder.status === "paid"
-            ? "O pagamento está confirmado. Prepara o download automático."
-            : "Pedido finalizado — podes descarregar as fotos novamente."}
+            ? t("existingOrderPaid")
+            : t("existingOrderDone")}
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
@@ -347,8 +367,8 @@ function SessionFlow() {
           className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
         >
           {existingOrder.status === "pending"
-            ? "Ir para o pagamento"
-            : "Transferir fotos"}
+            ? t("goToPayment")
+            : t("downloadPhotos")}
         </button>
         <button
           type="button"
@@ -358,7 +378,7 @@ function SessionFlow() {
           }}
           className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
         >
-          Quero escolher de novo
+          {t("chooseAgain")}
         </button>
       </div>
     </div>
@@ -369,7 +389,7 @@ function SessionFlow() {
       {instructions}
       {checkingOrder ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-          A verificar pedidos anteriores…
+          {t("checkingOrders")}
         </div>
       ) : null}
       {existingOrderError ? (
@@ -405,12 +425,12 @@ function SessionFlow() {
                   } bg-white/5 text-left shadow-[0_25px_120px_rgba(0,0,0,0.45)] transition hover:border-white/40`}
                 >
                   <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">
-                    {isSelected ? "Selecionada" : "Selecionar"}
+                    {isSelected ? t("photoSelected") : t("photoSelect")}
                   </span>
                   <div className="relative aspect-[4/5]">
                     <Image
                       src={imageSrc}
-                      alt={photo.title || "Foto"}
+                      alt={photo.title || t("photoAlt")}
                       fill
                       sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
                       className="object-cover"
@@ -427,7 +447,7 @@ function SessionFlow() {
 
                   <div className="p-4">
                     <div className="truncate text-base font-medium text-white">
-                      {photo.title || "(sem título)"}
+                      {photo.title || t("noTitle")}
                     </div>
                     {photo.createdAt ? (
                       <div className="text-xs uppercase tracking-wide text-white/60">
@@ -452,7 +472,7 @@ function SessionFlow() {
               }}
               className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
             >
-              Procurar outra sessão
+              {t("searchAnother")}
             </button>
             <button
               type="button"
@@ -461,18 +481,18 @@ function SessionFlow() {
               className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
             >
               {creatingOrder
-                ? "A preparar…"
-                : `Avançar (${selectionCount} fotos)`}
+                ? t("preparing")
+                : t("proceed", { count: selectionCount })}
             </button>
           </div>
           {!selectionCount ? (
             <p className="text-center text-sm text-white/60">
-              Seleciona pelo menos uma foto para continuar.
+              {t("selectAtLeastOne")}
             </p>
           ) : null}
           {allSelected ? (
             <p className="text-center text-sm text-emerald-300/80">
-              Todas as fotos desta sessão estão selecionadas.
+              {t("allPhotosSelected")}
             </p>
           ) : null}
         </>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "./CartContext";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
 import { ShoppingCart, X, Trash2, ArrowRight } from "lucide-react";
@@ -13,6 +13,7 @@ export function CartDrawer() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locale = useLocale();
+  const t = useTranslations("cart");
   const router = useRouter();
 
   async function handleCheckout() {
@@ -47,7 +48,7 @@ export function CartDrawer() {
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Falha ao criar pedido");
+        throw new Error(payload?.error || t("createOrderFailed"));
       }
       const data = await res.json();
       clear();
@@ -56,7 +57,7 @@ export function CartDrawer() {
         `/${locale}/events/orders/${data.orderId}?token=${data.token}`
       );
     } catch (err: any) {
-      setError(err?.message || "Erro ao processar o pedido.");
+      setError(err?.message || t("processingError"));
     } finally {
       setCreating(false);
     }
@@ -69,7 +70,7 @@ export function CartDrawer() {
         type="button"
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-lg transition hover:bg-white/20"
-        aria-label="Carrinho"
+        aria-label={t("title")}
       >
         <ShoppingCart size={22} />
         {count > 0 && (
@@ -96,9 +97,9 @@ export function CartDrawer() {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Carrinho</h2>
+            <h2 className="text-lg font-semibold text-white">{t("title")}</h2>
             <p className="text-xs text-white/50">
-              {count} foto{count !== 1 ? "s" : ""}
+              {count} {t("photoCount", { count })}
             </p>
           </div>
           <button
@@ -115,12 +116,8 @@ export function CartDrawer() {
           {items.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <ShoppingCart size={40} className="text-white/20" />
-              <p className="text-sm text-white/50">
-                O teu carrinho está vazio.
-              </p>
-              <p className="text-xs text-white/40">
-                Visita um evento e seleciona as fotos que queres comprar.
-              </p>
+              <p className="text-sm text-white/50">{t("emptyCart")}</p>
+              <p className="text-xs text-white/40">{t("emptyCartHint")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -134,12 +131,12 @@ export function CartDrawer() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={item.thumbUrl}
-                        alt={item.title || "Foto"}
+                        alt={item.title || t("photo")}
                         className="h-full w-full object-cover"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-white/40">
-                        Foto
+                        {t("photo")}
                       </div>
                     )}
                   </div>
@@ -149,7 +146,7 @@ export function CartDrawer() {
                         {item.eventTitle}
                       </p>
                       <p className="text-sm font-medium text-white truncate">
-                        {item.title || "Foto sem título"}
+                        {item.title || t("untitledPhoto")}
                       </p>
                     </div>
                     <p className="text-sm font-semibold text-white">
@@ -160,7 +157,7 @@ export function CartDrawer() {
                     type="button"
                     onClick={() => remove(item.photoId)}
                     className="self-center rounded-lg p-1.5 text-white/40 transition hover:bg-red-500/20 hover:text-red-300"
-                    aria-label="Remover"
+                    aria-label={t("remove")}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -193,10 +190,10 @@ export function CartDrawer() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-50"
             >
               {creating ? (
-                "A processar…"
+                t("processing")
               ) : (
                 <>
-                  Comprar <ArrowRight size={16} />
+                  {t("buy")} <ArrowRight size={16} />
                 </>
               )}
             </button>
@@ -206,7 +203,7 @@ export function CartDrawer() {
               onClick={clear}
               className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-xs text-white/60 transition hover:bg-white/5 hover:text-white"
             >
-              Limpar carrinho
+              {t("clearCart")}
             </button>
           </div>
         )}

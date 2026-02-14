@@ -224,7 +224,7 @@ export default function DashboardPage() {
             href={`/${locale}`}
             className="inline-flex items-center gap-1.5 text-xs text-white/50 transition hover:text-white"
           >
-            <ArrowLeft size={14} /> Voltar ao início
+            <ArrowLeft size={14} /> {t("backToHome")}
           </Link>
 
           {/* Header */}
@@ -309,9 +309,7 @@ export default function DashboardPage() {
                     <h2 className="text-base font-semibold text-white">
                       {t("nameLabel")}
                     </h2>
-                    <p className="text-xs text-white/50">
-                      Como queres aparecer na plataforma
-                    </p>
+                    <p className="text-xs text-white/50">{t("nameSubtitle")}</p>
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -345,7 +343,7 @@ export default function DashboardPage() {
                       {t("passwordLabel")}
                     </h2>
                     <p className="text-xs text-white/50">
-                      Protege a tua conta com uma password forte
+                      {t("passwordSubtitle")}
                     </p>
                   </div>
                 </div>
@@ -452,25 +450,25 @@ function HistoryPanel({ locale }: { locale: string }) {
       case "pending":
         return (
           <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-200">
-            Pendente
+            {t("statusPending")}
           </span>
         );
       case "paid":
         return (
           <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-200">
-            Pago
+            {t("statusPaid")}
           </span>
         );
       case "fulfilled":
         return (
           <span className="rounded-full border border-sky-400/40 bg-sky-500/10 px-2.5 py-0.5 text-[11px] font-medium text-sky-200">
-            Entregue
+            {t("statusFulfilled")}
           </span>
         );
       case "rejected":
         return (
           <span className="rounded-full border border-red-400/40 bg-red-500/10 px-2.5 py-0.5 text-[11px] font-medium text-red-200">
-            Rejeitado
+            {t("statusRejected")}
           </span>
         );
       default:
@@ -507,7 +505,7 @@ function HistoryPanel({ locale }: { locale: string }) {
           }`}
         >
           <CalendarDays size={14} />
-          Eventos
+          {t("eventsTab")}
         </button>
         <button
           type="button"
@@ -519,13 +517,13 @@ function HistoryPanel({ locale }: { locale: string }) {
           }`}
         >
           <Camera size={14} />
-          Sessões privadas
+          {t("sessionsTab")}
         </button>
       </div>
 
       {loading ? (
         <div className="py-16 text-center text-sm text-white/50">
-          A carregar histórico…
+          {t("loadingHistory")}
         </div>
       ) : sub === "events" ? (
         eventOrders.length === 0 ? (
@@ -533,15 +531,15 @@ function HistoryPanel({ locale }: { locale: string }) {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
               <CalendarDays size={28} className="text-white/30" />
             </div>
-            <p className="text-lg font-semibold text-white">Eventos</p>
-            <p className="mt-2 text-sm text-white/50">
-              Ainda não tens compras de fotos de eventos.
+            <p className="text-lg font-semibold text-white">
+              {t("eventsEmpty")}
             </p>
+            <p className="mt-2 text-sm text-white/50">{t("eventsEmptyHint")}</p>
             <Link
               href={`/${locale}/events`}
               className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
             >
-              Explorar eventos <ExternalLink size={13} />
+              {t("exploreEvents")} <ExternalLink size={13} />
             </Link>
           </div>
         ) : (
@@ -550,7 +548,7 @@ function HistoryPanel({ locale }: { locale: string }) {
             {eventOrders.filter((o) => o.status === "pending").length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
-                  A aguardar pagamento
+                  {t("awaitingPayment")}
                 </h3>
                 {eventOrders
                   .filter((o) => o.status === "pending")
@@ -581,7 +579,7 @@ function HistoryPanel({ locale }: { locale: string }) {
                             href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
                           >
-                            <Clock size={13} /> Ver pagamento
+                            <Clock size={13} /> {t("viewPayment")}
                           </Link>
                         </div>
                       </div>
@@ -596,7 +594,7 @@ function HistoryPanel({ locale }: { locale: string }) {
                 {eventOrders.filter((o) => o.status === "pending").length >
                   0 && (
                   <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-                    Histórico
+                    {t("historyLabel")}
                   </h3>
                 )}
                 {eventOrders
@@ -647,10 +645,10 @@ function HistoryPanel({ locale }: { locale: string }) {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
             <Camera size={28} className="text-white/30" />
           </div>
-          <p className="text-lg font-semibold text-white">Sessões privadas</p>
-          <p className="mt-2 text-sm text-white/50">
-            Ainda não tens sessões privadas.
+          <p className="text-lg font-semibold text-white">
+            {t("sessionsEmpty")}
           </p>
+          <p className="mt-2 text-sm text-white/50">{t("sessionsEmptyHint")}</p>
         </div>
       ) : (
         <div className="space-y-3">
