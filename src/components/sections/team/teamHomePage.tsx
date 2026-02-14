@@ -21,36 +21,49 @@ const Highlight = ({ children }: { children: React.ReactNode }) => (
 export default function TeamHomePage() {
   return (
     <section className="w-full bg-black">
-      {/* --- Contexto (igual ao teu) --- */}      
+      {/* --- Contexto (igual ao teu) --- */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8  py-10 text-center space-y-6">
         <div className="badge badge-primary badge-lg">Sobre nós</div>
         <h2 className="text-3xl md:text-4xl font-bold leading-tight">
           Momentos, <Highlight>histórias autênticas</Highlight>
         </h2>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          <Highlight>Momentos</Highlight> nasceu da paixão de transformar momentos em{" "}
-          <Highlight>memórias</Highlight> que atravessam <Highlight>gerações</Highlight>.
+          <Highlight>Momentos</Highlight> nasceu da paixão de transformar
+          momentos em <Highlight>memórias</Highlight> que atravessam{" "}
+          <Highlight>gerações</Highlight>.
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Desde sempre que a <Highlight>fotografia</Highlight> faz parte da nossa história;
-          primeiro como hobby passando a uma forma de linguagem/comunicação através da
-          captura de <Highlight>emoções</Highlight>, eternizando aquilo que muitas vezes
+          Desde sempre que a <Highlight>fotografia</Highlight> faz parte da
+          nossa história; primeiro como hobby passando a uma forma de
+          linguagem/comunicação através da captura de{" "}
+          <Highlight>emoções</Highlight>, eternizando aquilo que muitas vezes
           passa despercebido aos olhos…
         </p>
         <p className="max-w-3xl mx-auto text-base md:text-lg opacity-90">
-          Oferecer um olhar <Highlight>sensível</Highlight>, <Highlight>artístico</Highlight> e{" "}
-          <Highlight>profissional</Highlight> sobre momentos importantes, foi a convicção que
-          levou à criação de Momentos.
+          Oferecer um olhar <Highlight>sensível</Highlight>,{" "}
+          <Highlight>artístico</Highlight> e <Highlight>profissional</Highlight>{" "}
+          sobre momentos importantes, foi a convicção que levou à criação de
+          Momentos.
         </p>
         <div className="max-w-3xl mx-auto text-base md:text-lg opacity-90 space-y-2 text-left">
           <p className="font-semibold">Os nossos objetivos principais:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Captar imagens que contenham <Highlight>histórias</Highlight>;</li>
-            <li>Garantir <Highlight>qualidade</Highlight> técnica e estética em cada projeto;</li>
-            <li>Disponibilizar um serviço <Highlight>personalizado</Highlight> e adaptado às necessidades de cada cliente;</li>
             <li>
-              Construir relações duradouras baseadas em <Highlight>confiança</Highlight>,
-              <Highlight> profissionalismo</Highlight> e <Highlight>criatividade</Highlight>.
+              Captar imagens que contenham <Highlight>histórias</Highlight>;
+            </li>
+            <li>
+              Garantir <Highlight>qualidade</Highlight> técnica e estética em
+              cada projeto;
+            </li>
+            <li>
+              Disponibilizar um serviço <Highlight>personalizado</Highlight> e
+              adaptado às necessidades de cada cliente;
+            </li>
+            <li>
+              Construir relações duradouras baseadas em{" "}
+              <Highlight>confiança</Highlight>,
+              <Highlight> profissionalismo</Highlight> e{" "}
+              <Highlight>criatividade</Highlight>.
             </li>
           </ul>
         </div>
@@ -62,38 +75,39 @@ export default function TeamHomePage() {
 
       <div className="divider mx-auto w-11/12">A equipa</div>
 
-      {/* --- Cards (85% foto / 15% nome) + glare/tilt --- */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+      {/* --- Cards (foto + nome) + glare/tilt --- */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
           {team.map((m) => (
             <CardGlare
               key={m.name}
-              className="rounded-2xl w-full max-w-[380px] mx-auto"
-              tilt={10}          // 3D
-              glare={0.32}       // brilho radial
-              radius={260}       // raio do brilho
+              className="rounded-3xl w-full max-w-[420px] mx-auto"
+              tilt={8}
+              glare={0.28}
+              radius={300}
               color="255,255,255"
-              rounded="1rem"
-              scale={1.02}
+              rounded="1.5rem"
+              scale={1.03}
             >
               <article
-                className="card bg-base-100 shadow-xl overflow-hidden relative
-                           rounded-2xl transform-gpu
-                           h-[360px] sm:h-[440px] md:h-[500px]
-                           w-full"
+                className="overflow-hidden relative rounded-3xl transform-gpu
+                           w-full border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02]
+                           shadow-[0_30px_100px_rgba(0,0,0,0.5)]"
               >
-                {/* Foto (80%) */}
-                <div className="h-[85%] w-full bg-neutral-800/70 overflow-hidden flex items-center justify-center">
+                {/* Foto */}
+                <div className="aspect-[3/4] w-full overflow-hidden">
                   <img
                     src={m.avatar}
                     alt={m.name}
-                    className="w-11/12 h-full object-cover object-center select-none pointer-events-none transition-transform duration-200"
+                    className="h-full w-full object-cover object-top select-none pointer-events-none transition-transform duration-500"
                     draggable={false}
                   />
                 </div>
-                {/* Nome (20%) */}
-                <div className="h-[15%] w-full flex items-center justify-center border-t border-base-300 px-4 text-center">
-                  <h3 className="text-lg md:text-xl font-semibold">{m.name}</h3>
+                {/* Nome – overlay gradient sobre a foto */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/60 to-transparent px-6 pb-8 pt-20 text-center">
+                  <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+                    {m.name}
+                  </h3>
                 </div>
               </article>
             </CardGlare>

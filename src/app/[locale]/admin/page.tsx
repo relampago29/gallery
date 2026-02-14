@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import PaymentPhoneCard from "@/components/admin/PaymentPhoneCard";
+import ContactEmailCard from "@/components/admin/ContactEmailCard";
 import { getLocale } from "next-intl/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 
@@ -14,8 +15,23 @@ async function getPaymentPhone(): Promise<string | null> {
   }
 }
 
+async function getContactEmail(): Promise<string | null> {
+  try {
+    const db = getAdminDb();
+    const snap = await db.doc("settings/contact").get();
+    const email = snap.exists ? snap.data()?.email ?? null : null;
+    return typeof email === "string" ? email : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function AdminIndex() {
-  const [locale, phone] = await Promise.all([getLocale(), getPaymentPhone()]);
+  const [locale, phone, email] = await Promise.all([
+    getLocale(),
+    getPaymentPhone(),
+    getContactEmail(),
+  ]);
   return (
     <div className="space-y-10">
       <section className="space-y-3">
@@ -49,7 +65,10 @@ export default async function AdminIndex() {
         </div>
       </section>
 
-      <PaymentPhoneCard initialPhone={phone} />
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
+        <PaymentPhoneCard initialPhone={phone} />
+        <ContactEmailCard initialEmail={email} />
+      </div>
     </div>
   );
 }

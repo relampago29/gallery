@@ -6,18 +6,18 @@ import Hero from "@/components/hero/hero";
 import LazyPortfolio from "@/components/sections/portofolio/LazyPortfolio";
 import TeamHomePage from "@/components/sections/team/teamHomePage";
 import Contact from "@/components/sections/conatct/Contact";
-
+import Footer from "@/components/shared/footer/Footer";
 
 export default function Home() {
- 
   return (
     <div className="w-full">
       <NavBar></NavBar>
       <Hero></Hero>
-      <LazyPortfolio/>
-   
-     <TeamHomePage/>
-      <Contact/> 
+      <LazyPortfolio />
+
+      <TeamHomePage />
+      <Contact />
+      <Footer />
     </div>
   );
 }
