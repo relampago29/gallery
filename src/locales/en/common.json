@@ -14,7 +14,8 @@
     "openMenu": "Open menu",
     "account": "Account",
     "language": "Language",
-    "user": "User"
+    "user": "User",
+    "sessionLabel": "Session: {time}"
   },
   "hero": {
     "headline": "Moments, kept forever."
