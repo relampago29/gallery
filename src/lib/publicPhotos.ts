@@ -200,7 +200,7 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
   categoryId: string;
   title?: string;
   alt?: string;
-  sequenceNumber: number;
+  sequenceNumber?: number;
 }) {
   const ext = (opts.file.name.split(".").pop() || "jpg").toLowerCase();
   const photoId =
@@ -220,7 +220,9 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
     categoryId: opts.categoryId,
     createdAt,
     masterPath,
-    sequenceNumber: opts.sequenceNumber,
+    ...(opts.sequenceNumber != null
+      ? { sequenceNumber: opts.sequenceNumber }
+      : {}),
   });
 
   return { photoId, masterPath, createdAt };

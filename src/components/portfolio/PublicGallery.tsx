@@ -22,7 +22,7 @@ function formatDate(ts?: number) {
   }
 }
 
-export function PublicGallery() {
+export function PublicGallery({ categoryId }: { categoryId?: string }) {
   const t = useTranslations("portofolioPage");
   const [photos, setPhotos] = useState<PublicPhoto[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -42,6 +42,7 @@ export function PublicGallery() {
   async function fetchBatch(nextCursor: number | null) {
     const params = new URLSearchParams();
     params.set("limit", String(PAGE_SIZE));
+    if (categoryId) params.set("categoryId", categoryId);
     if (nextCursor != null) params.set("cursor", String(nextCursor));
     const res = await fetch(`/api/public-photos/list?${params.toString()}`, {
       cache: "no-store",
@@ -60,6 +61,9 @@ export function PublicGallery() {
   useEffect(() => {
     setInitialLoading(true);
     setError(null);
+    setPhotos([]);
+    setCursor(null);
+    setEnd(false);
     (async () => {
       try {
         const batch = await fetchBatch(null);
@@ -78,7 +82,8 @@ export function PublicGallery() {
         setInitialLoading(false);
       }
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId]);
 
   async function loadMore() {
     if (loadingMore || end || cursor == null) return;
@@ -200,13 +205,8 @@ export function PublicGallery() {
           <p className="text-sm text-white/70 truncate">
             {p.alt || "História captada recentemente"}
           </p>
-          <div className="flex items-center justify-between text-xs text-white/50 uppercase tracking-wide">
+          <div className="text-xs text-white/50 uppercase tracking-wide">
             <span>{formatDate(p.createdAt)}</span>
-            {p.categoryId ? (
-              <span className="rounded-full border border-white/20 px-2 py-0.5 text-[10px] tracking-wider">
-                {p.categoryId}
-              </span>
-            ) : null}
           </div>
           {p.lqip?.blurDataURL && (
             <div className="text-[10px] text-white/40">

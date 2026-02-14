@@ -42,7 +42,9 @@
     "cta": "Quero marcar uma sessão",
     "empty": "Ainda não há histórias públicas aqui — volta em breve.",
     "loadMore": "Carregar mais histórias",
-    "loadingMore": "A carregar…"
+    "loadingMore": "A carregar…",
+    "backToCategories": "Voltar às categorias",
+    "loadingCategories": "A carregar categorias…"
   },
   "contactHomePage": {
     "badge": "Contacta-nos",

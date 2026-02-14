@@ -14,9 +14,8 @@ export default function Home() {
       <NavBar></NavBar>
       <Hero></Hero>
       <LazyPortfolio />
-
       <TeamHomePage />
-      <Contact />
+      {/* <Contact /> */}
       <Footer />
     </div>
   );

@@ -42,7 +42,9 @@
     "cta": "Book a session",
     "empty": "No public stories here yet — check back soon.",
     "loadMore": "Load more stories",
-    "loadingMore": "Loading…"
+    "loadingMore": "Loading…",
+    "backToCategories": "Back to categories",
+    "loadingCategories": "Loading categories…"
   },
   "contactHomePage": {
     "badge": "Contact us",

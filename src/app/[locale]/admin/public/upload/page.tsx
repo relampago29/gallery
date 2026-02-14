@@ -22,20 +22,13 @@ const MAX_PARALLEL_UPLOADS =
 type UploadResult = {
   ok: boolean;
   fileName: string;
-  sequenceNumber: number;
   error?: string;
 };
-
-function buildSequentialLabel(sequenceNumber: number, base?: string | null) {
-  const safeBase = base && base.trim().length ? base.trim() : "Foto";
-  return `${safeBase} ${sequenceNumber}`;
-}
 
 async function runWithConcurrency(
   tasks: {
     fn: () => Promise<void>;
     fileName: string;
-    sequenceNumber: number;
   }[],
   limit = MAX_PARALLEL_UPLOADS,
   onProgress?: (completed: number) => void
@@ -57,13 +50,11 @@ async function runWithConcurrency(
         results[current] = {
           ok: true,
           fileName: task.fileName,
-          sequenceNumber: task.sequenceNumber,
         };
       } catch (err: any) {
         results[current] = {
           ok: false,
           fileName: task.fileName,
-          sequenceNumber: task.sequenceNumber,
           error: err?.message || String(err),
         };
       }
@@ -74,22 +65,6 @@ async function runWithConcurrency(
 
   await Promise.all(Array.from({ length: poolSize }, () => worker()));
   return results;
-}
-
-async function reserveSequenceNumbers(count: number) {
-  const res = await fetch("/api/upload/sequence", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode: "public", count }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(
-      data?.error || `Falha (${res.status}) ao reservar numeração.`
-    );
-  }
-  const data = await res.json();
-  return Number(data?.start) || 1;
 }
 
 export default function UploadPublicPhotoPage() {
@@ -184,22 +159,16 @@ export default function UploadPublicPhotoPage() {
         progress: 0,
         scope: uploadScope,
       });
-      const start = await reserveSequenceNumbers(files.length);
       const total = files.length;
-      const tasks = files.map((f, index) => {
-        const sequenceNumber = start + index;
-        const generatedTitle = buildSequentialLabel(sequenceNumber, title);
-        const generatedAlt = buildSequentialLabel(sequenceNumber, alt ?? title);
+      const tasks = files.map((f) => {
         return {
           fileName: f.name,
-          sequenceNumber,
           fn: async () => {
             await uploadMasterAndCreateProcessingDoc({
               file: f,
               categoryId,
-              title: generatedTitle,
-              alt: generatedAlt,
-              sequenceNumber,
+              title: title.trim() || undefined,
+              alt: alt.trim() || title.trim() || undefined,
             });
           },
         };
@@ -508,12 +477,9 @@ export default function UploadPublicPhotoPage() {
               <div className="divide-y divide-white/10 text-sm">
                 {failedUploads.map((f, idx) => (
                   <div
-                    key={`${f.sequenceNumber}-${f.fileName}-${idx}`}
+                    key={`${f.fileName}-${idx}`}
                     className="flex items-center gap-4 px-4 py-3"
                   >
-                    <span className="font-mono text-xs text-white/40">
-                      #{f.sequenceNumber}
-                    </span>
                     <span className="flex-1 truncate text-white/80">
                       {f.fileName}
                     </span>

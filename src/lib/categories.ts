@@ -1,7 +1,14 @@
 import { db } from "@/lib/firebase/client";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 
-export type Category = { id: string; name: string; active: boolean; description?: string|null };
+export type Category = {
+  id: string;
+  name: string;
+  active: boolean;
+  description?: string | null;
+  coverUrl?: string | null;
+  showInPortfolio?: boolean;
+};
 
 /**
  * Lista categorias ativas. Tenta primeiro via API (Admin SDK),
@@ -28,4 +35,32 @@ export async function listActiveCategories(): Promise<Category[]> {
   );
   const snap = await getDocs(qs);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+/**
+ * Lista categorias marcadas para aparecer no portfólio público.
+ * Usa a API server e filtra por active + showInPortfolio.
+ */
+export async function listPortfolioCategories(): Promise<Category[]> {
+  try {
+    const res = await fetch("/api/categories", { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      return (data.items || []).filter(
+        (x: any) => x.active && x.showInPortfolio === true
+      );
+    }
+  } catch {
+    // fallback client
+  }
+
+  const qs = query(
+    collection(db, "categories"),
+    where("active", "==", true),
+    orderBy("name", "asc")
+  );
+  const snap = await getDocs(qs);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as any) } as Category))
+    .filter((c) => c.showInPortfolio === true);
 }

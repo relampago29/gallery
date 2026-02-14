@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase/client";
+import { useEffect, useRef, useState } from "react";
+import { auth, storage } from "@/lib/firebase/client";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AdminNotification } from "@/components/admin/Notification";
+import { ImagePlus, Eye, EyeOff, Trash2 } from "lucide-react";
 
 type Category = {
   id: string;
   name: string;
   description?: string | null;
   active: boolean;
+  coverUrl?: string | null;
+  showInPortfolio?: boolean;
   createdAt?: number;
 };
 
@@ -43,6 +47,14 @@ export default function CategoriesAdminPage() {
     load();
   }, []);
 
+  async function uploadCover(file: File, categoryId: string): Promise<string> {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `categories/${categoryId}/cover.${ext}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
+  }
+
   async function createCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -63,6 +75,55 @@ export default function CategoriesAdminPage() {
       setToast({ type: "success", message: "Categoria criada com sucesso." });
     } else {
       setToast({ type: "error", message: "Falha ao criar categoria." });
+    }
+  }
+
+  async function handleCoverUpload(cat: Category, file: File) {
+    setBusy(true);
+    try {
+      const url = await uploadCover(file, cat.id);
+      const token = await getIdToken();
+      await fetch("/api/categories/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id: cat.id, patch: { coverUrl: url } }),
+      });
+      load();
+      setToast({ type: "success", message: "Capa atualizada." });
+    } catch (err: any) {
+      console.error("Cover upload failed:", err);
+      setToast({
+        type: "error",
+        message: err?.message || "Falha ao carregar imagem.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function togglePortfolio(id: string, show: boolean) {
+    setBusy(true);
+    const token = await getIdToken();
+    const res = await fetch("/api/categories/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id, patch: { showInPortfolio: show } }),
+    });
+    setBusy(false);
+    if (res.ok) {
+      load();
+      setToast({
+        type: "success",
+        message: show ? "Visível no portfólio." : "Removida do portfólio.",
+      });
+    } else {
+      setToast({ type: "error", message: "Falha ao atualizar." });
     }
   }
 
@@ -203,17 +264,71 @@ export default function CategoriesAdminPage() {
             items.map((c) => (
               <div
                 key={c.id}
-                className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
-                  <div className="text-base font-medium text-white">
-                    {c.name}
+                <div className="flex items-center gap-4">
+                  {/* Cover thumbnail */}
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                    {c.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.coverUrl}
+                        alt={c.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-white/30">
+                        <ImagePlus size={18} />
+                      </div>
+                    )}
+                    {/* Hidden file input for cover */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleCoverUpload(c, file);
+                        e.target.value = "";
+                      }}
+                      disabled={busy}
+                      title="Carregar capa"
+                    />
                   </div>
-                  {c.description ? (
-                    <div className="text-sm text-white/60">{c.description}</div>
-                  ) : null}
+                  <div>
+                    <div className="text-base font-medium text-white">
+                      {c.name}
+                    </div>
+                    {c.description ? (
+                      <div className="text-sm text-white/60">
+                        {c.description}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  {/* Portfolio visibility badge + toggle */}
+                  <button
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition ${
+                      c.showInPortfolio
+                        ? "bg-blue-500/20 text-blue-200 border border-blue-400/50 hover:bg-blue-500/30"
+                        : "border border-white/20 text-white/50 hover:border-white/40"
+                    }`}
+                    onClick={() => togglePortfolio(c.id, !c.showInPortfolio)}
+                    disabled={busy}
+                    title={
+                      c.showInPortfolio
+                        ? "Remover do portfólio"
+                        : "Mostrar no portfólio"
+                    }
+                  >
+                    {c.showInPortfolio ? (
+                      <Eye size={12} />
+                    ) : (
+                      <EyeOff size={12} />
+                    )}
+                    {c.showInPortfolio ? "Portfólio" : "Oculta"}
+                  </button>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${
                       c.active
