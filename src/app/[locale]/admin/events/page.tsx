@@ -173,6 +173,8 @@ export default function EventsListPage() {
                           src={ev.coverUrl}
                           alt={ev.title}
                           className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center">

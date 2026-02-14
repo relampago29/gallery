@@ -5,7 +5,6 @@ import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { UploadCloud, Trash2 } from "lucide-react";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
-import { randomUUID } from "crypto";
 
 type TrailImage = { id: string; imageUrl: string; order?: number | null };
 const MAX_TRAIL_SIZE = 4 * 1024 * 1024; // alinhado com lambda Vercel
@@ -64,7 +63,9 @@ async function uploadAndCreate({ file, token }: { file: File; token: string }) {
   });
   if (!createRes.ok) {
     const data = await createRes.json().catch(() => ({}));
-    throw new Error(data?.error || `Falha (${createRes.status}) ao registar imagem.`);
+    throw new Error(
+      data?.error || `Falha (${createRes.status}) ao registar imagem.`
+    );
   }
 }
 
@@ -77,9 +78,17 @@ export default function TrailAdminPage() {
   const [toast, setToast] = useState<{
     type?: "success" | "error" | "warning" | "info";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
-  const { state: globalUpload, setUploadProgress, clearUpload } = useUploadProgress();
+  const {
+    state: globalUpload,
+    setUploadProgress,
+    clearUpload,
+  } = useUploadProgress();
   const uploadScope = "trail-upload";
   const globalLock = !!globalUpload && globalUpload.progress < 1;
 
@@ -121,12 +130,16 @@ export default function TrailAdminPage() {
     const file = files?.[0];
     if (!file) return;
     if (file.size > MAX_TRAIL_SIZE) {
-      setError("Imagem demasiado grande para upload (limite ~4MB). Comprime ou reduz antes de enviar.");
+      setError(
+        "Imagem demasiado grande para upload (limite ~4MB). Comprime ou reduz antes de enviar."
+      );
       e.target.value = "";
       return;
     }
     if (globalLock) {
-      setError("Já existe um envio em curso. Aguarda terminar para enviar mais imagens.");
+      setError(
+        "Já existe um envio em curso. Aguarda terminar para enviar mais imagens."
+      );
       e.target.value = "";
       return;
     }
@@ -136,10 +149,18 @@ export default function TrailAdminPage() {
     try {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error("Precisas de iniciar sessão.");
-      setUploadProgress({ label: "Trilho de imagens", progress: 0, scope: uploadScope });
+      setUploadProgress({
+        label: "Trilho de imagens",
+        progress: 0,
+        scope: uploadScope,
+      });
       await uploadAndCreate({ file, token });
       setSuccess("Imagem adicionada ao trilho de imagens.");
-      setUploadProgress({ label: "Trilho de imagens", progress: 1, scope: uploadScope });
+      setUploadProgress({
+        label: "Trilho de imagens",
+        progress: 1,
+        scope: uploadScope,
+      });
       await load();
     } catch (err: any) {
       setError(err?.message || "Falha ao adicionar imagem.");
@@ -178,25 +199,48 @@ export default function TrailAdminPage() {
 
   return (
     <div className="space-y-8">
-      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          actions={toast.actions}
+          onClose={() => setToast(null)}
+        />
+      ) : null}
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/60">Admin</p>
-        <h1 className="text-4xl font-semibold text-white tracking-tight">Trilho de imagens</h1>
-        <p className="text-sm text-white/70">Seleciona as imagens que aparecem no trilho de imagens.</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+          Admin
+        </p>
+        <h1 className="text-4xl font-semibold text-white tracking-tight">
+          Trilho de imagens
+        </h1>
+        <p className="text-sm text-white/70">
+          Seleciona as imagens que aparecem no trilho de imagens.
+        </p>
       </header>
 
       <section className={cardClass}>
         <div className="space-y-4 p-6">
           <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Adicionar</p>
-            <p className="text-sm text-white/70">Faz upload de uma nova imagem. Sem limite de quantidade.</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+              Adicionar
+            </p>
+            <p className="text-sm text-white/70">
+              Faz upload de uma nova imagem. Sem limite de quantidade.
+            </p>
           </div>
           <label className="block rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-4 text-sm text-white/80 cursor-pointer">
             <div className="flex items-center gap-2">
               <UploadCloud size={16} />
               <span>{uploading ? "A enviar…" : "Escolher imagem"}</span>
             </div>
-            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading || globalLock} />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading || globalLock}
+            />
           </label>
           {error && <p className="text-rose-200 text-sm">{error}</p>}
           {success && <p className="text-emerald-200 text-sm">{success}</p>}
@@ -205,18 +249,29 @@ export default function TrailAdminPage() {
 
       <section className={cardClass}>
         <div className="space-y-4 p-6">
-          <div className="text-sm uppercase tracking-[0.35em] text-white/60">Imagens atuais</div>
+          <div className="text-sm uppercase tracking-[0.35em] text-white/60">
+            Imagens atuais
+          </div>
           {loading ? (
             <div className="text-white/70 text-sm">A carregar...</div>
           ) : items.length === 0 ? (
-            <div className="text-white/70 text-sm">Nenhuma imagem no trilho de imagens.</div>
+            <div className="text-white/70 text-sm">
+              Nenhuma imagem no trilho de imagens.
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((item) => (
-                <div key={item.id} className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div
+                  key={item.id}
+                  className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-3"
+                >
                   <div className="aspect-[4/3] overflow-hidden rounded-xl bg-white/10">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <div className="flex justify-end">
                     <button

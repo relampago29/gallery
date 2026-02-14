@@ -54,3 +54,9 @@ body {
   display: flex;
   background-color: var(--defaultColor);
 }
+
+/* ——— Performance: lazy-render off-screen grid cards ——— */
+.photo-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}

@@ -33,9 +33,16 @@ type EventPhoto = {
 
 function pickPhotoThumb(photo: EventPhoto): string {
   if (photo.sizes) {
-    const keys = Object.keys(photo.sizes).sort((a, b) => Number(a) - Number(b));
-    for (const k of keys) {
+    // prefer 640px webp for grid thumbnails
+    const preferred = ["640", "800", "400", "960"];
+    for (const k of preferred) {
       const s = photo.sizes[k];
+      if (s?.webp) return s.webp;
+      if (s?.avif) return s.avif;
+      if (s?.jpg) return s.jpg;
+    }
+    // fallback to any available
+    for (const s of Object.values(photo.sizes)) {
       if (s?.webp) return s.webp;
       if (s?.jpg) return s.jpg;
     }
@@ -130,6 +137,7 @@ export default function PublicEventDetailPage() {
                     src={event.coverUrl}
                     alt={event.title}
                     className="h-full w-full object-cover"
+                    decoding="async"
                   />
                 </div>
               )}
@@ -177,7 +185,7 @@ export default function PublicEventDetailPage() {
                 As fotos deste evento estarão disponíveis em breve.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="photo-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {publishedPhotos.map((p) => {
                   const thumb = pickPhotoThumb(p);
                   const inCart = cart.has(p.id);
@@ -199,6 +207,8 @@ export default function PublicEventDetailPage() {
                             src={thumb}
                             alt={p.title || "Foto do evento"}
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <div className="flex h-full items-center justify-center text-xs text-white/70">

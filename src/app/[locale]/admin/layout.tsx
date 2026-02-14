@@ -1,16 +1,34 @@
 "use client";
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { Sidebar } from "@/components/ui/auth/Sidebar";
 import RequireAuth from "@/components/ui/auth/RequireAuth";
 import { Toaster } from "sonner";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { UploadProgressProvider, useUploadProgress } from "@/components/admin/UploadProgressContext";
-import { clearAuthExpiry, getAuthExpiry, remainingAuthMs, setAuthExpiry } from "@/lib/firebase/sessionExpiry";
+import {
+  UploadProgressProvider,
+  useUploadProgress,
+} from "@/components/admin/UploadProgressContext";
+import {
+  clearAuthExpiry,
+  getAuthExpiry,
+  remainingAuthMs,
+  setAuthExpiry,
+} from "@/lib/firebase/sessionExpiry";
 import { routing } from "@/i18n/routing";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -21,7 +39,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [refreshing, setRefreshing] = useState(false);
   const localeFromPath = useMemo(() => {
     const seg = pathname?.split("/")[1];
-    return routing.locales.includes(seg as (typeof routing.locales)[number]) ? (seg as (typeof routing.locales)[number]) : routing.defaultLocale;
+    return routing.locales.includes(seg as (typeof routing.locales)[number])
+      ? (seg as (typeof routing.locales)[number])
+      : routing.defaultLocale;
   }, [pathname]);
 
   const fallbackCallbackUrl = useMemo(() => {
@@ -29,7 +49,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return `${pathname}${qs ? `?${qs}` : ""}`;
   }, [pathname, searchParams]);
 
-  const avatarFallback = useMemo(() => userEmail?.charAt(0)?.toUpperCase() ?? "A", [userEmail]);
+  const avatarFallback = useMemo(
+    () => userEmail?.charAt(0)?.toUpperCase() ?? "A",
+    [userEmail]
+  );
 
   const forceSignOut = useCallback(async () => {
     try {
@@ -72,7 +95,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           const adminClaim =
             claims.isAdmin === true ||
             (claims as any)?.claims?.isAdmin === true ||
-            (claims as any)?.["https://hasura.io/jwt/claims"]?.["x-hasura-default-role"] === "admin";
+            (claims as any)?.["https://hasura.io/jwt/claims"]?.[
+              "x-hasura-default-role"
+            ] === "admin";
           if (!adminClaim) {
             forceSignOut();
             return;
@@ -158,7 +183,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <main className="flex-1 overflow-y-auto min-h-0">
             <div className="mx-auto max-w-7xl px-6 py-10">
-              <RequireAuth fallbackCallbackUrl={fallbackCallbackUrl}>{children}</RequireAuth>
+              <RequireAuth fallbackCallbackUrl={fallbackCallbackUrl}>
+                {children}
+              </RequireAuth>
             </div>
           </main>
         </div>
@@ -185,7 +212,13 @@ function Header({
   const { state: uploadState, etaSeconds } = useUploadProgress();
   const percent = uploadState ? Math.round(uploadState.progress * 100) : 0;
   const [notifications, setNotifications] = useState<
-    { id: string; type: "payment" | "info"; title: string; description?: string; createdAt?: number | null }[]
+    {
+      id: string;
+      type: "payment" | "info";
+      title: string;
+      description?: string;
+      createdAt?: number | null;
+    }[]
   >([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
@@ -195,12 +228,18 @@ function Header({
     if (etaSeconds >= 3600) {
       const hours = Math.floor(etaSeconds / 3600);
       const minutes = Math.floor((etaSeconds % 3600) / 60);
-      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")} h`;
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+        2,
+        "0"
+      )} h`;
     }
     if (etaSeconds >= 60) {
       const minutes = Math.floor(etaSeconds / 60);
       const seconds = etaSeconds % 60;
-      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} min`;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
+        2,
+        "0"
+      )} min`;
     }
     return `${etaSeconds}s`;
   }, [etaSeconds]);
@@ -210,21 +249,52 @@ function Header({
     setNotifLoading(true);
     try {
       const token = await auth.currentUser.getIdToken();
-      const res = await fetch("/api/session-orders/pending", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!res.ok) throw new Error("Falha ao obter notificações.");
-      const data = await res.json().catch(() => ({ items: [] }));
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const mapped = items.slice(0, 5).map((item: any) => ({
+
+      // Fetch both session and event pending orders
+      const [sessionRes, eventRes] = await Promise.all([
+        fetch("/api/session-orders/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
+        fetch("/api/event-orders/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
+      ]);
+
+      const sessionData = sessionRes.ok
+        ? await sessionRes.json().catch(() => ({ items: [] }))
+        : { items: [] };
+      const eventData = eventRes.ok
+        ? await eventRes.json().catch(() => ({ items: [] }))
+        : { items: [] };
+
+      const sessionItems = Array.isArray(sessionData?.items)
+        ? sessionData.items
+        : [];
+      const eventItems = Array.isArray(eventData?.items) ? eventData.items : [];
+
+      const sessionNotifs = sessionItems.slice(0, 5).map((item: any) => ({
         id: item.id || String(item.sessionId || Math.random()),
         type: "payment" as const,
         title: "Pagamento pendente",
-        description: item.sessionName ? `Sessão: ${item.sessionName}` : `Código: ${item.sessionId || "—"}`,
+        description: item.sessionName
+          ? `Sessão: ${item.sessionName}`
+          : `Código: ${item.sessionId || "—"}`,
         createdAt: item.createdAt ?? null,
       }));
-      setNotifications(mapped);
+
+      const eventNotifs = eventItems.slice(0, 5).map((item: any) => ({
+        id: `ev-${item.id}`,
+        type: "payment" as const,
+        title: "Pedido de evento",
+        description: `${item.itemCount || 0} fotos · ${(
+          item.totalPrice || 0
+        ).toFixed(2)}€`,
+        createdAt: item.createdAt ?? null,
+      }));
+
+      setNotifications([...eventNotifs, ...sessionNotifs].slice(0, 8));
     } catch (err) {
       console.error("[Header] notificações", err);
       setNotifications([]);
@@ -242,7 +312,10 @@ function Header({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!notifOpen) return;
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setNotifOpen(false);
       }
     };
@@ -263,7 +336,11 @@ function Header({
     const hrs = Math.floor(totalSec / 3600);
     const mins = Math.floor((totalSec % 3600) / 60);
     const secs = totalSec % 60;
-    if (hrs > 0) return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    if (hrs > 0)
+      return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(
+        2,
+        "0"
+      )}:${String(secs).padStart(2, "0")}`;
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }, [remainingMs]);
 
@@ -283,7 +360,9 @@ function Header({
                   style={{ width: `${percent}%` }}
                 />
               </div>
-              <div className="text-[11px] text-white/50">Tempo estimado: {etaLabel}</div>
+              <div className="text-[11px] text-white/50">
+                Tempo estimado: {etaLabel}
+              </div>
             </div>
           ) : (
             <div className="w-10" aria-hidden />
@@ -291,8 +370,12 @@ function Header({
         </div>
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end leading-tight">
-            <div className="text-sm font-medium text-white/80">{userEmail || "Utilizador"}</div>
-            <div className="text-[11px] text-white/50">Sessão: {sessionLabel}</div>
+            <div className="text-sm font-medium text-white/80">
+              {userEmail || "Utilizador"}
+            </div>
+            <div className="text-[11px] text-white/50">
+              Sessão: {sessionLabel}
+            </div>
           </div>
           <div className="relative" ref={dropdownRef}>
             <button
@@ -302,9 +385,16 @@ function Header({
             >
               <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full">
                 {userAvatar ? (
-                  <img src={userAvatar} alt={userEmail ?? "Utilizador"} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={userAvatar}
+                    alt={userEmail ?? "Utilizador"}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
-                  <span className="text-sm font-semibold uppercase text-white">{avatarFallback}</span>
+                  <span className="text-sm font-semibold uppercase text-white">
+                    {avatarFallback}
+                  </span>
                 )}
               </span>
               {notifications.length > 0 && (
@@ -315,27 +405,44 @@ function Header({
               <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-white/10 bg-[#0b0b0b]/95 px-3 py-3 shadow-xl backdrop-blur z-50">
                 <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
                   <span>Notificações</span>
-                  {notifLoading ? <span className="text-[10px] text-white/40">a atualizar…</span> : null}
+                  {notifLoading ? (
+                    <span className="text-[10px] text-white/40">
+                      a atualizar…
+                    </span>
+                  ) : null}
                 </div>
                 {notifications.length === 0 ? (
                   <div className="text-sm text-white/60">Sem notificações.</div>
                 ) : (
                   <ul className="space-y-2">
                     {notifications.map((n) => (
-                      <li key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-2 text-sm text-white/80">
+                      <li
+                        key={n.id}
+                        className="rounded-xl border border-white/10 bg-white/5 p-2 text-sm text-white/80"
+                      >
                         <div className="flex items-center gap-2">
                           <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
-                          <span className="font-semibold flex-1">{n.title}</span>
+                          <span className="font-semibold flex-1">
+                            {n.title}
+                          </span>
                           <button
                             type="button"
                             className="text-white/60 hover:text-white transition"
-                            onClick={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))}
+                            onClick={() =>
+                              setNotifications((prev) =>
+                                prev.filter((x) => x.id !== n.id)
+                              )
+                            }
                             aria-label="Marcar como lida"
                           >
                             ✓
                           </button>
                         </div>
-                        {n.description ? <div className="mt-1 text-white/60 text-xs">{n.description}</div> : null}
+                        {n.description ? (
+                          <div className="mt-1 text-white/60 text-xs">
+                            {n.description}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

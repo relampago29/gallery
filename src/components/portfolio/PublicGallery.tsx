@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { pickThumb, type PublicPhoto } from "@/lib/publicPhotos";
 import { useTranslations } from "next-intl";
 
@@ -32,16 +37,20 @@ export function PublicGallery() {
     [photos, selectedPhotoId]
   );
 
-  const PAGE_SIZE = 18;
+  const PAGE_SIZE = 12;
 
   async function fetchBatch(nextCursor: number | null) {
     const params = new URLSearchParams();
     params.set("limit", String(PAGE_SIZE));
     if (nextCursor != null) params.set("cursor", String(nextCursor));
-    const res = await fetch(`/api/public-photos/list?${params.toString()}`, { cache: "no-store" });
+    const res = await fetch(`/api/public-photos/list?${params.toString()}`, {
+      cache: "no-store",
+    });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
-    const items = (Array.isArray(data.items) ? data.items : []) as PublicPhoto[];
+    const items = (
+      Array.isArray(data.items) ? data.items : []
+    ) as PublicPhoto[];
     return {
       items: items.filter((p) => p.published !== false),
       nextCursor: (data.nextCursor ?? null) as number | null,
@@ -58,7 +67,10 @@ export function PublicGallery() {
         setCursor(batch.nextCursor);
         setEnd(!batch.nextCursor);
       } catch (err: any) {
-        setError(err?.message || "Falha ao carregar o portfólio. Tenta novamente em instantes.");
+        setError(
+          err?.message ||
+            "Falha ao carregar o portfólio. Tenta novamente em instantes."
+        );
         setPhotos([]);
         setCursor(null);
         setEnd(true);
@@ -129,7 +141,8 @@ export function PublicGallery() {
   }
 
   const cards = photos.map((p) => {
-    const cover = pickThumb(p);
+    const cover = pickThumb(p, "sm");
+    const blurBg = p.lqip?.blurDataURL || p.lqip?.dominant;
     const openPhoto = () => {
       if (cover.src) {
         setSelectedPhotoId(p.id);
@@ -152,7 +165,18 @@ export function PublicGallery() {
         onClick={cover.src ? openPhoto : undefined}
         onKeyDown={cover.src ? handleKeyDown : undefined}
       >
-        <div className="relative aspect-[4/3] bg-white/5">
+        <div
+          className="relative aspect-[4/3] bg-white/5"
+          style={
+            blurBg
+              ? {
+                  background: blurBg.startsWith("data:")
+                    ? `url(${blurBg}) center/cover no-repeat`
+                    : blurBg,
+                }
+              : undefined
+          }
+        >
           {cover.src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -160,6 +184,7 @@ export function PublicGallery() {
               alt={p.alt || p.title || "Portfólio"}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-white/60">
@@ -169,8 +194,12 @@ export function PublicGallery() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
         </div>
         <div className="space-y-2 px-5 py-4">
-          <h3 className="text-lg font-semibold text-white truncate">{p.title || "(sem título)"}</h3>
-          <p className="text-sm text-white/70 truncate">{p.alt || "História captada recentemente"}</p>
+          <h3 className="text-lg font-semibold text-white truncate">
+            {p.title || "(sem título)"}
+          </h3>
+          <p className="text-sm text-white/70 truncate">
+            {p.alt || "História captada recentemente"}
+          </p>
           <div className="flex items-center justify-between text-xs text-white/50 uppercase tracking-wide">
             <span>{formatDate(p.createdAt)}</span>
             {p.categoryId ? (
@@ -189,12 +218,14 @@ export function PublicGallery() {
     );
   });
 
-  const selectedCover = selectedPhoto ? pickThumb(selectedPhoto) : null;
+  const selectedCover = selectedPhoto ? pickThumb(selectedPhoto, "lg") : null;
 
   return (
     <>
       <>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{cards}</div>
+        <div className="photo-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {cards}
+        </div>
 
         {!end && photos.length > 0 && (
           <div className="pt-8 text-center">
@@ -235,8 +266,12 @@ export function PublicGallery() {
               className="max-h-[80vh] w-full rounded-2xl object-contain"
             />
             <div className="space-y-1 px-1">
-              <h3 className="text-xl font-semibold">{selectedPhoto.title || "(sem título)"}</h3>
-              <p className="text-sm text-white/70">{selectedPhoto.alt || "História captada recentemente"}</p>
+              <h3 className="text-xl font-semibold">
+                {selectedPhoto.title || "(sem título)"}
+              </h3>
+              <p className="text-sm text-white/70">
+                {selectedPhoto.alt || "História captada recentemente"}
+              </p>
               <div className="text-xs uppercase tracking-wide text-white/50">
                 {formatDate(selectedPhoto.createdAt)}
               </div>

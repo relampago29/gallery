@@ -13,23 +13,39 @@ export async function GET(req: Request) {
     }
 
     const db = getAdminDb();
-    const snap = await db.collection("client_sessions").orderBy("createdAt", "desc").limit(200).get();
-    const sessions = snap.docs.map((doc) => {
-      const data = doc.data() || {};
-      return {
-        id: doc.id,
-        name: typeof data.name === "string" ? data.name : doc.id,
-        createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
-        status: typeof data.status === "string" ? data.status : "open",
-        lastSequenceNumber: typeof data.lastSequenceNumber === "number" ? data.lastSequenceNumber : null,
-        selectedCount: typeof data.selectedCount === "number" ? data.selectedCount : null,
-        paymentStatus: typeof data.paymentStatus === "string" ? data.paymentStatus : null,
-      };
-    });
+    const snap = await db
+      .collection("client_sessions")
+      .orderBy("createdAt", "desc")
+      .limit(200)
+      .get();
+    const sessions = await Promise.all(
+      snap.docs.map(async (doc) => {
+        const data = doc.data() || {};
+        const photosSnap = await doc.ref.collection("photos").count().get();
+        return {
+          id: doc.id,
+          name: typeof data.name === "string" ? data.name : doc.id,
+          createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
+          status: typeof data.status === "string" ? data.status : "open",
+          lastSequenceNumber:
+            typeof data.lastSequenceNumber === "number"
+              ? data.lastSequenceNumber
+              : null,
+          selectedCount:
+            typeof data.selectedCount === "number" ? data.selectedCount : null,
+          paymentStatus:
+            typeof data.paymentStatus === "string" ? data.paymentStatus : null,
+          photoCount: photosSnap.data().count ?? 0,
+        };
+      })
+    );
 
     return NextResponse.json({ sessions });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -47,7 +63,11 @@ export async function DELETE(req: Request) {
 
     const db = getAdminDb();
     const sessionRef = db.collection("client_sessions").doc(sessionId);
-    const ordersSnap = await db.collection("session_orders").where("sessionId", "==", sessionId).limit(200).get();
+    const ordersSnap = await db
+      .collection("session_orders")
+      .where("sessionId", "==", sessionId)
+      .limit(200)
+      .get();
 
     const batch = db.batch();
     batch.delete(sessionRef);
@@ -56,6 +76,9 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ ok: true, deletedOrders: ordersSnap.size });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 }
+    );
   }
 }

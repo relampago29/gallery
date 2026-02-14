@@ -296,6 +296,7 @@ export default function PendingPaymentsPage() {
   useEffect(() => {
     loadPending();
     loadEventPending();
+    loadPhone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

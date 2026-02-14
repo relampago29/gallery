@@ -44,7 +44,11 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function retry<T>(fn: () => Promise<T>, attempts: number, baseDelayMs: number): Promise<T> {
+async function retry<T>(
+  fn: () => Promise<T>,
+  attempts: number,
+  baseDelayMs: number
+): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -63,7 +67,9 @@ async function uploadWithRetry(path: string, file: File) {
   await retry(
     () =>
       new Promise<void>((resolve, reject) => {
-        const task = uploadBytesResumable(ref(storage, path), file, { contentType });
+        const task = uploadBytesResumable(ref(storage, path), file, {
+          contentType,
+        });
         task.on("state_changed", undefined, reject, () => resolve());
       }),
     MAX_UPLOAD_RETRIES,
@@ -91,12 +97,28 @@ async function postJsonWithRetry(url: string, payload: any) {
 }
 
 export function pickThumb(
-  p: PublicPhoto
+  p: PublicPhoto,
+  preferSize: "sm" | "md" | "lg" = "md"
 ): { src?: string; w?: number; h?: number } {
   const sizes = p.sizes || {};
-  const pref =
-    sizes["960"] || sizes["800"] || sizes["640"] || Object.values(sizes)[0];
-  if (pref?.jpg) return { src: pref.jpg, w: pref.width, h: pref.height };
+  const order =
+    preferSize === "sm"
+      ? ["400", "640", "800", "960"]
+      : preferSize === "lg"
+      ? ["960", "800", "640", "400"]
+      : ["640", "800", "960", "400"];
+  for (const k of order) {
+    const s = sizes[k];
+    if (!s) continue;
+    const src = s.webp || s.avif || s.jpg;
+    if (src) return { src, w: s.width, h: s.height };
+  }
+  // fallback: any available size
+  const first = Object.values(sizes)[0];
+  if (first) {
+    const src = first.webp || first.avif || first.jpg;
+    if (src) return { src, w: first.width, h: first.height };
+  }
   return {};
 }
 
@@ -127,10 +149,9 @@ export async function listPublicPhotos({
     if (categoryId) params.set("categoryId", categoryId);
     if (cursor != null) params.set("cursor", String(cursor));
 
-    const res = await fetch(
-      `/api/public-photos/list?${params.toString()}`,
-      { cache: "no-store" }
-    );
+    const res = await fetch(`/api/public-photos/list?${params.toString()}`, {
+      cache: "no-store",
+    });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     return {
@@ -146,13 +167,24 @@ export async function listPublicPhotos({
   }
 
   // 2) Fallback: Firestore client (apenas published == true, conforme rules)
-  const constraints: any[] = [where("published", "==", true), orderBy("createdAt", "desc"), limit(limitN)];
+  const constraints: any[] = [
+    where("published", "==", true),
+    orderBy("createdAt", "desc"),
+    limit(limitN),
+  ];
   if (categoryId) constraints.unshift(where("categoryId", "==", categoryId));
   if (cursor != null) constraints.push(startAfter(cursor));
 
-  const snap = await getDocs(query(collection(db, "public_photos"), ...constraints));
-  const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as DocumentData) })) as PublicPhoto[];
-  const nextCursor = items.length ? (items[items.length - 1].createdAt as number) : null;
+  const snap = await getDocs(
+    query(collection(db, "public_photos"), ...constraints)
+  );
+  const items = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as DocumentData),
+  })) as PublicPhoto[];
+  const nextCursor = items.length
+    ? (items[items.length - 1].createdAt as number)
+    : null;
 
   return { items, nextCursor };
 }
@@ -229,9 +261,13 @@ type PrivateUploadOpts = {
   sessionId: string;
 };
 
-export async function uploadPrivateMaster({ file, sessionId }: PrivateUploadOpts) {
+export async function uploadPrivateMaster({
+  file,
+  sessionId,
+}: PrivateUploadOpts) {
   const cleanSession =
-    slugifySegment(sessionId) || slugifySegment(file.name.split(".")[0] || "sessao");
+    slugifySegment(sessionId) ||
+    slugifySegment(file.name.split(".")[0] || "sessao");
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const photoId =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -241,7 +277,12 @@ export async function uploadPrivateMaster({ file, sessionId }: PrivateUploadOpts
 
   await uploadWithRetry(masterPath, file);
 
-  return { photoId, masterPath, createdAt: Date.now(), sessionId: cleanSession };
+  return {
+    photoId,
+    masterPath,
+    createdAt: Date.now(),
+    sessionId: cleanSession,
+  };
 }
 
 type RegisterPrivatePhotoOpts = {
@@ -253,7 +294,9 @@ type RegisterPrivatePhotoOpts = {
   sequenceNumber: number;
 };
 
-export async function registerPrivateSessionPhoto(opts: RegisterPrivatePhotoOpts) {
+export async function registerPrivateSessionPhoto(
+  opts: RegisterPrivatePhotoOpts
+) {
   const res = await postJsonWithRetry("/api/session-photos/register", {
     sessionId: opts.sessionId,
     masterPath: opts.masterPath,

@@ -12,6 +12,9 @@ import {
   Shuffle,
   ChevronDown,
   CalendarDays,
+  Lock,
+  List,
+  Star,
 } from "lucide-react";
 
 type NavLink = { label: string; href: string; icon: React.ReactNode };
@@ -54,27 +57,17 @@ export function Sidebar() {
       items: [{ label: "Início", href: `${base}`, icon: <Images size={16} /> }],
     },
     {
-      label: "Envio de sessões",
+      label: "Portfólio público",
       items: [
         {
-          label: "Portfólio público",
+          label: "Carregar fotos",
           href: `${base}/public/upload`,
           icon: <UploadCloud size={16} />,
         },
         {
-          label: "Sessões privadas",
-          href: `${base}/sessions/upload`,
-          icon: <UploadCloud size={16} />,
-        },
-      ],
-    },
-    {
-      label: "Gestão pública",
-      items: [
-        {
-          label: "Lista",
+          label: "Lista de fotos",
           href: `${base}/public/list`,
-          icon: <Images size={16} />,
+          icon: <List size={16} />,
         },
         {
           label: "Trilho de imagens",
@@ -84,7 +77,22 @@ export function Sidebar() {
         {
           label: "Destaques",
           href: `${base}/highlights`,
-          icon: <Images size={16} />,
+          icon: <Star size={16} />,
+        },
+      ],
+    },
+    {
+      label: "Sessões privadas",
+      items: [
+        {
+          label: "Carregar sessão",
+          href: `${base}/sessions/upload`,
+          icon: <UploadCloud size={16} />,
+        },
+        {
+          label: "Lista de sessões",
+          href: `${base}/sessions`,
+          icon: <Lock size={16} />,
         },
       ],
     },
@@ -100,16 +108,6 @@ export function Sidebar() {
           label: "Criar evento",
           href: `${base}/events/create`,
           icon: <UploadCloud size={16} />,
-        },
-      ],
-    },
-    {
-      label: "Sessões privadas",
-      items: [
-        {
-          label: "Sessões privadas",
-          href: `${base}/sessions`,
-          icon: <Users size={16} />,
         },
       ],
     },
@@ -134,6 +132,7 @@ export function Sidebar() {
       ],
     },
   ];
+
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(
     () => {
       const initial: Record<string, boolean> = {};
@@ -183,7 +182,10 @@ export function Sidebar() {
                       key={it.href}
                       href={it.href}
                       icon={it.icon}
-                      active={pathname?.startsWith(it.href)}
+                      active={
+                        pathname === it.href ||
+                        (it.href !== base && pathname?.startsWith(it.href))
+                      }
                     >
                       {it.label}
                     </NavItem>
@@ -197,7 +199,7 @@ export function Sidebar() {
       <div className="mt-auto p-3 space-y-3">
         <Link
           href={`/${locale}`}
-          className="inline-flex w-full items-center justify-center rounded-full border border-white/30 px-4 py-2 text-sm text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
+          className="inline-flex w-full items-center justify-center rounded-full border border-white/30 px-4 py-2 text-sm text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
         >
           ← Voltar ao site
         </Link>

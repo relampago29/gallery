@@ -34,10 +34,15 @@ export default function SessionsEntryPage() {
       <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
         <div className="space-y-8">
           <header className="text-center space-y-3">
-            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Sessões privadas</p>
-            <h1 className="text-4xl font-semibold tracking-tight">Vê a tua sessão</h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+              Sessões privadas
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight">
+              Vê a tua sessão
+            </h1>
             <p className="text-sm text-white/70">
-              Introduz o código que recebeste para desbloquear a galeria privada e escolhe as fotos que queres transferir.
+              Introduz o código que recebeste para desbloquear a galeria privada
+              e escolhe as fotos que queres transferir.
             </p>
           </header>
           <SessionFlow />
@@ -57,9 +62,13 @@ function SessionFlow() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creatingOrder, setCreatingOrder] = useState(false);
-  const [existingOrder, setExistingOrder] = useState<ExistingOrder | null>(null);
+  const [existingOrder, setExistingOrder] = useState<ExistingOrder | null>(
+    null
+  );
   const [checkingOrder, setCheckingOrder] = useState(false);
-  const [existingOrderError, setExistingOrderError] = useState<string | null>(null);
+  const [existingOrderError, setExistingOrderError] = useState<string | null>(
+    null
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,7 +81,9 @@ function SessionFlow() {
     setExistingOrderError(null);
     try {
       const params = new URLSearchParams({ sessionId: code.trim() });
-      const res = await fetch(`/api/session-photos/list?${params.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/session-photos/list?${params.toString()}`, {
+        cache: "no-store",
+      });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         throw new Error(payload?.error || "Não encontrámos essa sessão");
@@ -104,7 +115,10 @@ function SessionFlow() {
         setExistingOrderError(null);
         try {
           const params = new URLSearchParams({ sessionId: prefill.trim() });
-          const res = await fetch(`/api/session-photos/list?${params.toString()}`, { cache: "no-store" });
+          const res = await fetch(
+            `/api/session-photos/list?${params.toString()}`,
+            { cache: "no-store" }
+          );
           if (!res.ok) {
             const payload = await res.json().catch(() => ({}));
             throw new Error(payload?.error || "Não encontrámos essa sessão");
@@ -148,56 +162,67 @@ function SessionFlow() {
   const allSelected = session ? selectionCount === session.files.length : false;
 
   const instructions = useMemo(() => {
-  if (!session) return null;
+    if (!session) return null;
 
-  // se estiver pago, não renderiza NADA deste bloco
-  if (existingOrder?.status === "paid") return null;
+    // se estiver pago, não renderiza NADA deste bloco
+    if (existingOrder?.status === "paid") return null;
 
-  return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-white/50">Sessão</p>
-          <h2 className="text-2xl font-semibold text-white">{session.sessionName}</h2>
-          <p className="text-sm text-white/70">Escolhe as fotos preferidas para continuar.</p>
-        </div>
-        <div className="space-y-2 text-sm">
-          <div className="text-white">
-            Selecionadas: <span className="font-semibold">{selectionCount}</span>
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+              Sessão
+            </p>
+            <h2 className="text-2xl font-semibold text-white">
+              {session.sessionName}
+            </h2>
+            <p className="text-sm text-white/70">
+              Escolhe as fotos preferidas para continuar.
+            </p>
           </div>
-          <div className="flex gap-2 text-xs uppercase tracking-wide text-white/60">
-            <button
-              type="button"
-              className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
-              onClick={selectAll}
-              disabled={!session.files.length}
-            >
-              Selecionar todas
-            </button>
+          <div className="space-y-2 text-sm">
+            <div className="text-white">
+              Selecionadas:{" "}
+              <span className="font-semibold">{selectionCount}</span>
+            </div>
+            <div className="flex gap-2 text-xs uppercase tracking-wide text-white/60">
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
+                onClick={selectAll}
+                disabled={!session.files.length}
+              >
+                Selecionar todas
+              </button>
 
-            <button
-              type="button"
-              className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
-              onClick={clearSelection}
-            >
-              Limpar
-            </button>
+              <button
+                type="button"
+                className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
+                onClick={clearSelection}
+              >
+                Limpar
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}, [session, selectionCount, existingOrder]); // <-- importante
-
+    );
+  }, [session, selectionCount, existingOrder]); // <-- importante
 
   async function fetchExistingOrder(sessionId: string) {
     setCheckingOrder(true);
     setExistingOrderError(null);
     try {
-      const res = await fetch(`/api/session-orders?sessionId=${encodeURIComponent(sessionId)}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/session-orders?sessionId=${encodeURIComponent(sessionId)}`,
+        { cache: "no-store" }
+      );
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || "Não foi possível verificar pedidos anteriores.");
+        throw new Error(
+          payload?.error || "Não foi possível verificar pedidos anteriores."
+        );
       }
       const data = await res.json();
       const ord = data?.order || null;
@@ -208,7 +233,9 @@ function SessionFlow() {
       }
     } catch (err: any) {
       setExistingOrder(null);
-      setExistingOrderError(err?.message || "Falhou ao procurar pedidos anteriores.");
+      setExistingOrderError(
+        err?.message || "Falhou ao procurar pedidos anteriores."
+      );
     } finally {
       setCheckingOrder(false);
     }
@@ -221,7 +248,10 @@ function SessionFlow() {
       const res = await fetch("/api/session-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.sessionId, photoIds: Array.from(selected) }),
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          photoIds: Array.from(selected),
+        }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
@@ -257,7 +287,9 @@ function SessionFlow() {
           onSubmit={handleSubmit}
           className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm"
         >
-          <label className="block text-sm font-medium text-white/70">Código da sessão</label>
+          <label className="block text-sm font-medium text-white/70">
+            Código da sessão
+          </label>
           <div className="mt-2 flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
@@ -293,14 +325,18 @@ function SessionFlow() {
   const existingOrderCard = existingOrder ? (
     <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
       <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-white/50">Pedido em curso</p>
-        <h2 className="text-2xl font-semibold text-white">Já existe um pedido para esta sessão</h2>
+        <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+          Pedido em curso
+        </p>
+        <h2 className="text-2xl font-semibold text-white">
+          Já existe um pedido para esta sessão
+        </h2>
         <p className="text-sm text-white/70">
           {existingOrder.status === "pending"
             ? "Terminaste a seleção. Volta à página de pagamento para confirmar o MBWay."
             : existingOrder.status === "paid"
-              ? "O pagamento está confirmado. Prepara o download automático."
-              : "Pedido finalizado — podes descarregar as fotos novamente."}
+            ? "O pagamento está confirmado. Prepara o download automático."
+            : "Pedido finalizado — podes descarregar as fotos novamente."}
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-start">
@@ -310,7 +346,9 @@ function SessionFlow() {
           disabled={!existingOrder.token}
           className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
         >
-          {existingOrder.status === "pending" ? "Ir para o pagamento" : "Transferir fotos"}
+          {existingOrder.status === "pending"
+            ? "Ir para o pagamento"
+            : "Transferir fotos"}
         </button>
         <button
           type="button"
@@ -339,16 +377,22 @@ function SessionFlow() {
           {existingOrderError}
         </div>
       ) : null}
-      {error ? <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">{error}</div> : null}
+      {error ? (
+        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
+          {error}
+        </div>
+      ) : null}
       {existingOrderCard ? (
         existingOrderCard
       ) : (
         <>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="photo-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {session.files.map((photo) => {
               const isSelected = selected.has(photo.id);
               const imageSrc =
-                photo && typeof photo.url === "string" && photo.url.trim().length
+                photo &&
+                typeof photo.url === "string" &&
+                photo.url.trim().length
                   ? photo.url
                   : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
               return (
@@ -360,10 +404,10 @@ function SessionFlow() {
                     isSelected ? "border-white/80" : "border-white/10"
                   } bg-white/5 text-left shadow-[0_25px_120px_rgba(0,0,0,0.45)] transition hover:border-white/40`}
                 >
-                    <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">
+                  <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">
                     {isSelected ? "Selecionada" : "Selecionar"}
-                    </span>
-                    <div className="relative aspect-[4/5]">
+                  </span>
+                  <div className="relative aspect-[4/5]">
                     <Image
                       src={imageSrc}
                       alt={photo.title || "Foto"}
@@ -375,13 +419,16 @@ function SessionFlow() {
                       style={{ backgroundColor: "#0a0a0a" }}
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/60 transition ${isSelected ? "opacity-40" : "opacity-0"}`}
+                      className={`pointer-events-none absolute inset-0 bg-black/60 transition ${
+                        isSelected ? "opacity-40" : "opacity-0"
+                      }`}
                     />
-                    </div>
+                  </div>
 
-                  
                   <div className="p-4">
-                    <div className="truncate text-base font-medium text-white">{photo.title || "(sem título)"}</div>
+                    <div className="truncate text-base font-medium text-white">
+                      {photo.title || "(sem título)"}
+                    </div>
                     {photo.createdAt ? (
                       <div className="text-xs uppercase tracking-wide text-white/60">
                         {new Date(photo.createdAt).toLocaleDateString("pt-PT")}
@@ -413,14 +460,20 @@ function SessionFlow() {
               onClick={proceed}
               className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
             >
-              {creatingOrder ? "A preparar…" : `Avançar (${selectionCount} fotos)`}
+              {creatingOrder
+                ? "A preparar…"
+                : `Avançar (${selectionCount} fotos)`}
             </button>
           </div>
           {!selectionCount ? (
-            <p className="text-center text-sm text-white/60">Seleciona pelo menos uma foto para continuar.</p>
+            <p className="text-center text-sm text-white/60">
+              Seleciona pelo menos uma foto para continuar.
+            </p>
           ) : null}
           {allSelected ? (
-            <p className="text-center text-sm text-emerald-300/80">Todas as fotos desta sessão estão selecionadas.</p>
+            <p className="text-center text-sm text-emerald-300/80">
+              Todas as fotos desta sessão estão selecionadas.
+            </p>
           ) : null}
         </>
       )}

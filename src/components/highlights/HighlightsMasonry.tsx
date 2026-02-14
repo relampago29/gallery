@@ -1,4 +1,10 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { gsap } from "gsap";
 
 type Item = {
@@ -20,14 +26,22 @@ type HighlightsMasonryProps = {
   blurToFocus?: boolean;
 };
 
-const useMediaColumns = (queries: string[], values: number[], defaultValue: number) => {
-  const get = () => values[queries.findIndex((q) => matchMedia(q).matches)] ?? defaultValue;
+const useMediaColumns = (
+  queries: string[],
+  values: number[],
+  defaultValue: number
+) => {
+  const get = () =>
+    values[queries.findIndex((q) => matchMedia(q).matches)] ?? defaultValue;
   const [value, setValue] = useState<number>(get);
 
   useEffect(() => {
     const handler = () => setValue(get);
     queries.forEach((q) => matchMedia(q).addEventListener("change", handler));
-    return () => queries.forEach((q) => matchMedia(q).removeEventListener("change", handler));
+    return () =>
+      queries.forEach((q) =>
+        matchMedia(q).removeEventListener("change", handler)
+      );
   }, [queries]);
 
   return value;
@@ -74,7 +88,12 @@ export function HighlightsMasonry({
   blurToFocus = true,
 }: HighlightsMasonryProps) {
   const columns = useMediaColumns(
-    ["(min-width:1500px)", "(min-width:1200px)", "(min-width:900px)", "(min-width:600px)"],
+    [
+      "(min-width:1500px)",
+      "(min-width:1200px)",
+      "(min-width:900px)",
+      "(min-width:600px)",
+    ],
     [5, 4, 3, 2],
     1
   );
@@ -84,7 +103,9 @@ export function HighlightsMasonry({
   const hasMounted = useRef(false);
 
   useEffect(() => {
-    preloadImages(items.map((i) => i.img)).then(() => setImagesReady(true));
+    // Skip blocking preload — images load natively via loading="lazy"
+    const id = requestAnimationFrame(() => setImagesReady(true));
+    return () => cancelAnimationFrame(id);
   }, [items]);
 
   const grid = useMemo<GridItem[]>(() => {
@@ -206,9 +227,7 @@ export function HighlightsMasonry({
           onMouseEnter={() => handleMouseEnter(item.id)}
           onMouseLeave={() => handleMouseLeave(item.id)}
         >
-          <div
-            className="relative h-full w-full overflow-hidden rounded-[10px] shadow-[0px_10px_50px_-10px_rgba(0,0,0,0.2)]"
-          >
+          <div className="relative h-full w-full overflow-hidden rounded-[10px] shadow-[0px_10px_50px_-10px_rgba(0,0,0,0.2)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.img}

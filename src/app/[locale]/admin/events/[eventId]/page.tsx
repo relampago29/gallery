@@ -33,6 +33,13 @@ type EventPhoto = {
 
 function pickPhotoThumb(photo: EventPhoto): string {
   if (photo.sizes) {
+    const preferred = ["640", "800", "400", "960"];
+    for (const k of preferred) {
+      const s = photo.sizes[k];
+      if (s?.webp) return s.webp;
+      if (s?.avif) return s.avif;
+      if (s?.jpg) return s.jpg;
+    }
     const first = Object.values(photo.sizes)[0];
     if (first?.webp) return first.webp;
     if (first?.jpg) return first.jpg;
@@ -438,7 +445,7 @@ export default function EventDetailPage() {
               Este evento ainda não tem fotos. Faz upload acima.
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="photo-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {photos.map((p) => {
                 const thumb = pickPhotoThumb(p);
                 return (
@@ -453,6 +460,8 @@ export default function EventDetailPage() {
                           src={thumb}
                           alt={p.title || "Foto"}
                           className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="flex h-full items-center justify-center text-xs text-white/70">

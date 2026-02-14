@@ -1,9 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 
-type Category = { id: string; name: string; description?: string | null; active: boolean; createdAt?: number };
+type Category = {
+  id: string;
+  name: string;
+  description?: string | null;
+  active: boolean;
+  createdAt?: number;
+};
+
+async function getIdToken() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Inicia sessão para continuar");
+  return user.getIdToken();
+}
 
 export default function CategoriesAdminPage() {
   const [items, setItems] = useState<Category[]>([]);
@@ -13,7 +26,11 @@ export default function CategoriesAdminPage() {
   const [toast, setToast] = useState<{
     type: "success" | "error" | "warning";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
 
   async function load() {
@@ -33,7 +50,10 @@ export default function CategoriesAdminPage() {
     const res = await fetch("/api/categories/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), description: description.trim() || null }),
+      body: JSON.stringify({
+        name: name.trim(),
+        description: description.trim() || null,
+      }),
     });
     setBusy(false);
     if (res.ok) {
@@ -48,9 +68,13 @@ export default function CategoriesAdminPage() {
 
   async function toggleActive(id: string, active: boolean) {
     setBusy(true);
+    const token = await getIdToken();
     const res = await fetch("/api/categories/update", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ id, patch: { active } }),
     });
     setBusy(false);
@@ -74,9 +98,13 @@ export default function CategoriesAdminPage() {
           onClick: async () => {
             setToast(null);
             setBusy(true);
+            const token = await getIdToken();
             const res = await fetch("/api/categories/delete", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
               body: JSON.stringify({ id }),
             });
             setBusy(false);
@@ -105,15 +133,31 @@ export default function CategoriesAdminPage() {
 
   return (
     <div className="space-y-10">
-      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          actions={toast.actions}
+          onClose={() => setToast(null)}
+        />
+      ) : null}
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
-        <h1 className="text-4xl font-semibold text-white tracking-tight">Categorias</h1>
-        <p className="text-sm text-white/70">Cria, ativa/desativa e organiza as categorias do portfólio.</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+          Admin
+        </p>
+        <h1 className="text-4xl font-semibold text-white tracking-tight">
+          Categorias
+        </h1>
+        <p className="text-sm text-white/70">
+          Cria, ativa/desativa e organiza as categorias do portfólio.
+        </p>
       </header>
 
       <section className={cardClass}>
-        <form onSubmit={createCategory} className="grid gap-4 p-6 sm:grid-cols-3">
+        <form
+          onSubmit={createCategory}
+          className="grid gap-4 p-6 sm:grid-cols-3"
+        >
           <input
             className={`${inputClass} sm:col-span-1`}
             placeholder="Nome da categoria"
@@ -127,7 +171,10 @@ export default function CategoriesAdminPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <button className={`${primaryBtn} sm:col-span-1`} disabled={busy || !name.trim()}>
+          <button
+            className={`${primaryBtn} sm:col-span-1`}
+            disabled={busy || !name.trim()}
+          >
             {busy ? "A guardar…" : "Criar categoria"}
           </button>
         </form>
@@ -136,33 +183,58 @@ export default function CategoriesAdminPage() {
       <section className={cardClass}>
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
           <div>
-            <div className="text-sm uppercase tracking-[0.2em] text-white/60">Lista</div>
-            <div className="text-lg font-semibold text-white">{items.length} categorias</div>
+            <div className="text-sm uppercase tracking-[0.2em] text-white/60">
+              Lista
+            </div>
+            <div className="text-lg font-semibold text-white">
+              {items.length} categorias
+            </div>
           </div>
-          <div className="text-xs text-white/50">Atualiza ou remove categorias rapidamente</div>
+          <div className="text-xs text-white/50">
+            Atualiza ou remove categorias rapidamente
+          </div>
         </div>
         <div className="divide-y divide-white/10">
           {items.length === 0 ? (
-            <div className="p-6 text-center text-white/60">Sem categorias ainda. Cria a primeira acima.</div>
+            <div className="p-6 text-center text-white/60">
+              Sem categorias ainda. Cria a primeira acima.
+            </div>
           ) : (
             items.map((c) => (
-              <div key={c.id} className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div
+                key={c.id}
+                className="flex flex-col gap-4 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div>
-                  <div className="text-base font-medium text-white">{c.name}</div>
-                  {c.description ? <div className="text-sm text-white/60">{c.description}</div> : null}
+                  <div className="text-base font-medium text-white">
+                    {c.name}
+                  </div>
+                  {c.description ? (
+                    <div className="text-sm text-white/60">{c.description}</div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${
-                      c.active ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/50" : "border border-white/20 text-white/60"
+                      c.active
+                        ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/50"
+                        : "border border-white/20 text-white/60"
                     }`}
                   >
                     {c.active ? "Ativa" : "Inativa"}
                   </span>
-                  <button className={subtleBtn} onClick={() => toggleActive(c.id, !c.active)} disabled={busy}>
+                  <button
+                    className={subtleBtn}
+                    onClick={() => toggleActive(c.id, !c.active)}
+                    disabled={busy}
+                  >
                     {c.active ? "Desativar" : "Ativar"}
                   </button>
-                  <button className={dangerBtn} onClick={() => confirmRemove(c.id)} disabled={busy}>
+                  <button
+                    className={dangerBtn}
+                    onClick={() => confirmRemove(c.id)}
+                    disabled={busy}
+                  >
                     Apagar
                   </button>
                 </div>
