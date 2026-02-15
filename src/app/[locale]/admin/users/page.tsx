@@ -8,9 +8,11 @@ type AdminUser = {
   uid: string;
   email: string | null;
   displayName: string | null;
+  photoURL: string | null;
   provider: string | null;
   emailVerified: boolean;
   disabled: boolean;
+  isAdmin: boolean;
   createdAt: string | null;
   lastLoginAt: string | null;
 };
@@ -40,7 +42,10 @@ function abbreviateUid(uid: string) {
   return `${uid.slice(0, 6)}…${uid.slice(-4)}`;
 }
 
-function buildPageItems(totalPages: number, currentPage: number): (number | "ellipsis")[] {
+function buildPageItems(
+  totalPages: number,
+  currentPage: number
+): (number | "ellipsis")[] {
   if (totalPages <= 1) return [0];
   const candidates = new Set<number>();
   candidates.add(0);
@@ -49,7 +54,9 @@ function buildPageItems(totalPages: number, currentPage: number): (number | "ell
   candidates.add(totalPages - 2);
   candidates.add(currentPage);
 
-  const pages = Array.from(candidates).filter((p) => p >= 0 && p < totalPages).sort((a, b) => a - b);
+  const pages = Array.from(candidates)
+    .filter((p) => p >= 0 && p < totalPages)
+    .sort((a, b) => a - b);
   const items: (number | "ellipsis")[] = [];
 
   for (let i = 0; i < pages.length; i++) {
@@ -81,9 +88,16 @@ export default function UsersAdminPage() {
   const [toast, setToast] = useState<{
     type?: "success" | "error" | "warning" | "info" | "confirm";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
-  const [actionModal, setActionModal] = useState<{ uid: string; email?: string | null } | null>(null);
+  const [actionModal, setActionModal] = useState<{
+    uid: string;
+    email?: string | null;
+  } | null>(null);
   const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null);
   const [fetchingAll, setFetchingAll] = useState(false);
 
@@ -100,16 +114,21 @@ export default function UsersAdminPage() {
       const params = new URLSearchParams();
       if (pageToken) params.set("pageToken", pageToken);
 
-      const res = await fetch(`/api/users${params.size ? `?${params.toString()}` : ""}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/users${params.size ? `?${params.toString()}` : ""}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }
+      );
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
         throw new Error(payload?.error || "Falha ao carregar utilizadores.");
       }
       const data = await res.json();
-      const pageUsers = Array.isArray(data?.users) ? (data.users as AdminUser[]) : [];
+      const pageUsers = Array.isArray(data?.users)
+        ? (data.users as AdminUser[])
+        : [];
       setUsers(pageUsers);
       setNextPageToken(data?.nextPageToken || null);
       if (!data?.nextPageToken) {
@@ -148,16 +167,21 @@ export default function UsersAdminPage() {
       for (let i = 0; i < 400; i++) {
         const params = new URLSearchParams();
         if (pageToken) params.set("pageToken", pageToken);
-        const res = await fetch(`/api/users${params.size ? `?${params.toString()}` : ""}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/users${params.size ? `?${params.toString()}` : ""}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          }
+        );
         if (!res.ok) {
           const payload = await res.json().catch(() => ({}));
           throw new Error(payload?.error || "Falha ao carregar utilizadores.");
         }
         const data = await res.json();
-        const pageUsers = Array.isArray(data?.users) ? (data.users as AdminUser[]) : [];
+        const pageUsers = Array.isArray(data?.users)
+          ? (data.users as AdminUser[])
+          : [];
         collected.push(...pageUsers);
         const next = data?.nextPageToken || null;
         if (!next) break;
@@ -227,12 +251,18 @@ export default function UsersAdminPage() {
     const term = filter.trim().toLowerCase();
     if (!term) return users;
     const source = allUsers && allUsers.length ? allUsers : users;
-    return source.filter((u) => [u.email, u.displayName, u.uid].some((field) => field?.toLowerCase().includes(term)));
+    return source.filter((u) =>
+      [u.email, u.displayName, u.uid].some((field) =>
+        field?.toLowerCase().includes(term)
+      )
+    );
   }, [filter, users, allUsers]);
 
   const totalPages = pageTokens.length;
   const hasPrev = pageIndex > 0;
-  const hasNext = pagesFullyLoaded ? pageIndex < pageTokens.length - 1 : !!nextPageToken;
+  const hasNext = pagesFullyLoaded
+    ? pageIndex < pageTokens.length - 1
+    : !!nextPageToken;
   const pageList = buildPageItems(Math.max(totalPages, 1), pageIndex);
 
   async function deleteUser(uid: string) {
@@ -256,7 +286,10 @@ export default function UsersAdminPage() {
       setAllUsers((prev) => (prev ? prev.filter((u) => u.uid !== uid) : prev));
       setToast({ type: "success", message: "Utilizador apagado com sucesso." });
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message || "Não foi possível apagar o utilizador." });
+      setToast({
+        type: "error",
+        message: err?.message || "Não foi possível apagar o utilizador.",
+      });
     } finally {
       setDeletingUid(null);
     }
@@ -264,13 +297,22 @@ export default function UsersAdminPage() {
 
   return (
     <div className="space-y-8">
-      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          actions={toast.actions}
+          onClose={() => setToast(null)}
+        />
+      ) : null}
       {actionModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#0b0b0b] p-6 text-white shadow-2xl">
             <div className="text-lg font-semibold">Apagar utilizador</div>
             <p className="mt-2 text-sm text-white/70">
-              Tem a certeza que queres apagar o utilizador {actionModal.email || actionModal.uid}? Esta ação não pode ser desfeita.
+              Tem a certeza que queres apagar o utilizador{" "}
+              {actionModal.email || actionModal.uid}? Esta ação não pode ser
+              desfeita.
             </p>
             <div className="mt-4 flex gap-3">
               <button
@@ -298,6 +340,19 @@ export default function UsersAdminPage() {
         </div>
       ) : null}
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white">
+              Utilizadores registados
+            </h2>
+            {allUsers && allUsers.length > 0 ? (
+              <p className="text-xs text-white/50">
+                {allUsers.length} utilizador{allUsers.length !== 1 ? "es" : ""}{" "}
+                no total
+              </p>
+            ) : null}
+          </div>
+        </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <input
             value={filter}
@@ -323,55 +378,105 @@ export default function UsersAdminPage() {
           </div>
         </div>
 
-        {error ? <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</div> : null}
+        {error ? (
+          <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">
+            {error}
+          </div>
+        ) : null}
 
         {loading ? (
-          <div className="rounded-2xl border border-white/10 bg-white/10 p-5 text-center text-sm text-white/70">A carregar utilizadores…</div>
+          <div className="rounded-2xl border border-white/10 bg-white/10 p-5 text-center text-sm text-white/70">
+            A carregar utilizadores…
+          </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center text-sm text-white/60">Sem utilizadores para mostrar.</div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-center text-sm text-white/60">
+            Sem utilizadores para mostrar.
+          </div>
         ) : (
           <div className="divide-y divide-white/10">
             {filteredUsers.map((user) => {
               const isSelf = currentUid === user.uid;
               const isDeleting = deletingUid === user.uid;
+              const avatarInitial =
+                user.displayName?.[0]?.toUpperCase() ||
+                user.email?.[0]?.toUpperCase() ||
+                "?";
               return (
-                <div key={user.uid} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="text-base font-semibold text-white">{user.email || "Sem email"}</div>
-                    <div className="text-sm text-white/70">{user.displayName || "Sem nome"}</div>
-                    <div className="text-xs text-white/50">
-                      Criado: {formatDate(user.createdAt)} · Último acesso: {formatDate(user.lastLoginAt)}
+                <div
+                  key={user.uid}
+                  className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="flex gap-3">
+                    {user.photoURL ? (
+                      <img
+                        src={user.photoURL}
+                        alt={user.displayName || "avatar"}
+                        className="h-10 w-10 shrink-0 rounded-full object-cover border border-white/10"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-sm font-semibold text-white">
+                        {avatarInitial}
+                      </div>
+                    )}
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white truncate">
+                          {user.email || "Sem email"}
+                        </span>
+                        {user.isAdmin ? (
+                          <span className="shrink-0 rounded-full border border-violet-400/60 bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-200">
+                            Admin
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-white/60">
+                        {user.displayName || "Sem nome definido"}
+                      </div>
+                      <div className="text-[11px] text-white/40">
+                        Criado: {formatDate(user.createdAt)} · Último acesso:{" "}
+                        {formatDate(user.lastLoginAt)}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-2 sm:items-end">
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white/80">{providerLabel(user.provider)}</span>
-                      <span
-                        className={`rounded-full px-3 py-1 font-semibold ${
-                          user.emailVerified ? "border border-emerald-400/60 bg-emerald-500/10 text-emerald-100" : "border border-amber-400/60 bg-amber-500/10 text-amber-100"
-                        }`}
-                      >
-                        {user.emailVerified ? "Email verificado" : "Email por verificar"}
+                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-white/70">
+                        {providerLabel(user.provider)}
                       </span>
                       <span
-                        className={`rounded-full px-3 py-1 ${
-                          user.disabled ? "border border-red-400/60 bg-red-500/10 text-red-100" : "border border-emerald-400/40 bg-emerald-500/10 text-emerald-100"
+                        className={`rounded-full px-2.5 py-0.5 font-medium ${
+                          user.emailVerified
+                            ? "border border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+                            : "border border-amber-400/40 bg-amber-500/10 text-amber-300"
                         }`}
                       >
-                        {user.disabled ? "Conta desativada" : "Ativa"}
+                        {user.emailVerified ? "Verificado" : "Por verificar"}
                       </span>
-                      <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-white/70" title={user.uid}>
-                        UID {abbreviateUid(user.uid)}
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 ${
+                          user.disabled
+                            ? "border border-red-400/40 bg-red-500/10 text-red-300"
+                            : "border border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                        }`}
+                      >
+                        {user.disabled ? "Desativada" : "Ativa"}
                       </span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActionModal({ uid: user.uid, email: user.email })}
+                      onClick={() =>
+                        setActionModal({ uid: user.uid, email: user.email })
+                      }
                       disabled={isSelf || isDeleting || loading}
-                      className="w-full rounded-full border border-red-400/60 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                      title={isSelf ? "Não podes apagar a tua própria conta" : undefined}
+                      className="rounded-full border border-red-400/40 bg-red-500/10 px-3 py-1 text-[11px] font-semibold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                      title={
+                        isSelf
+                          ? "Não podes apagar a tua própria conta"
+                          : undefined
+                      }
                     >
-                      {isDeleting ? "A apagar…" : "Apagar utilizador"}
+                      {isDeleting ? "A apagar…" : "Apagar"}
                     </button>
                   </div>
                 </div>
@@ -381,7 +486,9 @@ export default function UsersAdminPage() {
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-white/60">Máximo de {PAGE_SIZE} registos por página.</div>
+          <div className="text-xs text-white/60">
+            Máximo de {PAGE_SIZE} registos por página.
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -394,7 +501,10 @@ export default function UsersAdminPage() {
             <div className="flex items-center gap-2">
               {pageList.map((entry, idx) =>
                 entry === "ellipsis" ? (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-sm text-white/70">
+                  <span
+                    key={`ellipsis-${idx}`}
+                    className="px-2 text-sm text-white/70"
+                  >
                     …
                   </span>
                 ) : (
@@ -402,7 +512,11 @@ export default function UsersAdminPage() {
                     key={entry}
                     type="button"
                     onClick={() => loadUsers(entry)}
-                    disabled={loading || pageTokens[entry] === undefined || pageIndex === entry}
+                    disabled={
+                      loading ||
+                      pageTokens[entry] === undefined ||
+                      pageIndex === entry
+                    }
                     aria-current={pageIndex === entry ? "page" : undefined}
                     className={`min-w-10 rounded-full px-3 py-1.5 text-sm transition ${
                       pageIndex === entry
