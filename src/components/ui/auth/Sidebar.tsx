@@ -61,17 +61,17 @@ export function Sidebar() {
       label: "Portfólio público",
       items: [
         {
-          label: "Carregar fotos",
+          label: "Carregar portfólio",
           href: `${base}/public/upload`,
           icon: <UploadCloud size={16} />,
         },
         {
-          label: "Lista de fotos",
+          label: "Galeria",
           href: `${base}/public/list`,
           icon: <List size={16} />,
         },
         {
-          label: "Trilho de imagens",
+          label: "Imagens do Hero",
           href: `${base}/trail`,
           icon: <Shuffle size={16} />,
         },
@@ -121,7 +121,7 @@ export function Sidebar() {
           icon: <Tags size={16} />,
         },
         {
-          label: "Pagamentos",
+          label: "Pedidos pendentes",
           href: `${base}/payments`,
           icon: <CreditCard size={16} />,
         },
