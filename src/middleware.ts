@@ -10,5 +10,8 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/(pt|en)/:path*"],
+  matcher: [
+    // Match all paths except: API routes, Next.js internals, static files
+    "/((?!api|_next|_vercel|.*\\..*).*)",
+  ],
 };
