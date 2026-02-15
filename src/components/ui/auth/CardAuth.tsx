@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import EmailPasswordForm from "./EmailPasswordForm";
-import { Camera } from "lucide-react";
+import Image from "next/image";
+import logotipo from "../../../../public/brand/logo-sem-fundo-sem-nome.png";
 
 type Props = {
   defaultCallbackUrl?: string;
@@ -29,9 +30,13 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
     <div className="space-y-6">
       {/* Brand header */}
       <div className="text-center space-y-3">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
-          <Camera className="h-7 w-7 text-white/90" />
-        </div>
+        <Image
+          src={logotipo}
+          alt="Momentos"
+          width={64}
+          height={64}
+          className="mx-auto opacity-90"
+        />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-white">
             {t("brand")}
