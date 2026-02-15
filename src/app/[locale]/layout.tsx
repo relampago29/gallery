@@ -1,18 +1,10 @@
 // src/app/[locale]/layout.tsx
-import "../../styles/globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { Locale, routing } from "@/i18n/routing";
 import { CartProvider } from "@/components/cart/CartContext";
-
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Gallery",
@@ -46,16 +38,8 @@ export default async function RootLayout({
   }
 
   return (
-    <html
-      lang={locale}
-      data-theme="dark"
-      className={`${geistSans.variable} ${geistMono.variable}`}
-    >
-      <body>
-        <NextIntlClientProvider locale={locale} messages={messages as any}>
-          <CartProvider>{children}</CartProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <NextIntlClientProvider locale={locale} messages={messages as any}>
+      <CartProvider>{children}</CartProvider>
+    </NextIntlClientProvider>
   );
 }
