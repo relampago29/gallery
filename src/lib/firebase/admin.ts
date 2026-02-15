@@ -4,7 +4,14 @@ if (typeof window !== "undefined") {
   throw new Error("firebase/admin.ts só pode ser usado no server.");
 }
 
-import { getApps, initializeApp, cert, getApp, type App, type AppOptions } from "firebase-admin/app";
+import {
+  getApps,
+  initializeApp,
+  cert,
+  getApp,
+  type App,
+  type AppOptions,
+} from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getStorage, type Storage } from "firebase-admin/storage";
@@ -71,6 +78,7 @@ function ensureApp(): App {
     const options: AppOptions = {
       credential: cert({ projectId, clientEmail, privateKey }),
       storageBucket, // pode ser undefined; o Admin usa o default do projeto
+      projectId, // força projectId explícito para o Admin SDK
     };
     _app = getApps().length ? getApp() : initializeApp(options);
     return _app;
