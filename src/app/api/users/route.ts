@@ -15,8 +15,13 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const pageToken = url.searchParams.get("pageToken") || undefined;
-    const metaOnly = url.searchParams.get("metaOnly") === "1" || url.searchParams.get("metaOnly") === "true";
-    const { users, pageToken: nextPageToken } = await getAdminAuth().listUsers(PAGE_SIZE, pageToken);
+    const metaOnly =
+      url.searchParams.get("metaOnly") === "1" ||
+      url.searchParams.get("metaOnly") === "true";
+    const { users, pageToken: nextPageToken } = await getAdminAuth().listUsers(
+      PAGE_SIZE,
+      pageToken
+    );
 
     const mapped = metaOnly
       ? []
@@ -24,16 +29,29 @@ export async function GET(req: Request) {
           uid: u.uid,
           email: u.email ?? null,
           displayName: u.displayName ?? null,
+          photoURL: u.photoURL ?? null,
           provider: u.providerData?.[0]?.providerId ?? null,
           emailVerified: !!u.emailVerified,
           disabled: !!u.disabled,
-          createdAt: u.metadata?.creationTime ? new Date(u.metadata.creationTime).toISOString() : null,
-          lastLoginAt: u.metadata?.lastSignInTime ? new Date(u.metadata.lastSignInTime).toISOString() : null,
+          isAdmin: !!(u.customClaims as any)?.isAdmin,
+          createdAt: u.metadata?.creationTime
+            ? new Date(u.metadata.creationTime).toISOString()
+            : null,
+          lastLoginAt: u.metadata?.lastSignInTime
+            ? new Date(u.metadata.lastSignInTime).toISOString()
+            : null,
         }));
 
-    return NextResponse.json({ users: mapped, nextPageToken: nextPageToken ?? null, pageSize: PAGE_SIZE });
+    return NextResponse.json({
+      users: mapped,
+      nextPageToken: nextPageToken ?? null,
+      pageSize: PAGE_SIZE,
+    });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -51,6 +69,9 @@ export async function DELETE(req: Request) {
     await getAdminAuth().deleteUser(targetUid);
     return NextResponse.json({ ok: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 }
+    );
   }
 }

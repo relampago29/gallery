@@ -218,7 +218,7 @@ export default function DashboardPage() {
       <div className="relative z-10">
         <NavBar />
 
-        <div className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl space-y-8 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
           {/* Back link */}
           <Link
             href={`/${locale}`}
