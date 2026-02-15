@@ -55,10 +55,21 @@ function resolvePrivateKey(): string | null {
   return null;
 }
 
+function resolveProjectId(): string | undefined {
+  return (
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
+    undefined
+  );
+}
+
 function resolveBucketName(): string | undefined {
-  const envBucket = process.env.FIREBASE_STORAGE_BUCKET || undefined;
+  const envBucket =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    undefined;
   if (envBucket && envBucket.trim().length) return envBucket.trim();
-  const projectId = process.env.FIREBASE_PROJECT_ID || undefined;
+  const projectId = resolveProjectId();
   if (projectId) return `${projectId}.appspot.com`;
   return undefined;
 }
@@ -66,7 +77,7 @@ function resolveBucketName(): string | undefined {
 function ensureApp(): App {
   if (_app) return _app;
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const projectId = resolveProjectId();
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = resolvePrivateKey();
 

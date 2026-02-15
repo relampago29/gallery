@@ -26,7 +26,10 @@ export async function GET(req: Request, { params }: RouteParams) {
     const docRef = db.collection("session_orders").doc(orderId);
     const snap = await docRef.get();
     if (!snap.exists) {
-      return NextResponse.json({ error: "pedido não encontrado" }, { status: 404 });
+      return NextResponse.json(
+        { error: "pedido não encontrado" },
+        { status: 404 }
+      );
     }
 
     const data = snap.data() || {};
@@ -37,19 +40,30 @@ export async function GET(req: Request, { params }: RouteParams) {
     }
 
     if (data.status !== "paid" && data.status !== "fulfilled") {
-      return NextResponse.json({ error: "Pagamento ainda não confirmado" }, { status: 409 });
+      return NextResponse.json(
+        { error: "Pagamento ainda não confirmado" },
+        { status: 409 }
+      );
     }
 
-    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const projectId =
+      process.env.FIREBASE_PROJECT_ID ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     const fnOrigin =
-      process.env.FIREBASE_FUNCTIONS_ORIGIN || (projectId ? `https://europe-west1-${projectId}.cloudfunctions.net` : null);
+      process.env.FIREBASE_FUNCTIONS_ORIGIN ||
+      (projectId
+        ? `https://europe-west1-${projectId}.cloudfunctions.net`
+        : null);
     if (!fnOrigin) {
-      return NextResponse.json({ error: "functions origin não configurado" }, { status: 500 });
+      return NextResponse.json(
+        { error: "functions origin não configurado" },
+        { status: 500 }
+      );
     }
 
-    const redirectUrl = `${fnOrigin}/downloadSessionOrder?orderId=${encodeURIComponent(orderId)}${
-      token ? `&token=${encodeURIComponent(token)}` : ""
-    }`;
+    const redirectUrl = `${fnOrigin}/downloadSessionOrder?orderId=${encodeURIComponent(
+      orderId
+    )}${token ? `&token=${encodeURIComponent(token)}` : ""}`;
 
     await docRef.update({
       status: "fulfilled",
@@ -61,6 +75,9 @@ export async function GET(req: Request, { params }: RouteParams) {
     return NextResponse.redirect(redirectUrl, { status: 307 });
   } catch (err: any) {
     console.error("[download] unexpected error", err);
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 }
+    );
   }
 }

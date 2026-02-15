@@ -55,7 +55,9 @@ export async function GET(req: Request, { params }: RouteParams) {
       );
     }
 
-    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const projectId =
+      process.env.FIREBASE_PROJECT_ID ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     const fnOrigin =
       process.env.FIREBASE_FUNCTIONS_ORIGIN ||
       (projectId
