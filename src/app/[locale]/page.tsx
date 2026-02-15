@@ -17,7 +17,7 @@ export default function Home() {
       <LazyPortfolio />
       <TeamHomePage />
       <StudioLocation />
-      <Contact />
+     {/*  <Contact /> */}
       <Footer />
     </div>
   );
