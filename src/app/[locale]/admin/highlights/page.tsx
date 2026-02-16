@@ -6,8 +6,16 @@ import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { UploadCloud, ImagePlus } from "lucide-react";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
+import { compressImage } from "@/lib/compressImage";
 
-const ALLOWED_HIGHLIGHT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/heic", "image/heif"];
+const ALLOWED_HIGHLIGHT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/heic",
+  "image/heif",
+];
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 400;
 const MAX_HIGHLIGHT_SIZE = 4 * 1024 * 1024; // ajustado para o limite da lambda na Vercel
@@ -25,13 +33,23 @@ export default function HighlightsAdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadProgressValue, setUploadProgressValue] = useState<number | null>(null);
+  const [uploadProgressValue, setUploadProgressValue] = useState<number | null>(
+    null,
+  );
   const [toast, setToast] = useState<{
     type?: "success" | "error" | "warning" | "info";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
-  const { state: globalUpload, setUploadProgress: setGlobalUploadProgress, clearUpload } = useUploadProgress();
+  const {
+    state: globalUpload,
+    setUploadProgress: setGlobalUploadProgress,
+    clearUpload,
+  } = useUploadProgress();
   const uploadScope = "highlights-upload";
   const globalLock = !!globalUpload && globalUpload.progress < 1;
 
@@ -64,7 +82,10 @@ export default function HighlightsAdminPage() {
 
   const canAddMore = items.length < 12;
 
-  async function callAuthorized(endpoint: string, body: Record<string, unknown>) {
+  async function callAuthorized(
+    endpoint: string,
+    body: Record<string, unknown>,
+  ) {
     const token = await auth.currentUser?.getIdToken();
     if (!token) {
       throw new Error("Precisas de iniciar sessão para continuar.");
@@ -100,7 +121,7 @@ export default function HighlightsAdminPage() {
     try {
       await callAuthorized("/api/highlights/create", {
         imageUrl: form.imageUrl,
-        });
+      });
       setForm(emptyForm);
       setSuccess("Destaque adicionado com sucesso.");
       await loadHighlights();
@@ -115,7 +136,11 @@ export default function HighlightsAdminPage() {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async function retry<T>(fn: () => Promise<T>, attempts: number, baseDelay: number): Promise<T> {
+  async function retry<T>(
+    fn: () => Promise<T>,
+    attempts: number,
+    baseDelay: number,
+  ): Promise<T> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i += 1) {
       try {
@@ -131,7 +156,9 @@ export default function HighlightsAdminPage() {
 
   async function uploadHighlightImage(file: File) {
     if (globalLock) {
-      throw new Error("Já existe um envio em curso. Aguarda antes de carregar novas imagens.");
+      throw new Error(
+        "Já existe um envio em curso. Aguarda antes de carregar novas imagens.",
+      );
     }
     const tokenUser = auth.currentUser;
     if (!tokenUser) {
@@ -141,19 +168,35 @@ export default function HighlightsAdminPage() {
       throw new Error("Apenas imagens são permitidas.");
     }
     if (file.size > MAX_HIGHLIGHT_SIZE) {
-      throw new Error("Imagem demasiado grande (limite ~4MB). Comprime ou reduz a resolução.");
+      throw new Error(
+        "Imagem demasiado grande (limite ~4MB). Comprime ou reduz a resolução.",
+      );
     }
-    if (ALLOWED_HIGHLIGHT_TYPES.length && !ALLOWED_HIGHLIGHT_TYPES.includes(file.type.toLowerCase())) {
-      throw new Error("Formato não suportado. Usa JPG, PNG, WEBP, AVIF ou HEIC.");
+    if (
+      ALLOWED_HIGHLIGHT_TYPES.length &&
+      !ALLOWED_HIGHLIGHT_TYPES.includes(file.type.toLowerCase())
+    ) {
+      throw new Error(
+        "Formato não suportado. Usa JPG, PNG, WEBP, AVIF ou HEIC.",
+      );
     }
 
     const token = await tokenUser.getIdToken();
     return retry(
       async () => {
         setUploadProgressValue(0);
-        setGlobalUploadProgress({ label: "Destaques", progress: 0, scope: uploadScope });
+        setGlobalUploadProgress({
+          label: "Destaques",
+          progress: 0,
+          scope: uploadScope,
+        });
+        const compressed = await compressImage(file, {
+          maxSizeMB: 4,
+          maxWidth: 2400,
+          maxHeight: 2400,
+        });
         const form = new FormData();
-        form.append("file", file);
+        form.append("file", compressed);
         form.append("name", file.name || "highlight");
         const res = await fetch("/api/highlights/upload", {
           method: "POST",
@@ -166,11 +209,15 @@ export default function HighlightsAdminPage() {
         }
         const data = await res.json();
         setUploadProgressValue(100);
-        setGlobalUploadProgress({ label: "Destaques", progress: 1, scope: uploadScope });
+        setGlobalUploadProgress({
+          label: "Destaques",
+          progress: 1,
+          scope: uploadScope,
+        });
         return data.imageUrl as string;
       },
       RETRY_ATTEMPTS,
-      RETRY_DELAY_MS
+      RETRY_DELAY_MS,
     );
   }
 
@@ -178,7 +225,9 @@ export default function HighlightsAdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (globalLock) {
-      setError("Já existe um envio em curso. Aguarda antes de carregar novas imagens.");
+      setError(
+        "Já existe um envio em curso. Aguarda antes de carregar novas imagens.",
+      );
       e.target.value = "";
       return;
     }
@@ -188,7 +237,9 @@ export default function HighlightsAdminPage() {
     try {
       const url = await uploadHighlightImage(file);
       setForm((prev) => ({ ...prev, imageUrl: url }));
-      setSuccess("Imagem carregada com sucesso. Confirma os restantes detalhes antes de guardar.");
+      setSuccess(
+        "Imagem carregada com sucesso. Confirma os restantes detalhes antes de guardar.",
+      );
     } catch (err: any) {
       setError(err?.message || "Falha ao subir imagem.");
     } finally {
@@ -201,7 +252,9 @@ export default function HighlightsAdminPage() {
 
   async function handleReplaceImage(itemId: string, file: File) {
     if (globalLock) {
-      setError("Já existe um envio em curso. Aguarda antes de carregar novas imagens.");
+      setError(
+        "Já existe um envio em curso. Aguarda antes de carregar novas imagens.",
+      );
       return;
     }
     setUploadingImage(true);
@@ -210,7 +263,9 @@ export default function HighlightsAdminPage() {
     setSuccess(null);
     try {
       const url = await uploadHighlightImage(file);
-      setItems((prev) => prev.map((p) => (p.id === itemId ? { ...p, imageUrl: url } : p)));
+      setItems((prev) =>
+        prev.map((p) => (p.id === itemId ? { ...p, imageUrl: url } : p)),
+      );
       setEditingId(itemId);
       setSuccess("Nova imagem carregada. Clica em Guardar para aplicar.");
     } catch (err: any) {
@@ -272,22 +327,42 @@ export default function HighlightsAdminPage() {
     });
   }
 
-  const editingItem = useMemo(() => items.find((it) => it.id === editingId) || null, [editingId, items]);
+  const editingItem = useMemo(
+    () => items.find((it) => it.id === editingId) || null,
+    [editingId, items],
+  );
 
   return (
     <div className="space-y-8">
-      {toast ? <AdminNotification type={toast.type} message={toast.message} actions={toast.actions} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          actions={toast.actions}
+          onClose={() => setToast(null)}
+        />
+      ) : null}
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.35em] text-white/60">Admin</p>
-        <h1 className="text-4xl font-semibold text-white tracking-tight">Destaques</h1>
-        <p className="text-sm text-white/70">Envia as imagens em destaque da página inicial (máx. 12).</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+          Admin
+        </p>
+        <h1 className="text-4xl font-semibold text-white tracking-tight">
+          Destaques
+        </h1>
+        <p className="text-sm text-white/70">
+          Envia as imagens em destaque da página inicial (máx. 12).
+        </p>
       </header>
 
       <section className={cardClass}>
         <form onSubmit={handleCreate} className="space-y-5 p-6">
           <div className="space-y-1">
-            <p className="text-xs uppercase tracking-[0.35em] text-white/60">Novo destaque</p>
-            <p className="text-sm text-white/70">Carrega uma imagem ou usa um URL já existente.</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+              Novo destaque
+            </p>
+            <p className="text-sm text-white/70">
+              Carrega uma imagem ou usa um URL já existente.
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -312,7 +387,9 @@ export default function HighlightsAdminPage() {
                     <div className="h-2 w-full rounded-full bg-white/10">
                       <div
                         className="h-full rounded-full bg-white transition-all duration-300"
-                        style={{ width: `${Math.min(100, Math.max(0, uploadProgressValue))}%` }}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, uploadProgressValue))}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -323,16 +400,28 @@ export default function HighlightsAdminPage() {
             {form.imageUrl && (
               <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.imageUrl} alt="Pré-visualização" className="h-48 w-full object-cover" />
+                <img
+                  src={form.imageUrl}
+                  alt="Pré-visualização"
+                  className="h-48 w-full object-cover"
+                />
               </div>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button className={primaryButton} type="submit" disabled={!canAddMore || saving || uploadingImage || globalLock}>
+            <button
+              className={primaryButton}
+              type="submit"
+              disabled={!canAddMore || saving || uploadingImage || globalLock}
+            >
               {saving ? "A guardar..." : "Adicionar destaque"}
             </button>
-            {!canAddMore && <p className="text-xs text-rose-300">Máximo de 12 destaques. Remove um antes de adicionar.</p>}
+            {!canAddMore && (
+              <p className="text-xs text-rose-300">
+                Máximo de 12 destaques. Remove um antes de adicionar.
+              </p>
+            )}
           </div>
 
           {error && <p className="text-rose-200 text-sm">{error}</p>}
@@ -341,18 +430,26 @@ export default function HighlightsAdminPage() {
       </section>
 
       <section className="space-y-4">
-        <div className="text-sm uppercase tracking-[0.35em] text-white/60">Destaques atuais</div>
+        <div className="text-sm uppercase tracking-[0.35em] text-white/60">
+          Destaques atuais
+        </div>
         {loading ? (
           <div className="text-white/70 text-sm">A carregar...</div>
         ) : items.length === 0 ? (
-          <div className="text-white/70 text-sm">Nenhum destaque configurado.</div>
+          <div className="text-white/70 text-sm">
+            Nenhum destaque configurado.
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((item) => (
               <div key={item.id} className={`${cardClass} space-y-3 p-4`}>
                 <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-white/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 {editingId === item.id ? (
                   <div className="space-y-3 text-sm text-white/80">
@@ -383,7 +480,9 @@ export default function HighlightsAdminPage() {
                           <div className="mt-1 h-1.5 w-full rounded-full bg-white/10">
                             <div
                               className="h-full rounded-full bg-white transition-all duration-300"
-                              style={{ width: `${Math.min(100, Math.max(0, uploadProgressValue))}%` }}
+                              style={{
+                                width: `${Math.min(100, Math.max(0, uploadProgressValue))}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -411,9 +510,15 @@ export default function HighlightsAdminPage() {
                 ) : (
                   <div className="space-y-2 text-white">
                     <div className="font-semibold">&nbsp;</div>
-                    <div className="text-xs text-white/70">Altura: {item.height}px</div>
+                    <div className="text-xs text-white/70">
+                      Altura: {item.height}px
+                    </div>
                     <div className="flex gap-2 pt-1">
-                      <button className={`${ghostButton} flex-1`} onClick={() => setEditingId(item.id)} disabled={globalLock}>
+                      <button
+                        className={`${ghostButton} flex-1`}
+                        onClick={() => setEditingId(item.id)}
+                        disabled={globalLock}
+                      >
                         Editar
                       </button>
                       <button

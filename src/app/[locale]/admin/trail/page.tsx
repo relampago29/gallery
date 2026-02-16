@@ -5,6 +5,7 @@ import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { UploadCloud, Trash2 } from "lucide-react";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
+import { compressImage } from "@/lib/compressImage";
 
 type TrailImage = { id: string; imageUrl: string; order?: number | null };
 const MAX_TRAIL_SIZE = 4 * 1024 * 1024; // alinhado com lambda Vercel
@@ -38,8 +39,13 @@ async function deleteTrailImage({ id, token }: { id: string; token: string }) {
 }
 
 async function uploadAndCreate({ file, token }: { file: File; token: string }) {
+  const compressed = await compressImage(file, {
+    maxSizeMB: 4,
+    maxWidth: 2400,
+    maxHeight: 2400,
+  });
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", compressed);
   form.append("name", file.name || "trail");
   const uploadRes = await fetch("/api/highlights/upload", {
     method: "POST",
@@ -64,7 +70,7 @@ async function uploadAndCreate({ file, token }: { file: File; token: string }) {
   if (!createRes.ok) {
     const data = await createRes.json().catch(() => ({}));
     throw new Error(
-      data?.error || `Falha (${createRes.status}) ao registar imagem.`
+      data?.error || `Falha (${createRes.status}) ao registar imagem.`,
     );
   }
 }
@@ -131,14 +137,14 @@ export default function TrailAdminPage() {
     if (!file) return;
     if (file.size > MAX_TRAIL_SIZE) {
       setError(
-        "Imagem demasiado grande para upload (limite ~4MB). Comprime ou reduz antes de enviar."
+        "Imagem demasiado grande para upload (limite ~4MB). Comprime ou reduz antes de enviar.",
       );
       e.target.value = "";
       return;
     }
     if (globalLock) {
       setError(
-        "Já existe um envio em curso. Aguarda terminar para enviar mais imagens."
+        "Já existe um envio em curso. Aguarda terminar para enviar mais imagens.",
       );
       e.target.value = "";
       return;
