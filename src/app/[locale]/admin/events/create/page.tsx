@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
 import { UploadCloud } from "lucide-react";
+import { compressImage } from "@/lib/compressImage";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -43,12 +44,12 @@ export default function CreateEventPage() {
   const cardClass = useMemo(
     () =>
       "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm",
-    []
+    [],
   );
   const inputBase = useMemo(
     () =>
       "w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white placeholder-white/60 focus:border-white/50 focus:outline-none disabled:opacity-50",
-    []
+    [],
   );
   const primaryButton =
     "inline-flex items-center justify-center rounded-full bg-white text-gray-900 px-6 py-2.5 text-sm font-semibold transition hover:bg-white/90 disabled:opacity-40";
@@ -85,9 +86,14 @@ export default function CreateEventPage() {
         scope: uploadScope,
       });
 
-      // 1) Upload da capa
+      // 1) Upload da capa (comprimir para respeitar o limite de 4.5 MB do Vercel)
+      const compressed = await compressImage(coverFile, {
+        maxSizeMB: 4,
+        maxWidth: 2400,
+        maxHeight: 2400,
+      });
       const form = new FormData();
-      form.append("file", coverFile);
+      form.append("file", compressed);
       form.append("type", "cover");
       form.append("name", coverFile.name);
 

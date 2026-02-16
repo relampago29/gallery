@@ -7,6 +7,7 @@ import Link from "next/link";
 import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { useUploadProgress } from "@/components/admin/UploadProgressContext";
+import { compressImage } from "@/lib/compressImage";
 import { CalendarDays, Trash2, UploadCloud, ArrowLeft } from "lucide-react";
 
 type EventData = {
@@ -54,7 +55,7 @@ type UploadResult = { ok: boolean; fileName: string; error?: string };
 async function runWithConcurrency(
   tasks: { fn: () => Promise<void>; fileName: string }[],
   limit = MAX_PARALLEL,
-  onProgress?: (completed: number) => void
+  onProgress?: (completed: number) => void,
 ) {
   if (!tasks.length) return [] as UploadResult[];
   const poolSize = Math.max(1, Math.min(limit, tasks.length));
@@ -146,7 +147,7 @@ export default function EventDetailPage() {
       try {
         const url = cursor
           ? `/api/events/${eventId}/photos?limit=60&cursor=${encodeURIComponent(
-              cursor
+              cursor,
             )}`
           : `/api/events/${eventId}/photos?limit=60`;
         const res = await fetch(url, { cache: "no-store" });
@@ -165,7 +166,7 @@ export default function EventDetailPage() {
         setLoadingMore(false);
       }
     },
-    [eventId]
+    [eventId],
   );
 
   useEffect(() => {
@@ -196,7 +197,7 @@ export default function EventDetailPage() {
       setEvent((prev) =>
         prev
           ? { ...prev, photoCount: Math.max(0, (prev.photoCount || 1) - 1) }
-          : prev
+          : prev,
       );
       setToast({ type: "success", message: "Foto apagada." });
     } catch (err: any) {
@@ -251,8 +252,13 @@ export default function EventDetailPage() {
       const tasks = files.map((f) => ({
         fileName: f.name,
         fn: async () => {
+          const compressed = await compressImage(f, {
+            maxSizeMB: 4,
+            maxWidth: 2400,
+            maxHeight: 2400,
+          });
           const form = new FormData();
-          form.append("file", f);
+          form.append("file", compressed);
           form.append("type", "photo");
           form.append("eventId", eventId);
           form.append("name", f.name);
