@@ -265,7 +265,9 @@
     "loadErrorGeneric": "Erro ao carregar eventos.",
     "noEvents": "Ainda não existem eventos publicados.",
     "photos": "fotos",
-    "pricePerPhoto": "/ foto"
+    "pricePerPhoto": "/ foto",
+    "loadMore": "Ver mais eventos",
+    "loadingMore": "A carregar…"
   },
   "eventDetailPage": {
     "backToEvents": "Voltar aos eventos",
@@ -279,7 +281,9 @@
     "photosAvailableSoon": "As fotos deste evento estarão disponíveis em breve.",
     "processing": "A processar…",
     "noPreview": "Sem preview",
-    "photoAlt": "Foto do evento"
+    "photoAlt": "Foto do evento",
+    "loadMore": "Ver mais fotos",
+    "loadingMore": "A carregar…"
   },
   "eventOrderPayment": {
     "badge": "Pagamento",

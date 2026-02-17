@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
-import { ArrowLeft, CalendarDays, Check, ShoppingCart } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Check,
+  Loader2,
+  ShoppingCart,
+} from "lucide-react";
 import { useCart, type CartItem } from "@/components/cart/CartContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 
@@ -25,15 +31,21 @@ type EventPhoto = {
   masterPath?: string;
   title?: string | null;
   status?: string;
+  createdAt?: number;
   sizes?: Record<
     string,
-    { jpg: string; webp?: string; avif?: string; width: number; height: number }
+    {
+      jpg: string;
+      webp?: string;
+      avif?: string;
+      width: number;
+      height: number;
+    }
   >;
 };
 
 function pickPhotoThumb(photo: EventPhoto): string {
   if (photo.sizes) {
-    // prefer 640px webp for grid thumbnails
     const preferred = ["640", "800", "400", "960"];
     for (const k of preferred) {
       const s = photo.sizes[k];
@@ -41,7 +53,6 @@ function pickPhotoThumb(photo: EventPhoto): string {
       if (s?.avif) return s.avif;
       if (s?.jpg) return s.jpg;
     }
-    // fallback to any available
     for (const s of Object.values(photo.sizes)) {
       if (s?.webp) return s.webp;
       if (s?.jpg) return s.jpg;
@@ -49,6 +60,8 @@ function pickPhotoThumb(photo: EventPhoto): string {
   }
   return photo.imageUrl || "";
 }
+
+const PHOTO_PAGE_SIZE = 24;
 
 export default function PublicEventDetailPage() {
   const locale = useLocale();
@@ -60,34 +73,74 @@ export default function PublicEventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [photoCursor, setPhotoCursor] = useState<string | null>(null);
+  const [photosEnd, setPhotosEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchPhotos = useCallback(
+    async (cursor: string | null, append = false) => {
+      const params = new URLSearchParams({
+        limit: String(PHOTO_PAGE_SIZE),
+      });
+      if (cursor) params.set("cursor", cursor);
+
+      const res = await fetch(
+        `/api/events/${eventId}/photos?${params.toString()}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const items: EventPhoto[] = Array.isArray(data.items) ? data.items : [];
+      const nextCursor = data.nextCursor ?? null;
+
+      if (append) {
+        setPhotos((prev) => [...prev, ...items]);
+      } else {
+        setPhotos(items);
+      }
+      setPhotoCursor(nextCursor);
+      setPhotosEnd(!nextCursor || items.length < PHOTO_PAGE_SIZE);
+    },
+    [eventId],
+  );
 
   useEffect(() => {
     (async () => {
       try {
-        const [evRes, phRes] = await Promise.all([
-          fetch(`/api/events/${eventId}`, { cache: "no-store" }),
-          fetch(`/api/events/${eventId}/photos`, { cache: "no-store" }),
-        ]);
+        const evRes = await fetch(`/api/events/${eventId}`, {
+          cache: "no-store",
+        });
         if (!evRes.ok) throw new Error(t("notFound"));
         const evData = await evRes.json();
         setEvent(evData);
 
-        if (phRes.ok) {
-          const phData = await phRes.json();
-          setPhotos(Array.isArray(phData.items) ? phData.items : []);
-        }
-      } catch (err: any) {
-        setError(err?.message || t("loadError"));
+        await fetchPhotos(null);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : t("loadError");
+        setError(message);
       } finally {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+  async function loadMorePhotos() {
+    if (loadingMore || photosEnd || !photoCursor) return;
+    setLoadingMore(true);
+    try {
+      await fetchPhotos(photoCursor, true);
+    } catch {
+      // silent
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const publishedPhotos = useMemo(
     () => photos.filter((p) => p.status === "ready" || p.imageUrl),
-    [photos]
+    [photos],
   );
 
   function handleToggle(photo: EventPhoto) {
@@ -132,7 +185,7 @@ export default function PublicEventDetailPage() {
             {/* Hero do evento */}
             <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
               {event.coverUrl && (
-                <div className="aspect-[21/9] bg-white/10">
+                <div className="aspect-21/9 bg-white/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={event.coverUrl}
@@ -186,57 +239,76 @@ export default function PublicEventDetailPage() {
                 {t("photosAvailableSoon")}
               </div>
             ) : (
-              <div className="photo-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {publishedPhotos.map((p) => {
-                  const thumb = pickPhotoThumb(p);
-                  const inCart = cart.has(p.id);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleToggle(p)}
-                      className={`group relative overflow-hidden rounded-3xl border text-left shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm transition ${
-                        inCart
-                          ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
-                          : "border-white/10 bg-white/5 hover:border-white/20"
-                      }`}
-                    >
-                      <div className="aspect-[4/3] bg-white/10">
-                        {thumb ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={thumb}
-                            alt={p.title || t("photoAlt")}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-xs text-white/70">
-                            {p.status === "processing"
-                              ? t("processing")
-                              : t("noPreview")}
-                          </div>
-                        )}
-                      </div>
-                      {/* Selection indicator */}
-                      <div
-                        className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition ${
+              <>
+                <div className="photo-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {publishedPhotos.map((p) => {
+                    const thumb = pickPhotoThumb(p);
+                    const inCart = cart.has(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleToggle(p)}
+                        className={`group relative overflow-hidden rounded-3xl border text-left shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-sm transition ${
                           inCart
-                            ? "bg-emerald-500 text-white"
-                            : "border border-white/30 bg-black/50 text-transparent group-hover:text-white/50"
+                            ? "border-emerald-400/50 bg-emerald-500/10 ring-1 ring-emerald-400/30"
+                            : "border-white/10 bg-white/5 hover:border-white/20"
                         }`}
                       >
-                        <Check size={14} />
-                      </div>
-                      {/* Price badge */}
-                      <div className="absolute bottom-3 left-3 rounded-full border border-white/20 bg-black/60 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
-                        {event.pricePerPhoto?.toFixed(2)}€
-                      </div>
+                        <div className="aspect-4/3 bg-white/10">
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt={p.title || t("photoAlt")}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-white/70">
+                              {p.status === "processing"
+                                ? t("processing")
+                                : t("noPreview")}
+                            </div>
+                          )}
+                        </div>
+                        {/* Selection indicator */}
+                        <div
+                          className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition ${
+                            inCart
+                              ? "bg-emerald-500 text-white"
+                              : "border border-white/30 bg-black/50 text-transparent group-hover:text-white/50"
+                          }`}
+                        >
+                          <Check size={14} />
+                        </div>
+                        {/* Price badge */}
+                        <div className="absolute bottom-3 left-3 rounded-full border border-white/20 bg-black/60 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+                          {event.pricePerPhoto?.toFixed(2)}€
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Load More */}
+                {!photosEnd && publishedPhotos.length > 0 && (
+                  <div className="pt-4 pb-2 text-center">
+                    <button
+                      type="button"
+                      onClick={loadMorePhotos}
+                      disabled={loadingMore}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/30 px-5 py-3 text-sm text-white transition hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-50 sm:w-auto sm:py-2"
+                    >
+                      {loadingMore && (
+                        <Loader2 size={14} className="animate-spin" />
+                      )}
+                      {loadingMore ? t("loadingMore") : t("loadMore")}
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         ) : null}
