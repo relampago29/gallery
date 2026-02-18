@@ -185,7 +185,7 @@ export default function DashboardPage() {
     try {
       const credential = EmailAuthProvider.credential(
         user.email || "",
-        passwords.current
+        passwords.current,
       );
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, passwords.next);
@@ -441,7 +441,7 @@ function HistoryPanel({ locale }: { locale: string }) {
   useEffect(() => {
     setLoading(true);
     Promise.all([loadEventOrders(), loadSessionOrders()]).finally(() =>
-      setLoading(false)
+      setLoading(false),
     );
   }, [loadEventOrders, loadSessionOrders]);
 
@@ -625,12 +625,12 @@ function HistoryPanel({ locale }: { locale: string }) {
                         </div>
                         <div className="flex gap-2">
                           {canDownload && (
-                            <Link
-                              href={`/${locale}/events/orders/${order.id}/download?token=${order.publicToken}`}
+                            <a
+                              href={`/api/event-orders/${order.id}/download?token=${order.publicToken}`}
                               className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
                             >
                               <Download size={13} /> Download
-                            </Link>
+                            </a>
                           )}
                         </div>
                       </div>
@@ -674,12 +674,12 @@ function HistoryPanel({ locale }: { locale: string }) {
                 </div>
                 <div className="flex gap-2">
                   {canDownload && (
-                    <Link
-                      href={`/${locale}/sessions/orders/${order.id}/download?token=${order.token}`}
+                    <a
+                      href={`/api/session-orders/${order.id}/download?token=${order.token}`}
                       className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
                     >
                       <Download size={13} /> Download
-                    </Link>
+                    </a>
                   )}
                 </div>
               </div>
