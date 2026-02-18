@@ -15,6 +15,8 @@ type PendingOrder = {
 type PendingEventOrder = {
   id: string;
   userId: string;
+  userName: string | null;
+  userEmail: string | null;
   itemCount: number;
   totalPrice: number;
   eventNames: Record<string, string>;
@@ -77,7 +79,7 @@ export default function PendingPaymentsPage() {
       setItems(Array.isArray(data?.items) ? data.items : []);
     } catch (err: any) {
       setError(
-        err?.message || "Não foi possível carregar os pagamentos pendentes."
+        err?.message || "Não foi possível carregar os pagamentos pendentes.",
       );
       setItems([]);
     } finally {
@@ -146,14 +148,14 @@ export default function PendingPaymentsPage() {
     async (
       orderId: string,
       type: "confirm" | "cancel" | "reject",
-      collection: "session" | "event" = "session"
+      collection: "session" | "event" = "session",
     ) => {
       const endpoint =
         type === "confirm"
           ? "confirm"
           : type === "cancel"
-          ? "cancel"
-          : "reject";
+            ? "cancel"
+            : "reject";
       const apiBase =
         collection === "event" ? "event-orders" : "session-orders";
       try {
@@ -178,8 +180,8 @@ export default function PendingPaymentsPage() {
             type === "confirm"
               ? "Pagamento confirmado."
               : type === "cancel"
-              ? "Pagamento cancelado."
-              : "Pagamento rejeitado.",
+                ? "Pagamento cancelado."
+                : "Pagamento rejeitado.",
         });
       } catch (err: any) {
         setToast({
@@ -190,14 +192,14 @@ export default function PendingPaymentsPage() {
         setActioning(null);
       }
     },
-    []
+    [],
   );
 
   const confirmActionPrompt = useCallback(
     (
       orderId: string,
       type: "confirm" | "reject",
-      collection: "session" | "event" = "session"
+      collection: "session" | "event" = "session",
     ) => {
       const messages = {
         confirm: "Tem a certeza que quer confirmar o pagamento?",
@@ -205,7 +207,7 @@ export default function PendingPaymentsPage() {
       };
       setModal({ id: orderId, type, collection, message: messages[type] });
     },
-    [runAction]
+    [runAction],
   );
 
   const normalizedFilter = filter.trim().toLowerCase();
@@ -219,6 +221,16 @@ export default function PendingPaymentsPage() {
       return text.includes(normalizedFilter);
     });
   }, [items, normalizedFilter]);
+
+  const filteredEventPending = useMemo(() => {
+    if (!normalizedFilter) return eventItems;
+    return eventItems.filter((item) => {
+      const text = `${Object.values(item.eventNames || {}).join(" ")} ${
+        item.userName || ""
+      } ${item.userEmail || ""}`.toLowerCase();
+      return text.includes(normalizedFilter);
+    });
+  }, [eventItems, normalizedFilter]);
 
   const filteredHistory = useMemo(() => {
     if (!normalizedFilter) return history;
@@ -237,7 +249,7 @@ export default function PendingPaymentsPage() {
 
   const pendingTotalPages = Math.max(
     1,
-    Math.ceil(filteredPending.length / PAGE_SIZE)
+    Math.ceil(filteredPending.length / PAGE_SIZE),
   );
   const pendingPageSafe = Math.min(pendingPage, pendingTotalPages - 1);
   const pendingHasPrev = pendingPageSafe > 0;
@@ -259,14 +271,14 @@ export default function PendingPaymentsPage() {
     () =>
       filteredPending.slice(
         pendingPageSafe * PAGE_SIZE,
-        pendingPageSafe * PAGE_SIZE + PAGE_SIZE
+        pendingPageSafe * PAGE_SIZE + PAGE_SIZE,
       ),
-    [filteredPending, pendingPageSafe]
+    [filteredPending, pendingPageSafe],
   );
 
   const historyTotalPages = Math.max(
     1,
-    Math.ceil(filteredHistory.length / PAGE_SIZE)
+    Math.ceil(filteredHistory.length / PAGE_SIZE),
   );
   const historyPageSafe = Math.min(historyPage, historyTotalPages - 1);
   const historyHasPrev = historyPageSafe > 0;
@@ -288,9 +300,9 @@ export default function PendingPaymentsPage() {
     () =>
       filteredHistory.slice(
         historyPageSafe * PAGE_SIZE,
-        historyPageSafe * PAGE_SIZE + PAGE_SIZE
+        historyPageSafe * PAGE_SIZE + PAGE_SIZE,
       ),
-    [filteredHistory, historyPageSafe]
+    [filteredHistory, historyPageSafe],
   );
 
   useEffect(() => {
@@ -386,7 +398,7 @@ export default function PendingPaymentsPage() {
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filtrar por nome ou código da sessão"
+              placeholder="Filtrar por nome, sessão ou utilizador"
               className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm text-white placeholder-white/60 focus:border-white/50 focus:outline-none sm:w-72"
             />
           </div>
@@ -492,13 +504,13 @@ export default function PendingPaymentsPage() {
             <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
               Eventos
             </h2>
-            {eventItems.length === 0 ? (
+            {filteredEventPending.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm text-white/60">
                 Sem pedidos de eventos pendentes.
               </div>
             ) : (
               <div className="space-y-4">
-                {eventItems.map((item) => {
+                {filteredEventPending.map((item) => {
                   const eventNameStr =
                     Object.values(item.eventNames || {}).join(", ") || "Evento";
                   return (
@@ -516,6 +528,19 @@ export default function PendingPaymentsPage() {
                           <div className="text-lg font-semibold text-white">
                             {eventNameStr}
                           </div>
+                          {(item.userName || item.userEmail) && (
+                            <div className="text-sm text-white/60">
+                              {item.userName && (
+                                <span className="font-medium text-white/80">
+                                  {item.userName}
+                                </span>
+                              )}
+                              {item.userName && item.userEmail && (
+                                <span className="mx-1">·</span>
+                              )}
+                              {item.userEmail && <span>{item.userEmail}</span>}
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-1 text-sm text-white/70">
                           <div className="font-semibold text-white">
@@ -638,7 +663,7 @@ export default function PendingPaymentsPage() {
                     >
                       {entry + 1}
                     </button>
-                  )
+                  ),
                 )}
               </div>
               <button
@@ -646,7 +671,7 @@ export default function PendingPaymentsPage() {
                 onClick={() =>
                   historyHasNext &&
                   setHistoryPage((prev) =>
-                    Math.min(prev + 1, historyTotalPages - 1)
+                    Math.min(prev + 1, historyTotalPages - 1),
                   )
                 }
                 disabled={!historyHasNext || loading}
