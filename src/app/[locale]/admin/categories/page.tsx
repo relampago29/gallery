@@ -59,22 +59,34 @@ export default function CategoriesAdminPage() {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
-    const res = await fetch("/api/categories/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        description: description.trim() || null,
-      }),
-    });
-    setBusy(false);
-    if (res.ok) {
-      setName("");
-      setDescription("");
-      load();
-      setToast({ type: "success", message: "Categoria criada com sucesso." });
-    } else {
-      setToast({ type: "error", message: "Falha ao criar categoria." });
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/categories/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        setName("");
+        setDescription("");
+        load();
+        setToast({ type: "success", message: "Categoria criada com sucesso." });
+      } else {
+        setToast({ type: "error", message: "Falha ao criar categoria." });
+      }
+    } catch (err: any) {
+      setToast({
+        type: "error",
+        message: err?.message || "Falha ao criar categoria.",
+      });
+    } finally {
+      setBusy(false);
     }
   }
 
