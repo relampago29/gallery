@@ -19,6 +19,7 @@ export type AgendaUser = {
 
 type SaveData = {
   title: string;
+  description: string;
   equipmentIds: string[];
   assignedUsers: AgendaUser[];
   date: string; // "YYYY-MM-DD"
@@ -36,6 +37,7 @@ type Props = {
   allUsers: AgendaUser[];
   initial?: {
     title: string;
+    description: string;
     equipmentIds: string[];
     assignedUsers: AgendaUser[];
     date: string;
@@ -193,6 +195,7 @@ export function EventEditorModal({
   mode,
 }: Props) {
   const [title, setTitle] = useState(initial?.title ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
   const [dateVal, setDateVal] = useState(
     initial?.date ?? toDateString(new Date()),
   );
@@ -210,6 +213,7 @@ export function EventEditorModal({
   useEffect(() => {
     if (open && initial) {
       setTitle(initial.title);
+      setDescription(initial.description);
       setDateVal(initial.date);
       setStartTime(initial.startTime);
       setEndTime(initial.endTime);
@@ -244,6 +248,7 @@ export function EventEditorModal({
     if (!canSave) return;
     onSave({
       title: title.trim(),
+      description: description.trim(),
       equipmentIds,
       assignedUsers,
       date: dateVal,
@@ -285,6 +290,18 @@ export function EventEditorModal({
               placeholder="Ex.: Sessão fotográfica"
               required
               autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className={labelClass}>Descrição</label>
+            <textarea
+              className={`${inputClass} resize-none`}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Detalhes do evento…"
+              rows={3}
             />
           </div>
 

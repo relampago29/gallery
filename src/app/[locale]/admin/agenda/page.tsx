@@ -15,7 +15,14 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
-import { Plus, Trash2, GripVertical, Wrench } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  GripVertical,
+  Wrench,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import { auth } from "@/lib/firebase/client";
 import { DraggableEquipment } from "@/components/admin/agenda/DraggableEquipment";
 import { DroppableEventWrapper } from "@/components/admin/agenda/DroppableEventWrapper";
@@ -46,6 +53,7 @@ const localizer = dateFnsLocalizer({
 type AgendaEvent = {
   id: string;
   title: string;
+  description: string;
   start: Date;
   end: Date;
   equipmentIds: string[];
@@ -126,6 +134,7 @@ function AgendaContent() {
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editorInitial, setEditorInitial] = useState<{
     title: string;
+    description: string;
     equipmentIds: string[];
     assignedUsers: AgendaUser[];
     date: string;
@@ -133,6 +142,9 @@ function AgendaContent() {
     endTime: string;
   } | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
+  /* --- Sidebar toggle --- */
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const calendarRef = useRef<HTMLDivElement>(null);
 
@@ -252,6 +264,7 @@ function AgendaContent() {
       setEditingEventId(null);
       setEditorInitial({
         title: "",
+        description: "",
         equipmentIds: [],
         assignedUsers: [],
         date: toDateString(start),
@@ -268,6 +281,7 @@ function AgendaContent() {
     setEditingEventId(event.id);
     setEditorInitial({
       title: event.title,
+      description: event.description,
       equipmentIds: event.equipmentIds,
       assignedUsers: event.assignedUsers,
       date: toDateString(event.start),
@@ -280,6 +294,7 @@ function AgendaContent() {
   const handleEditorSave = useCallback(
     (data: {
       title: string;
+      description: string;
       equipmentIds: string[];
       assignedUsers: AgendaUser[];
       date: string;
@@ -295,6 +310,7 @@ function AgendaContent() {
           {
             id: uid(),
             title: data.title,
+            description: data.description,
             start: startDate,
             end: endDate,
             equipmentIds: data.equipmentIds,
@@ -310,6 +326,7 @@ function AgendaContent() {
               ? {
                   ...ev,
                   title: data.title,
+                  description: data.description,
                   start: startDate,
                   end: endDate,
                   equipmentIds: data.equipmentIds,
@@ -468,17 +485,35 @@ function AgendaContent() {
       />
 
       {/* Header */}
-      <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-          Admin
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-white">
-          Agenda
-        </h1>
-        <p className="text-sm text-white/70">
-          Clica no calendário para criar eventos. Arrasta equipamento para cima
-          dos eventos para os atribuir.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-3">
+          <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+            Admin
+          </p>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">
+            Agenda
+          </h1>
+          <p className="text-sm text-white/70">
+            Clica no calendário para criar eventos. Arrasta equipamento para
+            cima dos eventos para os atribuir.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSidebarOpen((v) => !v)}
+          className="mt-8 flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs text-white/60 transition hover:bg-white/10 hover:text-white/80"
+          title={sidebarOpen ? "Esconder painel" : "Mostrar painel"}
+        >
+          {sidebarOpen ? (
+            <>
+              <PanelRightClose size={16} /> Esconder
+            </>
+          ) : (
+            <>
+              <PanelRightOpen size={16} /> Painel
+            </>
+          )}
+        </button>
       </header>
 
       {/* Main layout — Calendar LEFT, Sidebar RIGHT */}
@@ -528,109 +563,113 @@ function AgendaContent() {
           </div>
         </div>
 
-        {/* Sidebar — RIGHT */}
-        <aside className="w-full shrink-0 space-y-6 lg:w-72">
-          {/* --- Equipment section --- */}
-          <div className={`${cardClass} p-5`}>
-            <div className="mb-4 flex items-center gap-2">
-              <Wrench size={16} className="text-white/40" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-                Equipamento
-              </h2>
+        {/* Sidebar — RIGHT (collapsible) */}
+        {sidebarOpen && (
+          <aside className="w-full shrink-0 space-y-6 lg:w-72 animate-in slide-in-from-right-4 fade-in duration-200">
+            {/* --- Equipment section --- */}
+            <div className={`${cardClass} p-5`}>
+              <div className="mb-4 flex items-center gap-2">
+                <Wrench size={16} className="text-white/40" />
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                  Equipamento
+                </h2>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  addEquipment();
+                }}
+                className="mb-4 flex gap-2"
+              >
+                <input
+                  value={equipmentInput}
+                  onChange={(e) => setEquipmentInput(e.target.value)}
+                  placeholder="Novo equipamento…"
+                  className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!equipmentInput.trim()}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                  title="Adicionar equipamento"
+                >
+                  <Plus size={16} />
+                </button>
+              </form>
+
+              {equipments.length === 0 ? (
+                <p className="py-3 text-center text-xs text-white/40">
+                  Adiciona equipamento para arrastar para os eventos.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {equipments.map((eq) => (
+                    <DraggableEquipment
+                      key={eq.id}
+                      id={eq.id}
+                      name={eq.name}
+                      onRemove={() => removeEquipment(eq.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                addEquipment();
-              }}
-              className="mb-4 flex gap-2"
-            >
-              <input
-                value={equipmentInput}
-                onChange={(e) => setEquipmentInput(e.target.value)}
-                placeholder="Novo equipamento…"
-                className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!equipmentInput.trim()}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-                title="Adicionar equipamento"
-              >
-                <Plus size={16} />
-              </button>
-            </form>
-
-            {equipments.length === 0 ? (
-              <p className="py-3 text-center text-xs text-white/40">
-                Adiciona equipamento para arrastar para os eventos.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {equipments.map((eq) => (
-                  <DraggableEquipment
-                    key={eq.id}
-                    id={eq.id}
-                    name={eq.name}
-                    onRemove={() => removeEquipment(eq.id)}
-                  />
-                ))}
+            {/* --- Events summary --- */}
+            {events.length > 0 && (
+              <div className={`${cardClass} p-5`}>
+                <div className="mb-3 flex items-center gap-2">
+                  <GripVertical size={14} className="text-white/40" />
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+                    Eventos ({events.length})
+                  </h3>
+                </div>
+                <ul className="space-y-1">
+                  {events.map((ev) => (
+                    <li
+                      key={ev.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5"
+                      onClick={() => handleSelectEvent(ev)}
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: ev.color || "#6366f1",
+                        }}
+                      />
+                      <span className="flex-1 truncate">{ev.title}</span>
+                      {ev.assignedUsers.length > 0 && (
+                        <span className="shrink-0 text-[9px] text-white/40">
+                          {ev.assignedUsers.length}👤
+                        </span>
+                      )}
+                      {ev.equipmentIds.length > 0 && (
+                        <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
+                          {ev.equipmentIds.length}
+                          <Wrench size={8} className="ml-0.5 inline" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEvents((prev) =>
+                            prev.filter((x) => x.id !== ev.id),
+                          );
+                        }}
+                        className="shrink-0 text-white/20 transition hover:text-red-300"
+                        title="Apagar evento"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
-          </div>
-
-          {/* --- Events summary --- */}
-          {events.length > 0 && (
-            <div className={`${cardClass} p-5`}>
-              <div className="mb-3 flex items-center gap-2">
-                <GripVertical size={14} className="text-white/40" />
-                <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
-                  Eventos ({events.length})
-                </h3>
-              </div>
-              <ul className="space-y-1">
-                {events.map((ev) => (
-                  <li
-                    key={ev.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5"
-                    onClick={() => handleSelectEvent(ev)}
-                  >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor: ev.color || "#6366f1",
-                      }}
-                    />
-                    <span className="flex-1 truncate">{ev.title}</span>
-                    {ev.assignedUsers.length > 0 && (
-                      <span className="shrink-0 text-[9px] text-white/40">
-                        {ev.assignedUsers.length}👤
-                      </span>
-                    )}
-                    {ev.equipmentIds.length > 0 && (
-                      <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
-                        {ev.equipmentIds.length}
-                        <Wrench size={8} className="ml-0.5 inline" />
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEvents((prev) => prev.filter((x) => x.id !== ev.id));
-                      }}
-                      className="shrink-0 text-white/20 transition hover:text-red-300"
-                      title="Apagar evento"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );
