@@ -5,16 +5,29 @@ import { Calendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop, {
   EventInteractionArgs,
 } from "react-big-calendar/lib/addons/dragAndDrop";
-import { DndProvider, useDrop } from "react-dnd";
+import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
-import { Plus, CalendarDays, Trash2, GripVertical } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  GripVertical,
+  Users,
+  Wrench,
+  UserPlus,
+} from "lucide-react";
 import {
   DraggableEquipment,
   EQUIPMENT_DND_TYPE,
-  type EquipmentDragItem,
 } from "@/components/admin/agenda/DraggableEquipment";
+import { DroppableEventWrapper } from "@/components/admin/agenda/DroppableEventWrapper";
+import {
+  EventEditorModal,
+  type Resource,
+  type Equipment,
+} from "@/components/admin/agenda/EventEditorModal";
+import { AdminNotification } from "@/components/admin/Notification";
 
 /* ——— CSS imports ——— */
 // @ts-expect-error css modules without type declarations
@@ -38,51 +51,65 @@ type AgendaEvent = {
   title: string;
   start: Date;
   end: Date;
-  equipment?: string;
+  resourceId: string;
+  equipmentIds: string[];
   color?: string;
 };
 
 /* ——— DnD Calendar ——— */
 const DnDCalendar = withDragAndDrop<AgendaEvent>(Calendar);
 
-/* ——— Color palette for events ——— */
-const EVENT_COLORS = [
-  "#6366f1", // indigo
-  "#8b5cf6", // violet
-  "#ec4899", // pink
+/* ——— Color palette ——— */
+const RESOURCE_COLORS = [
+  "#ef4444", // red
+  "#f97316", // orange
+  "#3b82f6", // blue
+  "#22c55e", // green
+  "#a855f7", // purple
   "#f43f5e", // rose
+  "#6366f1", // indigo
   "#14b8a6", // teal
   "#f59e0b", // amber
-  "#10b981", // emerald
-  "#3b82f6", // blue
-  "#ef4444", // red
   "#06b6d4", // cyan
+  "#ec4899", // pink
+  "#8b5cf6", // violet
 ];
-
-function pickColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
-}
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-/* ========================= Inner content (requires DndProvider ancestor) ========================= */
+/* ========================= Inner content ========================= */
 
 function AgendaContent() {
   /* --- State --- */
   const [events, setEvents] = useState<AgendaEvent[]>([]);
-  const [equipments, setEquipments] = useState<string[]>([]);
-  const [eqInput, setEqInput] = useState("");
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [resourceInput, setResourceInput] = useState("");
+  const [equipmentInput, setEquipmentInput] = useState("");
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    message: string;
+  } | null>(null);
+
+  /* --- Event editor modal --- */
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
+  const [editorInitial, setEditorInitial] = useState<{
+    title: string;
+    resourceId: string;
+    equipmentIds: string[];
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+
   const calendarRef = useRef<HTMLDivElement>(null);
 
-  /* --- Messages in PT --- */
+  /* --- Messages PT --- */
   const messages = useMemo(
     () => ({
       today: "Hoje",
@@ -101,50 +128,164 @@ function AgendaContent() {
     [],
   );
 
-  /* --- Add equipment --- */
-  const addEquipment = useCallback(() => {
-    const name = eqInput.trim();
+  /* ---------- Resources ---------- */
+  const addResource = useCallback(() => {
+    const name = resourceInput.trim();
     if (!name) return;
-    if (equipments.some((e) => e.toLowerCase() === name.toLowerCase())) return;
-    setEquipments((prev) => [...prev, name]);
-    setEqInput("");
-  }, [eqInput, equipments]);
+    if (resources.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
+      setToast({ type: "warning", message: `"${name}" já existe.` });
+      return;
+    }
+    const color = RESOURCE_COLORS[resources.length % RESOURCE_COLORS.length];
+    setResources((prev) => [...prev, { id: uid(), name, eventColor: color }]);
+    setResourceInput("");
+  }, [resourceInput, resources]);
 
-  const removeEquipment = useCallback((name: string) => {
-    setEquipments((prev) => prev.filter((e) => e !== name));
+  const removeResource = useCallback((id: string) => {
+    setResources((prev) => prev.filter((r) => r.id !== id));
+    // Remove events tied to this resource
+    setEvents((prev) => prev.filter((ev) => ev.resourceId !== id));
   }, []);
 
-  /* --- Drop from outside --- */
-  const handleDropFromOutside = useCallback(
-    ({ start, end }: { start: string | Date; end: string | Date }) => {
-      // The dragged equipment name is stored in draggedEquipmentRef
-      const name = draggedEquipmentRef.current;
-      if (!name) return;
+  /* ---------- Equipment ---------- */
+  const addEquipment = useCallback(() => {
+    const name = equipmentInput.trim();
+    if (!name) return;
+    if (equipments.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+      setToast({ type: "warning", message: `"${name}" já existe.` });
+      return;
+    }
+    setEquipments((prev) => [...prev, { id: uid(), name }]);
+    setEquipmentInput("");
+  }, [equipmentInput, equipments]);
 
-      const s = new Date(start);
-      const e = new Date(end);
-      if (e.getTime() - s.getTime() < 30 * 60 * 1000) {
-        e.setTime(s.getTime() + 60 * 60 * 1000); // default 1h
-      }
+  const removeEquipment = useCallback((id: string) => {
+    setEquipments((prev) => prev.filter((e) => e.id !== id));
+    // Remove equipment from events
+    setEvents((prev) =>
+      prev.map((ev) => ({
+        ...ev,
+        equipmentIds: ev.equipmentIds.filter((eqId) => eqId !== id),
+      })),
+    );
+  }, []);
 
-      setEvents((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          title: name,
-          start: s,
-          end: e,
-          equipment: name,
-          color: pickColor(name),
-        },
-      ]);
-      draggedEquipmentRef.current = null;
+  /* ---------- Drop equipment onto event ---------- */
+  const handleDropEquipmentOnEvent = useCallback(
+    (eventId: string, equipmentId: string) => {
+      const eq = equipments.find((e) => e.id === equipmentId);
+      setEvents((prev) =>
+        prev.map((ev) => {
+          if (ev.id !== eventId) return ev;
+          if (ev.equipmentIds.includes(equipmentId)) {
+            setToast({
+              type: "warning",
+              message: `${eq?.name || "Equipamento"} já está atribuído a "${ev.title}".`,
+            });
+            return ev;
+          }
+          setToast({
+            type: "success",
+            message: `${eq?.name || "Equipamento"} adicionado a "${ev.title}".`,
+          });
+          return { ...ev, equipmentIds: [...ev.equipmentIds, equipmentId] };
+        }),
+      );
     },
-    [],
+    [equipments],
   );
 
-  /* We use a ref to pass the dragged equipment name to the drop handler */
-  const draggedEquipmentRef = useRef<string | null>(null);
+  /* ---------- Calendar interactions ---------- */
+  const handleSelectSlot = useCallback(
+    ({ start, end }: { start: Date; end: Date }) => {
+      if (resources.length === 0) {
+        setToast({
+          type: "warning",
+          message:
+            "Adiciona pelo menos um recurso (pessoa) antes de criar eventos.",
+        });
+        return;
+      }
+      setEditorMode("create");
+      setEditingEventId(null);
+      setEditorInitial({
+        title: "",
+        resourceId: resources[0]?.id ?? "",
+        equipmentIds: [],
+        start,
+        end,
+      });
+      setEditorOpen(true);
+    },
+    [resources],
+  );
+
+  const handleSelectEvent = useCallback((event: AgendaEvent) => {
+    setEditorMode("edit");
+    setEditingEventId(event.id);
+    setEditorInitial({
+      title: event.title,
+      resourceId: event.resourceId,
+      equipmentIds: event.equipmentIds,
+      start: event.start,
+      end: event.end,
+    });
+    setEditorOpen(true);
+  }, []);
+
+  const handleEditorSave = useCallback(
+    (data: {
+      title: string;
+      resourceId: string;
+      equipmentIds: string[];
+      start: Date;
+      end: Date;
+    }) => {
+      const resource = resources.find((r) => r.id === data.resourceId);
+      if (editorMode === "create") {
+        setEvents((prev) => [
+          ...prev,
+          {
+            id: uid(),
+            title: data.title,
+            start: data.start,
+            end: data.end,
+            resourceId: data.resourceId,
+            equipmentIds: data.equipmentIds,
+            color: resource?.eventColor ?? "#6366f1",
+          },
+        ]);
+        setToast({ type: "success", message: "Evento criado." });
+      } else if (editingEventId) {
+        setEvents((prev) =>
+          prev.map((ev) =>
+            ev.id === editingEventId
+              ? {
+                  ...ev,
+                  title: data.title,
+                  start: data.start,
+                  end: data.end,
+                  resourceId: data.resourceId,
+                  equipmentIds: data.equipmentIds,
+                  color: resource?.eventColor ?? ev.color,
+                }
+              : ev,
+          ),
+        );
+        setToast({ type: "success", message: "Evento atualizado." });
+      }
+      setEditorOpen(false);
+    },
+    [editorMode, editingEventId, resources],
+  );
+
+  const handleEditorDelete = useCallback(() => {
+    if (editingEventId) {
+      setEvents((prev) => prev.filter((ev) => ev.id !== editingEventId));
+      setToast({ type: "success", message: "Evento apagado." });
+    }
+    setEditorOpen(false);
+  }, [editingEventId]);
 
   /* --- Move / Resize --- */
   const handleEventDrop = useCallback(
@@ -175,32 +316,6 @@ function AgendaContent() {
     [],
   );
 
-  /* --- Select slot (click to create) --- */
-  const handleSelectSlot = useCallback(
-    ({ start, end }: { start: Date; end: Date }) => {
-      const title = prompt("Nome do evento:");
-      if (!title) return;
-      setEvents((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          title,
-          start,
-          end,
-          color: pickColor(title),
-        },
-      ]);
-    },
-    [],
-  );
-
-  /* --- Delete event --- */
-  const handleSelectEvent = useCallback((event: AgendaEvent) => {
-    if (confirm(`Apagar "${event.title}"?`)) {
-      setEvents((prev) => prev.filter((ev) => ev.id !== event.id));
-    }
-  }, []);
-
   /* --- Event style --- */
   const eventStyleGetter = useCallback((event: AgendaEvent) => {
     return {
@@ -209,26 +324,46 @@ function AgendaContent() {
         border: "none",
         borderRadius: "8px",
         color: "#fff",
-        fontSize: "0.8rem",
+        fontSize: "0.78rem",
         padding: "2px 6px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
       },
     };
   }, []);
 
-  /* --- Drag from outside: track which equipment is being dragged --- */
-  const handleDragStart = useCallback((name: string) => {
-    draggedEquipmentRef.current = name;
-  }, []);
+  /* --- Custom event component with equipment badges & drop target --- */
+  const EventComponent = useCallback(
+    ({ event }: { event: AgendaEvent }) => {
+      const eqNames = event.equipmentIds
+        .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
+        .filter(Boolean);
 
-  /* --- Drop zone ref for the calendar wrapper --- */
-  const [, dropRef] = useDrop(
-    () => ({
-      accept: EQUIPMENT_DND_TYPE,
-      drop: () => {
-        /* handled by the calendar's onDropFromOutside */
-      },
-    }),
-    [],
+      return (
+        <DroppableEventWrapper
+          eventId={event.id}
+          onDropEquipment={handleDropEquipmentOnEvent}
+        >
+          <div className="flex h-full flex-col gap-0.5 overflow-hidden">
+            <span className="truncate font-medium leading-tight">
+              {event.title}
+            </span>
+            {eqNames.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {eqNames.map((name) => (
+                  <span
+                    key={name}
+                    className="inline-flex items-center rounded-full bg-white/20 px-1.5 py-0 text-[9px] font-medium leading-relaxed"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </DroppableEventWrapper>
+      );
+    },
+    [equipments, handleDropEquipmentOnEvent],
   );
 
   const cardClass =
@@ -236,6 +371,27 @@ function AgendaContent() {
 
   return (
     <div className="space-y-8">
+      {/* Toast */}
+      {toast && (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Event editor modal */}
+      <EventEditorModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSave={handleEditorSave}
+        onDelete={editorMode === "edit" ? handleEditorDelete : undefined}
+        resources={resources}
+        equipments={equipments}
+        initial={editorInitial ?? undefined}
+        mode={editorMode}
+      />
+
       {/* Header */}
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-[0.3em] text-white/60">
@@ -245,90 +401,180 @@ function AgendaContent() {
           Agenda
         </h1>
         <p className="text-sm text-white/70">
-          Arrasta equipamentos para o calendário para criar eventos. Clica num
-          slot vazio para adicionar manualmente.
+          Adiciona recursos (pessoas) e equipamentos. Clica no calendário para
+          criar eventos e arrasta equipamento para cima dos eventos para os
+          atribuir.
         </p>
       </header>
 
       {/* Main layout */}
       <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Sidebar — Equipments */}
-        <aside className={`${cardClass} w-full shrink-0 p-5 lg:w-72`}>
-          <div className="mb-4 flex items-center gap-2">
-            <GripVertical size={16} className="text-white/40" />
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-              Equipamentos
-            </h2>
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              addEquipment();
-            }}
-            className="mb-4 flex gap-2"
-          >
-            <input
-              value={eqInput}
-              onChange={(e) => setEqInput(e.target.value)}
-              placeholder="Novo equipamento…"
-              className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={!eqInput.trim()}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-              title="Adicionar"
-            >
-              <Plus size={16} />
-            </button>
-          </form>
-
-          {equipments.length === 0 ? (
-            <p className="py-4 text-center text-xs text-white/40">
-              Adiciona equipamentos para arrastar para o calendário.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {equipments.map((eq) => (
-                <div key={eq} draggable onDragStart={() => handleDragStart(eq)}>
-                  <DraggableEquipment
-                    name={eq}
-                    onRemove={() => removeEquipment(eq)}
-                  />
-                </div>
-              ))}
+        {/* Sidebar */}
+        <aside className="w-full shrink-0 space-y-6 lg:w-72">
+          {/* --- Resources section --- */}
+          <div className={`${cardClass} p-5`}>
+            <div className="mb-4 flex items-center gap-2">
+              <Users size={16} className="text-white/40" />
+              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                Recursos
+              </h2>
             </div>
-          )}
 
-          {events.length > 0 && (
-            <div className="mt-6 border-t border-white/10 pt-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
-                Eventos ({events.length})
-              </h3>
-              <ul className="space-y-1">
-                {events.map((ev) => (
-                  <li
-                    key={ev.id}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                addResource();
+              }}
+              className="mb-4 flex gap-2"
+            >
+              <input
+                value={resourceInput}
+                onChange={(e) => setResourceInput(e.target.value)}
+                placeholder="Nome da pessoa…"
+                className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!resourceInput.trim()}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                title="Adicionar recurso"
+              >
+                <UserPlus size={14} />
+              </button>
+            </form>
+
+            {resources.length === 0 ? (
+              <p className="py-3 text-center text-xs text-white/40">
+                Adiciona pessoas para atribuir a eventos.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {resources.map((r) => (
+                  <div
+                    key={r.id}
+                    className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-white/5"
                   >
                     <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: ev.color || "#6366f1" }}
+                      className="h-3 w-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: r.eventColor }}
                     />
-                    <span className="flex-1 truncate">{ev.title}</span>
+                    <span className="flex-1 truncate text-sm text-white/85">
+                      {r.name}
+                    </span>
                     <button
                       type="button"
-                      onClick={() =>
-                        setEvents((prev) => prev.filter((e) => e.id !== ev.id))
-                      }
-                      className="shrink-0 text-white/30 transition hover:text-red-300"
-                      title="Apagar evento"
+                      onClick={() => removeResource(r.id)}
+                      className="shrink-0 text-white/20 opacity-0 transition hover:text-red-300 group-hover:opacity-100"
+                      title="Remover"
                     >
                       <Trash2 size={12} />
                     </button>
-                  </li>
+                  </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* --- Equipment section --- */}
+          <div className={`${cardClass} p-5`}>
+            <div className="mb-4 flex items-center gap-2">
+              <Wrench size={16} className="text-white/40" />
+              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                Equipamento
+              </h2>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                addEquipment();
+              }}
+              className="mb-4 flex gap-2"
+            >
+              <input
+                value={equipmentInput}
+                onChange={(e) => setEquipmentInput(e.target.value)}
+                placeholder="Novo equipamento…"
+                className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={!equipmentInput.trim()}
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                title="Adicionar equipamento"
+              >
+                <Plus size={16} />
+              </button>
+            </form>
+
+            {equipments.length === 0 ? (
+              <p className="py-3 text-center text-xs text-white/40">
+                Adiciona equipamento para arrastar para os eventos.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {equipments.map((eq) => (
+                  <DraggableEquipment
+                    key={eq.id}
+                    id={eq.id}
+                    name={eq.name}
+                    onRemove={() => removeEquipment(eq.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* --- Events summary --- */}
+          {events.length > 0 && (
+            <div className={`${cardClass} p-5`}>
+              <div className="mb-3 flex items-center gap-2">
+                <GripVertical size={14} className="text-white/40" />
+                <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+                  Eventos ({events.length})
+                </h3>
+              </div>
+              <ul className="space-y-1">
+                {events.map((ev) => {
+                  const resource = resources.find(
+                    (r) => r.id === ev.resourceId,
+                  );
+                  return (
+                    <li
+                      key={ev.id}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5 cursor-pointer"
+                      onClick={() => handleSelectEvent(ev)}
+                    >
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor:
+                            resource?.eventColor || ev.color || "#6366f1",
+                        }}
+                      />
+                      <span className="flex-1 truncate">{ev.title}</span>
+                      {ev.equipmentIds.length > 0 && (
+                        <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
+                          {ev.equipmentIds.length}
+                          <Wrench size={8} className="ml-0.5 inline" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEvents((prev) =>
+                            prev.filter((x) => x.id !== ev.id),
+                          );
+                        }}
+                        className="shrink-0 text-white/20 transition hover:text-red-300"
+                        title="Apagar evento"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -336,12 +582,7 @@ function AgendaContent() {
 
         {/* Calendar */}
         <div
-          ref={(node) => {
-            dropRef(node);
-            (
-              calendarRef as React.MutableRefObject<HTMLDivElement | null>
-            ).current = node;
-          }}
+          ref={calendarRef}
           className={`${cardClass} flex-1 overflow-hidden p-4`}
         >
           <div className="agenda-calendar" style={{ height: "80vh" }}>
@@ -362,22 +603,22 @@ function AgendaContent() {
               onSelectEvent={handleSelectEvent}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
-              onDropFromOutside={handleDropFromOutside}
-              dragFromOutsideItem={() =>
-                ({
-                  id: "__drag",
-                  title: "",
-                  start: new Date(),
-                  end: new Date(),
-                }) as AgendaEvent
-              }
               eventPropGetter={eventStyleGetter}
+              components={{
+                event: EventComponent as any,
+              }}
               messages={messages}
               culture="pt-BR"
               min={new Date(1970, 0, 1, 7, 0, 0)}
               max={new Date(1970, 0, 1, 22, 0, 0)}
               style={{ height: "100%" }}
-              tooltipAccessor={(ev) => ev.title}
+              tooltipAccessor={(ev) => {
+                const resource = resources.find((r) => r.id === ev.resourceId);
+                const eqNames = ev.equipmentIds
+                  .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
+                  .filter(Boolean);
+                return `${ev.title}${resource ? ` — ${resource.name}` : ""}${eqNames.length ? ` | ${eqNames.join(", ")}` : ""}`;
+              }}
             />
           </div>
         </div>
@@ -386,7 +627,7 @@ function AgendaContent() {
   );
 }
 
-/* ========================= Page wrapper with DndProvider ========================= */
+/* ========================= Page wrapper ========================= */
 
 export default function AgendaPage() {
   return (
