@@ -55,7 +55,14 @@ export function Sidebar() {
   const sections: NavSection[] = [
     {
       label: "Geral",
-      items: [{ label: "Início", href: `${base}`, icon: <Images size={16} /> }],
+      items: [
+        { label: "Início", href: `${base}`, icon: <Images size={16} /> },
+        {
+          label: "Agenda",
+          href: `${base}/agenda`,
+          icon: <CalendarDays size={16} />,
+        },
+      ],
     },
     {
       label: "Portfólio público",
@@ -146,7 +153,7 @@ export function Sidebar() {
         initial[section.label] = true;
       });
       return initial;
-    }
+    },
   );
 
   const toggleSection = (label: string) => {
