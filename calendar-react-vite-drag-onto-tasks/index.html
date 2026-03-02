@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta name="description" content="This example shows how to drag any DOM node and drop it onto a task to update some aspect of it"/>
+	<meta charset="UTF-8">
+	<title>Bryntum Calendar - Drag equipment onto tasks (React + Vite)</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="favicon.png">
+	<link rel="stylesheet" data-bryntum-theme/>
+</head>
+
+<body>
+<div id="root"></div>
+<script>
+	// This script is for internal Bryntum examples browser functionality. Should be removed
+	if (window.location.pathname.includes('/examples/') && !/examples\/.*\/dist/.test(window.location.pathname)) {
+		window.location.href = 'dist/' + window.location.search;
+	}
+	else {
+		document.querySelector('link[data-bryntum-theme=""]').href = "themes/svalbard-light.css";
+	}
+</script>
+<script type="module" src="src/main.tsx"></script>
+</body>
+
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script type="text/javascript">
+const
+	parentWindow = window.opener || window.parent,
+	harness	  = parentWindow?.Siesta?.my.activeHarness,
+	test		 = harness?.ACTIVE_TEST;
+if (test) {
+	window.bryntum = { ...(window.bryntum || {}), isTestEnv : true };
+	test.setupConsoleHook(window);
+	window.addEventListener('error', e => {
+		const message = e.error?.message || e.message;
+		// Skip ResizeObserver and Script errors
+		if (!/(ResizeObserver|Script error)/.test(message)) {
+			test.fail('Error: ' + message);
+		}
+	});
+	const preloadScript = test.getConfigParam('preloadScript');
+	if (preloadScript) {
+		document.write('<script type="text/javascript">' + preloadScript + '<\/script>');
+	}
+}
+</script>
+	<meta property="og:site_name" content="Bryntum">
+	<meta property="og:title" content="Bryntum Calendar - Drag equipment onto tasks (React + Vite)">
+	<meta property="og:description" content="This example shows how to drag any DOM node and drop it onto a task to update some aspect of it">
+	<meta property="og:image" content="https://bryntum.com/products/calendar/examples/frameworks/react-vite/drag-onto-tasks/meta/thumb.2048.png">
+	<meta property="og:url" content="https://bryntum.com/products/calendar/examples/frameworks/react-vite/drag-onto-tasks">
+	<meta name="twitter:site:id" content="@bryntum">
+	<meta name="twitter:title" content="Bryntum Calendar - Drag equipment onto tasks (React + Vite)">
+	<meta name="twitter:description" content="This example shows how to drag any DOM node and drop it onto a task to update some aspect of it">
+	<meta name="twitter:image" content="https://bryntum.com/products/calendar/examples/frameworks/react-vite/drag-onto-tasks/meta/thumb.2048.png">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="description" content="This example shows how to drag any DOM node and drop it onto a task to update some aspect of it"/>
+	<meta charset="UTF-8">
+	<title>Bryntum Calendar - Drag equipment onto tasks (React + Vite)</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="favicon.png">
+	<link rel="stylesheet" data-bryntum-theme/>
+  <script type="module" crossorigin src="./assets/index-Ew-tZu5V.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DinCupzL.css">
+</head>
+
+<body>
+<div id="root"></div>
+<script>
+	// This script is for internal Bryntum examples browser functionality. Should be removed
+	if (window.location.pathname.includes('/examples/') && !/examples\/.*\/dist/.test(window.location.pathname)) {
+		window.location.href = 'dist/' + window.location.search;
+	}
+	else {
+		document.querySelector('link[data-bryntum-theme=""]').href = "themes/svalbard-light.css";
+	}
+</script>
+</body>
+
+</html>

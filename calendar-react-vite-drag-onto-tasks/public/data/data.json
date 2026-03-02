@@ -1,0 +1,175 @@
+{
+  "success"   : true,
+  "resources" : {
+    "rows" : [
+      {
+        "id"         : 1,
+        "name"       : "Arcady",
+        "eventColor" : "red",
+        "role"       : "Field Agent"
+      },
+      {
+        "id"         : 2,
+        "name"       : "Dave",
+        "eventColor" : "orange",
+        "role"       : "Undercover operations"
+      },
+      {
+        "id"         : 3,
+        "name"       : "Henrik",
+        "eventColor" : "blue",
+        "role"       : "Field Agent"
+      },
+      {
+        "id"         : 4,
+        "name"       : "Linda",
+        "eventColor" : "green",
+        "role"       : "Field Agent"
+      },
+      {
+        "id"         : 5,
+        "name"       : "Maxim",
+        "eventColor" : "purple",
+        "role"       : "Captain"
+      },
+      {
+        "id"         : 6,
+        "name"       : "Mike",
+        "eventColor" : "deep-orange",
+        "role"       : "Lieutenant"
+      },
+      {
+        "id"         : 7,
+        "name"       : "Lee",
+        "eventColor" : "gray",
+        "role"       : "Chief Donut Officer"
+      }
+    ]
+  },
+  "events" : {
+    "rows" : [
+      {
+        "id"           : "r1",
+        "resourceId"   : 1,
+        "name"         : "Spy on suspected bank robber",
+        "startDate"    : "2023-10-13T09:00:00",
+        "duration"     : 3,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [
+          3,
+          4
+        ]
+      },
+      {
+        "id"           : "r2",
+        "resourceId"   : 1,
+        "name"         : "Witness interview",
+        "startDate"    : "2023-10-12T15:00:00",
+        "cls"          : "",
+        "duration"     : 2,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [2]
+      },
+      {
+        "id"           : "r3",
+        "resourceId"   : 2,
+        "name"         : "CLASSIFIED",
+        "startDate"    : "2023-10-11T10:00:00",
+        "cls"          : "",
+        "duration"     : 4,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [5]
+      },
+      {
+        "id"           : "r4",
+        "resourceId"   : 3,
+        "name"         : "Press conference",
+        "startDate"    : "2023-10-09T10:00:00",
+        "cls"          : "",
+        "duration"     : 4,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [3]
+      },
+      {
+        "id"           : "r5",
+        "resourceId"   : 7,
+        "name"         : "Get some coffee and donuts",
+        "startDate"    : "2023-10-11T15:00:00",
+        "duration"     : 4,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [7, 2]
+      },
+      {
+        "id"           : "r6",
+        "resourceId"   : 4,
+        "name"         : "Visit crime scene",
+        "startDate"    : "2023-10-10T10:00:00",
+        "cls"          : "Special",
+        "duration"     : 4,
+        "durationUnit" : "h",
+        "draggable"    : true,
+        "resizable"    : true,
+        "equipment"    : [1, 8, 7]
+      }
+    ]
+  },
+  "equipment" : {
+    "rows" : [
+      {
+        "id"      : 1,
+        "name"    : "Video camera",
+        "iconCls" : "fa fa-video"
+      },
+      {
+        "id"      : 2,
+        "name"    : "Microphone",
+        "iconCls" : "fa fa-microphone"
+      },
+      {
+        "id"      : 3,
+        "name"    : "Toolbox",
+        "iconCls" : "fa fa-toolbox"
+      },
+      {
+        "id"      : 4,
+        "name"    : "Surveillance van",
+        "iconCls" : "fa fa-shuttle-van"
+      },
+      {
+        "id"      : 5,
+        "name"    : "Secret device",
+        "iconCls" : "fa fa-question"
+      },
+      {
+        "id"      : 6,
+        "name"    : "Binoculars",
+        "iconCls" : "fa fa-binoculars"
+      },
+      {
+        "id"      : 7,
+        "name"    : "Helicopter",
+        "iconCls" : "fa fa-helicopter"
+      },
+      {
+        "id"      : 8,
+        "name"    : "Hammer",
+        "iconCls" : "fa fa-hammer"
+      },
+      {
+        "id"      : 9,
+        "name"    : "First aid kit",
+        "iconCls" : "fa fa-first-aid"
+      }
+    ]
+  }
+}

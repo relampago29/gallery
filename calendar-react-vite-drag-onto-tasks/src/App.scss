@@ -1,0 +1,128 @@
+/* FontAwesome is not built-in, but used for icons */
+@import "@bryntum/calendar/fontawesome/css/fontawesome.css";
+@import "@bryntum/calendar/fontawesome/css/solid.css";
+
+/* Bryntum structural CSS */
+@import "@bryntum/calendar/calendar.css";
+
+/* Bryntum theme is included in index.html to enable runtime theme switching, but it could instead be included here if you want to use a single theme */
+/* @import "@bryntum/calendar/material3-light.css"; /*
+
+/* Bryntum shared demo styling, not needed in your app */
+@import "@bryntum/demo-resources/scss/example.scss";
+
+.b-grid-cell[data-column="name"] i {
+    margin-inline-end : 0.5em;
+}
+
+body #calendar-container.demo-app {
+    display        : flex;
+    flex           : 1 1 0;
+    overflow-y     : hidden;
+    flex-direction : row;
+
+    > * {
+        height : auto;
+    }
+
+    .b-calendar {
+        flex : 1;
+    }
+
+    .b-equipment-grid {
+        display : flex;
+        flex    : 0 0 180px;
+
+        .b-grid-cell {
+            cursor : pointer;
+        }
+    }
+}
+
+.b-equipment {
+    flex-direction  : column;
+    justify-content : center;
+
+    i {
+        font-size     : 2em;
+        margin-bottom : 0.3em;
+    }
+}
+
+i.b-equipment-icon {
+    color : var(--b-primary);
+
+    &.b-dragging {
+        position        : absolute;
+        display         : flex;
+        align-items     : center;
+        justify-content : center;
+        border-radius   : 50%;
+        opacity         : 1;
+
+        &:not(.b-drag-final-transition) {
+            width      : 3em;
+            height     : 3em;
+            font-size  : 1.2em;
+            background : var(--b-neutral-100);
+
+            box-shadow : var(--b-elevation-1);
+
+            &:not(.b-drag-invalid) {
+                color : var(--b-color-green);
+            }
+        }
+
+    }
+
+    &.b-drag-final-transition {
+        font-size : 1em;
+        width     : 1em;
+        height    : 1em;
+    }
+
+    &.b-drag-final-transition,
+    &.b-aborting {
+        transition-property : transform, font-size, width, height;
+        transition-duration : 0.5s;
+    }
+}
+
+.b-cal-event-startdate {
+    opacity       : 0.6;
+    margin-bottom : 0.2em;
+}
+
+.b-cal-event-name {
+    font-weight : 600;
+    flex        : 1;
+}
+
+.b-event-header,
+.b-event-equipment-wrap {
+    display     : flex;
+    align-items : center;
+}
+
+.b-cal-event .b-event-equipment-wrap {
+    display               : grid;
+    grid-template-columns : repeat(auto-fill, minmax(1.4em, 1fr));
+    padding               : 0;
+    gap                   : 0.25em;
+    flex-shrink           : 0;
+    width                 : 100%;
+    margin                : auto 0 0.25em 0;
+    min-height            : 1.7em;
+
+    li.fa {
+        text-align : center;
+    }
+}
+
+.b-equipment-grid:not(.b-collapsed) .b-panel-header {
+    height : 57px;
+}
+
+.b-filter-bar-field-input {
+    --b-text-field-input-padding : .85em 0;
+}

@@ -1,8 +1,8 @@
 {
-  "total": 6,
-  "passed": 5,
-  "failed": 1,
+  "total": 26,
+  "passed": 26,
+  "failed": 0,
   "skipped": 0,
-  "duration": 1221.259417,
-  "generatedAt": "2026-02-13T23:25:50.824Z"
+  "duration": 1730.2709179999997,
+  "generatedAt": "2026-03-02T20:39:10.623Z"
 }

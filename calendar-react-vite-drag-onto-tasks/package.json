@@ -1,0 +1,60 @@
+{
+  "name": "drag-onto-tasks",
+  "description": "Drag equipment onto tasks (React + Vite)",
+  "version": "7.2.1",
+  "author": {
+    "name": "Bryntum",
+    "url": "https://bryntum.com",
+    "email": "info@bryntum.com"
+  },
+  "license": "commercial",
+  "homepage": "./",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "postinstall": "postinstall"
+  },
+  "postinstall": {
+    "node_modules/@bryntum/demo-resources/images/favicon.png": "copy public/favicon.png",
+    "node_modules/@bryntum/calendar/*.css*": "copy public/themes/",
+    "node_modules/@bryntum/calendar/fontawesome/**": "copy public/themes/fontawesome/"
+  },
+  "dependencies": {
+    "@bryntum/calendar": "npm:@bryntum/calendar-trial@7.2.1",
+    "@bryntum/calendar-react": "7.2.1",
+    "@bryntum/demo-resources": "7.2.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.38",
+    "@types/react-dom": "18.2.17",
+    "@vitejs/plugin-react": "4.2.0",
+    "postinstall": "0.7.4",
+    "sass": "1.78.0",
+    "typescript": "5.3.2",
+    "vite": "5.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  }
+}

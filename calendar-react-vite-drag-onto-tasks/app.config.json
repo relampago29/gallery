@@ -1,0 +1,17 @@
+{
+  "title": "Drag equipment onto tasks (React + Vite)",
+  "description": "This example shows how to drag any DOM node and drop it onto a task to update some aspect of it",
+  "source": [
+    "index.html",
+    "package.json",
+    "public/data/data.json",
+    "src/App.scss",
+    "src/App.tsx",
+    "src/AppConfig.tsx",
+    "src/lib/AppTypes.ts",
+    "src/lib/Drag.ts",
+    "src/main.tsx",
+    "tsconfig.json",
+    "vite.config.mts"
+  ]
+}
