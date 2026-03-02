@@ -124,6 +124,7 @@ function AgendaContent() {
     type: "success" | "error" | "warning" | "info";
     message: string;
   } | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   /* --- All users for the picker --- */
   const [allUsers, setAllUsers] = useState<AgendaUser[]>([]);
@@ -191,6 +192,54 @@ function AgendaContent() {
     };
   }, []);
 
+  /* --- Fetch events & equipment on mount --- */
+  useEffect(() => {
+    let cancelled = false;
+    async function loadData() {
+      setLoadingData(true);
+      try {
+        const token = await getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [evRes, eqRes] = await Promise.all([
+          fetch("/api/agenda/events", { headers }),
+          fetch("/api/agenda/equipment", { headers }),
+        ]);
+
+        if (evRes.ok) {
+          const { items } = await evRes.json();
+          if (!cancelled)
+            setEvents(
+              items.map((e: any) => ({
+                ...e,
+                start: new Date(e.start),
+                end: new Date(e.end),
+              })),
+            );
+        }
+
+        if (eqRes.ok) {
+          const { items } = await eqRes.json();
+          if (!cancelled)
+            setEquipments(items.map((e: any) => ({ id: e.id, name: e.name })));
+        }
+      } catch (err) {
+        console.error("Failed to load agenda data:", err);
+        if (!cancelled)
+          setToast({
+            type: "error",
+            message: "Erro ao carregar dados da agenda.",
+          });
+      } finally {
+        if (!cancelled) setLoadingData(false);
+      }
+    }
+    loadData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   /* --- Messages PT --- */
   const messages = useMemo(
     () => ({
@@ -211,50 +260,115 @@ function AgendaContent() {
   );
 
   /* ---------- Equipment ---------- */
-  const addEquipment = useCallback(() => {
+  const addEquipment = useCallback(async () => {
     const name = equipmentInput.trim();
     if (!name) return;
     if (equipments.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
       setToast({ type: "warning", message: `"${name}" já existe.` });
       return;
     }
-    setEquipments((prev) => [...prev, { id: uid(), name }]);
-    setEquipmentInput("");
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/agenda/equipment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Erro ao criar equipamento.");
+      const { id: newId, name: savedName } = await res.json();
+      setEquipments((prev) => [...prev, { id: newId, name: savedName }]);
+      setEquipmentInput("");
+    } catch (err: any) {
+      setToast({
+        type: "error",
+        message: err?.message || "Erro ao criar equipamento.",
+      });
+    }
   }, [equipmentInput, equipments]);
 
-  const removeEquipment = useCallback((id: string) => {
-    setEquipments((prev) => prev.filter((e) => e.id !== id));
-    setEvents((prev) =>
-      prev.map((ev) => ({
-        ...ev,
-        equipmentIds: ev.equipmentIds.filter((eqId) => eqId !== id),
-      })),
-    );
+  const removeEquipment = useCallback(async (id: string) => {
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/agenda/equipment/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Erro ao apagar equipamento.");
+      setEquipments((prev) => prev.filter((e) => e.id !== id));
+      setEvents((prev) =>
+        prev.map((ev) => ({
+          ...ev,
+          equipmentIds: ev.equipmentIds.filter((eqId) => eqId !== id),
+        })),
+      );
+    } catch (err: any) {
+      setToast({
+        type: "error",
+        message: err?.message || "Erro ao apagar equipamento.",
+      });
+    }
   }, []);
 
   /* ---------- Drop equipment onto event ---------- */
   const handleDropEquipmentOnEvent = useCallback(
-    (eventId: string, equipmentId: string) => {
+    async (eventId: string, equipmentId: string) => {
       const eq = equipments.find((e) => e.id === equipmentId);
+      const ev = events.find((e) => e.id === eventId);
+      if (!ev) return;
+
+      if (ev.equipmentIds.includes(equipmentId)) {
+        setToast({
+          type: "warning",
+          message: `${eq?.name || "Equipamento"} já está atribuído a "${ev.title}".`,
+        });
+        return;
+      }
+
+      const newIds = [...ev.equipmentIds, equipmentId];
+
+      // Optimistic update
       setEvents((prev) =>
-        prev.map((ev) => {
-          if (ev.id !== eventId) return ev;
-          if (ev.equipmentIds.includes(equipmentId)) {
-            setToast({
-              type: "warning",
-              message: `${eq?.name || "Equipamento"} já está atribuído a "${ev.title}".`,
-            });
-            return ev;
-          }
-          setToast({
-            type: "success",
-            message: `${eq?.name || "Equipamento"} adicionado a "${ev.title}".`,
-          });
-          return { ...ev, equipmentIds: [...ev.equipmentIds, equipmentId] };
-        }),
+        prev.map((e) =>
+          e.id === eventId ? { ...e, equipmentIds: newIds } : e,
+        ),
       );
+      setToast({
+        type: "success",
+        message: `${eq?.name || "Equipamento"} adicionado a "${ev.title}".`,
+      });
+
+      try {
+        const token = await getIdToken();
+        const res = await fetch("/api/agenda/events/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            id: eventId,
+            patch: { equipmentIds: newIds },
+          }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Revert
+        setEvents((prev) =>
+          prev.map((e) =>
+            e.id === eventId ? { ...e, equipmentIds: ev.equipmentIds } : e,
+          ),
+        );
+        setToast({ type: "error", message: "Erro ao atualizar evento." });
+      }
     },
-    [equipments],
+    [equipments, events],
   );
 
   /* ---------- Calendar interactions ---------- */
@@ -292,7 +406,7 @@ function AgendaContent() {
   }, []);
 
   const handleEditorSave = useCallback(
-    (data: {
+    async (data: {
       title: string;
       description: string;
       equipmentIds: string[];
@@ -304,80 +418,213 @@ function AgendaContent() {
       const startDate = buildDateFromParts(data.date, data.startTime);
       const endDate = buildDateFromParts(data.date, data.endTime);
 
-      if (editorMode === "create") {
-        setEvents((prev) => [
-          ...prev,
-          {
-            id: uid(),
+      try {
+        const token = await getIdToken();
+        const headers = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        };
+
+        if (editorMode === "create") {
+          const color = pickColor(data.title);
+          const payload = {
             title: data.title,
             description: data.description,
-            start: startDate,
-            end: endDate,
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
             equipmentIds: data.equipmentIds,
             assignedUsers: data.assignedUsers,
-            color: pickColor(data.title),
-          },
-        ]);
-        setToast({ type: "success", message: "Evento criado." });
-      } else if (editingEventId) {
-        setEvents((prev) =>
-          prev.map((ev) =>
-            ev.id === editingEventId
-              ? {
-                  ...ev,
-                  title: data.title,
-                  description: data.description,
-                  start: startDate,
-                  end: endDate,
-                  equipmentIds: data.equipmentIds,
-                  assignedUsers: data.assignedUsers,
-                  color: pickColor(data.title),
-                }
-              : ev,
-          ),
-        );
-        setToast({ type: "success", message: "Evento atualizado." });
+            color,
+          };
+
+          const res = await fetch("/api/agenda/events", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error("Erro ao criar evento.");
+          const { id: newId } = await res.json();
+
+          setEvents((prev) => [
+            ...prev,
+            {
+              id: newId,
+              title: data.title,
+              description: data.description,
+              start: startDate,
+              end: endDate,
+              equipmentIds: data.equipmentIds,
+              assignedUsers: data.assignedUsers,
+              color,
+            },
+          ]);
+          setToast({ type: "success", message: "Evento criado." });
+        } else if (editingEventId) {
+          const color = pickColor(data.title);
+          const patch = {
+            title: data.title,
+            description: data.description,
+            start: startDate.toISOString(),
+            end: endDate.toISOString(),
+            equipmentIds: data.equipmentIds,
+            assignedUsers: data.assignedUsers,
+            color,
+          };
+
+          const res = await fetch("/api/agenda/events/update", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ id: editingEventId, patch }),
+          });
+          if (!res.ok) throw new Error("Erro ao atualizar evento.");
+
+          setEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === editingEventId
+                ? {
+                    ...ev,
+                    title: data.title,
+                    description: data.description,
+                    start: startDate,
+                    end: endDate,
+                    equipmentIds: data.equipmentIds,
+                    assignedUsers: data.assignedUsers,
+                    color,
+                  }
+                : ev,
+            ),
+          );
+          setToast({ type: "success", message: "Evento atualizado." });
+        }
+      } catch (err: any) {
+        setToast({
+          type: "error",
+          message: err?.message || "Erro ao guardar evento.",
+        });
       }
       setEditorOpen(false);
     },
     [editorMode, editingEventId],
   );
 
-  const handleEditorDelete = useCallback(() => {
+  const handleEditorDelete = useCallback(async () => {
     if (editingEventId) {
-      setEvents((prev) => prev.filter((ev) => ev.id !== editingEventId));
-      setToast({ type: "success", message: "Evento apagado." });
+      try {
+        const token = await getIdToken();
+        const res = await fetch("/api/agenda/events/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ id: editingEventId }),
+        });
+        if (!res.ok) throw new Error("Erro ao apagar evento.");
+        setEvents((prev) => prev.filter((ev) => ev.id !== editingEventId));
+        setToast({ type: "success", message: "Evento apagado." });
+      } catch (err: any) {
+        setToast({
+          type: "error",
+          message: err?.message || "Erro ao apagar evento.",
+        });
+      }
     }
     setEditorOpen(false);
   }, [editingEventId]);
 
   /* --- Move / Resize --- */
   const handleEventDrop = useCallback(
-    (args: EventInteractionArgs<AgendaEvent>) => {
+    async (args: EventInteractionArgs<AgendaEvent>) => {
       const { event, start, end } = args;
+      const newStart = new Date(start);
+      const newEnd = new Date(end);
+      const oldEvent = events.find((e) => e.id === event.id);
+
+      // Optimistic update
       setEvents((prev) =>
         prev.map((ev) =>
-          ev.id === event.id
-            ? { ...ev, start: new Date(start), end: new Date(end) }
-            : ev,
+          ev.id === event.id ? { ...ev, start: newStart, end: newEnd } : ev,
         ),
       );
+
+      try {
+        const token = await getIdToken();
+        const res = await fetch("/api/agenda/events/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            id: event.id,
+            patch: {
+              start: newStart.toISOString(),
+              end: newEnd.toISOString(),
+            },
+          }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Revert
+        if (oldEvent)
+          setEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === event.id
+                ? { ...ev, start: oldEvent.start, end: oldEvent.end }
+                : ev,
+            ),
+          );
+        setToast({ type: "error", message: "Erro ao mover evento." });
+      }
     },
-    [],
+    [events],
   );
 
   const handleEventResize = useCallback(
-    (args: EventInteractionArgs<AgendaEvent>) => {
+    async (args: EventInteractionArgs<AgendaEvent>) => {
       const { event, start, end } = args;
+      const newStart = new Date(start);
+      const newEnd = new Date(end);
+      const oldEvent = events.find((e) => e.id === event.id);
+
+      // Optimistic update
       setEvents((prev) =>
         prev.map((ev) =>
-          ev.id === event.id
-            ? { ...ev, start: new Date(start), end: new Date(end) }
-            : ev,
+          ev.id === event.id ? { ...ev, start: newStart, end: newEnd } : ev,
         ),
       );
+
+      try {
+        const token = await getIdToken();
+        const res = await fetch("/api/agenda/events/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            id: event.id,
+            patch: {
+              start: newStart.toISOString(),
+              end: newEnd.toISOString(),
+            },
+          }),
+        });
+        if (!res.ok) throw new Error();
+      } catch {
+        // Revert
+        if (oldEvent)
+          setEvents((prev) =>
+            prev.map((ev) =>
+              ev.id === event.id
+                ? { ...ev, start: oldEvent.start, end: oldEvent.end }
+                : ev,
+            ),
+          );
+        setToast({ type: "error", message: "Erro ao redimensionar evento." });
+      }
     },
-    [],
+    [events],
   );
 
   /* --- Event style --- */
@@ -516,161 +763,191 @@ function AgendaContent() {
         </button>
       </header>
 
-      {/* Main layout — Calendar LEFT, Sidebar RIGHT */}
-      <div className="flex flex-col-reverse gap-6 lg:flex-row">
-        {/* Calendar */}
-        <div
-          ref={calendarRef}
-          className={`${cardClass} flex-1 overflow-hidden p-4`}
-        >
-          <div className="agenda-calendar" style={{ height: "80vh" }}>
-            <DnDCalendar
-              localizer={localizer}
-              events={events}
-              view={view}
-              onView={setView}
-              date={date}
-              onNavigate={setDate}
-              defaultView="week"
-              views={["month", "week", "day", "agenda"]}
-              step={30}
-              timeslots={2}
-              selectable
-              resizable
-              onSelectSlot={handleSelectSlot}
-              onSelectEvent={handleSelectEvent}
-              onEventDrop={handleEventDrop}
-              onEventResize={handleEventResize}
-              eventPropGetter={eventStyleGetter}
-              components={{
-                event: EventComponent as any,
-              }}
-              messages={messages}
-              culture="pt-BR"
-              min={new Date(1970, 0, 1, 7, 0, 0)}
-              max={new Date(1970, 0, 1, 22, 0, 0)}
-              style={{ height: "100%" }}
-              tooltipAccessor={(ev) => {
-                const eqNames = ev.equipmentIds
-                  .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
-                  .filter(Boolean);
-                const userNames = ev.assignedUsers
-                  .map((u) => u.displayName || u.email)
-                  .filter(Boolean);
-                return `${ev.title}${userNames.length ? ` — ${userNames.join(", ")}` : ""}${eqNames.length ? ` | ${eqNames.join(", ")}` : ""}`;
-              }}
-            />
-          </div>
+      {/* Loading overlay */}
+      {loadingData && (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+          <span className="ml-3 text-sm text-white/60">A carregar agenda…</span>
         </div>
+      )}
 
-        {/* Sidebar — RIGHT (collapsible) */}
-        {sidebarOpen && (
-          <aside className="w-full shrink-0 space-y-6 lg:w-72 animate-in slide-in-from-right-4 fade-in duration-200">
-            {/* --- Equipment section --- */}
-            <div className={`${cardClass} p-5`}>
-              <div className="mb-4 flex items-center gap-2">
-                <Wrench size={16} className="text-white/40" />
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-                  Equipamento
-                </h2>
+      {/* Main layout — Calendar LEFT, Sidebar RIGHT */}
+      {!loadingData && (
+        <div className="flex flex-col-reverse gap-6 lg:flex-row">
+          {/* Calendar */}
+          <div
+            ref={calendarRef}
+            className={`${cardClass} flex-1 overflow-hidden p-4`}
+          >
+            <div className="agenda-calendar" style={{ height: "80vh" }}>
+              <DnDCalendar
+                localizer={localizer}
+                events={events}
+                view={view}
+                onView={setView}
+                date={date}
+                onNavigate={setDate}
+                defaultView="week"
+                views={["month", "week", "day", "agenda"]}
+                step={30}
+                timeslots={2}
+                selectable
+                resizable
+                onSelectSlot={handleSelectSlot}
+                onSelectEvent={handleSelectEvent}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
+                eventPropGetter={eventStyleGetter}
+                components={{
+                  event: EventComponent as any,
+                }}
+                messages={messages}
+                culture="pt-BR"
+                min={new Date(1970, 0, 1, 7, 0, 0)}
+                max={new Date(1970, 0, 1, 22, 0, 0)}
+                style={{ height: "100%" }}
+                tooltipAccessor={(ev) => {
+                  const eqNames = ev.equipmentIds
+                    .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
+                    .filter(Boolean);
+                  const userNames = ev.assignedUsers
+                    .map((u) => u.displayName || u.email)
+                    .filter(Boolean);
+                  return `${ev.title}${userNames.length ? ` — ${userNames.join(", ")}` : ""}${eqNames.length ? ` | ${eqNames.join(", ")}` : ""}`;
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Sidebar — RIGHT (collapsible) */}
+          {sidebarOpen && (
+            <aside className="w-full shrink-0 space-y-6 lg:w-72 animate-in slide-in-from-right-4 fade-in duration-200">
+              {/* --- Equipment section --- */}
+              <div className={`${cardClass} p-5`}>
+                <div className="mb-4 flex items-center gap-2">
+                  <Wrench size={16} className="text-white/40" />
+                  <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                    Equipamento
+                  </h2>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addEquipment();
+                  }}
+                  className="mb-4 flex gap-2"
+                >
+                  <input
+                    value={equipmentInput}
+                    onChange={(e) => setEquipmentInput(e.target.value)}
+                    placeholder="Novo equipamento…"
+                    className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!equipmentInput.trim()}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                    title="Adicionar equipamento"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </form>
+
+                {equipments.length === 0 ? (
+                  <p className="py-3 text-center text-xs text-white/40">
+                    Adiciona equipamento para arrastar para os eventos.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {equipments.map((eq) => (
+                      <DraggableEquipment
+                        key={eq.id}
+                        id={eq.id}
+                        name={eq.name}
+                        onRemove={() => removeEquipment(eq.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  addEquipment();
-                }}
-                className="mb-4 flex gap-2"
-              >
-                <input
-                  value={equipmentInput}
-                  onChange={(e) => setEquipmentInput(e.target.value)}
-                  placeholder="Novo equipamento…"
-                  className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!equipmentInput.trim()}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-                  title="Adicionar equipamento"
-                >
-                  <Plus size={16} />
-                </button>
-              </form>
-
-              {equipments.length === 0 ? (
-                <p className="py-3 text-center text-xs text-white/40">
-                  Adiciona equipamento para arrastar para os eventos.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {equipments.map((eq) => (
-                    <DraggableEquipment
-                      key={eq.id}
-                      id={eq.id}
-                      name={eq.name}
-                      onRemove={() => removeEquipment(eq.id)}
-                    />
-                  ))}
+              {/* --- Events summary --- */}
+              {events.length > 0 && (
+                <div className={`${cardClass} p-5`}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <GripVertical size={14} className="text-white/40" />
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
+                      Eventos ({events.length})
+                    </h3>
+                  </div>
+                  <ul className="space-y-1">
+                    {events.map((ev) => (
+                      <li
+                        key={ev.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5"
+                        onClick={() => handleSelectEvent(ev)}
+                      >
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{
+                            backgroundColor: ev.color || "#6366f1",
+                          }}
+                        />
+                        <span className="flex-1 truncate">{ev.title}</span>
+                        {ev.assignedUsers.length > 0 && (
+                          <span className="shrink-0 text-[9px] text-white/40">
+                            {ev.assignedUsers.length}👤
+                          </span>
+                        )}
+                        {ev.equipmentIds.length > 0 && (
+                          <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
+                            {ev.equipmentIds.length}
+                            <Wrench size={8} className="ml-0.5 inline" />
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const token = await getIdToken();
+                              const res = await fetch(
+                                "/api/agenda/events/delete",
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${token}`,
+                                  },
+                                  body: JSON.stringify({ id: ev.id }),
+                                },
+                              );
+                              if (!res.ok) throw new Error();
+                              setEvents((prev) =>
+                                prev.filter((x) => x.id !== ev.id),
+                              );
+                            } catch {
+                              setToast({
+                                type: "error",
+                                message: "Erro ao apagar evento.",
+                              });
+                            }
+                          }}
+                          className="shrink-0 text-white/20 transition hover:text-red-300"
+                          title="Apagar evento"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
-            </div>
-
-            {/* --- Events summary --- */}
-            {events.length > 0 && (
-              <div className={`${cardClass} p-5`}>
-                <div className="mb-3 flex items-center gap-2">
-                  <GripVertical size={14} className="text-white/40" />
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.15em] text-white/50">
-                    Eventos ({events.length})
-                  </h3>
-                </div>
-                <ul className="space-y-1">
-                  {events.map((ev) => (
-                    <li
-                      key={ev.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5"
-                      onClick={() => handleSelectEvent(ev)}
-                    >
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor: ev.color || "#6366f1",
-                        }}
-                      />
-                      <span className="flex-1 truncate">{ev.title}</span>
-                      {ev.assignedUsers.length > 0 && (
-                        <span className="shrink-0 text-[9px] text-white/40">
-                          {ev.assignedUsers.length}👤
-                        </span>
-                      )}
-                      {ev.equipmentIds.length > 0 && (
-                        <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
-                          {ev.equipmentIds.length}
-                          <Wrench size={8} className="ml-0.5 inline" />
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEvents((prev) =>
-                            prev.filter((x) => x.id !== ev.id),
-                          );
-                        }}
-                        className="shrink-0 text-white/20 transition hover:text-red-300"
-                        title="Apagar evento"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </aside>
-        )}
-      </div>
+            </aside>
+          )}
+        </div>
+      )}
     </div>
   );
 }
