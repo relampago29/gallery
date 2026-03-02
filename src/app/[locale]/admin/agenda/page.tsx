@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useMemo, useState, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import { Calendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop, {
   EventInteractionArgs,
@@ -9,23 +15,14 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
-import {
-  Plus,
-  Trash2,
-  GripVertical,
-  Users,
-  Wrench,
-  UserPlus,
-} from "lucide-react";
-import {
-  DraggableEquipment,
-  EQUIPMENT_DND_TYPE,
-} from "@/components/admin/agenda/DraggableEquipment";
+import { Plus, Trash2, GripVertical, Wrench } from "lucide-react";
+import { auth } from "@/lib/firebase/client";
+import { DraggableEquipment } from "@/components/admin/agenda/DraggableEquipment";
 import { DroppableEventWrapper } from "@/components/admin/agenda/DroppableEventWrapper";
 import {
   EventEditorModal,
-  type Resource,
   type Equipment,
+  type AgendaUser,
 } from "@/components/admin/agenda/EventEditorModal";
 import { AdminNotification } from "@/components/admin/Notification";
 
@@ -51,8 +48,8 @@ type AgendaEvent = {
   title: string;
   start: Date;
   end: Date;
-  resourceId: string;
   equipmentIds: string[];
+  assignedUsers: AgendaUser[];
   color?: string;
 };
 
@@ -60,23 +57,50 @@ type AgendaEvent = {
 const DnDCalendar = withDragAndDrop<AgendaEvent>(Calendar);
 
 /* ——— Color palette ——— */
-const RESOURCE_COLORS = [
-  "#ef4444", // red
-  "#f97316", // orange
-  "#3b82f6", // blue
-  "#22c55e", // green
-  "#a855f7", // purple
-  "#f43f5e", // rose
+const EVENT_COLORS = [
   "#6366f1", // indigo
+  "#3b82f6", // blue
+  "#a855f7", // purple
   "#14b8a6", // teal
+  "#f43f5e", // rose
   "#f59e0b", // amber
-  "#06b6d4", // cyan
+  "#22c55e", // green
+  "#ef4444", // red
   "#ec4899", // pink
-  "#8b5cf6", // violet
+  "#06b6d4", // cyan
 ];
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function pickColor(title: string) {
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    hash = title.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return EVENT_COLORS[Math.abs(hash) % EVENT_COLORS.length];
+}
+
+/* ——— Helpers ——— */
+function toDateString(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toTimeString(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function buildDateFromParts(dateStr: string, timeStr: string) {
+  return new Date(`${dateStr}T${timeStr}:00`);
+}
+
+async function getIdToken() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Inicia sessão para continuar.");
+  return user.getIdToken();
 }
 
 /* ========================= Inner content ========================= */
@@ -84,9 +108,7 @@ function uid() {
 function AgendaContent() {
   /* --- State --- */
   const [events, setEvents] = useState<AgendaEvent[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
-  const [resourceInput, setResourceInput] = useState("");
   const [equipmentInput, setEquipmentInput] = useState("");
   const [view, setView] = useState<View>("week");
   const [date, setDate] = useState(new Date());
@@ -95,19 +117,67 @@ function AgendaContent() {
     message: string;
   } | null>(null);
 
+  /* --- All users for the picker --- */
+  const [allUsers, setAllUsers] = useState<AgendaUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
   /* --- Event editor modal --- */
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editorInitial, setEditorInitial] = useState<{
     title: string;
-    resourceId: string;
     equipmentIds: string[];
-    start: Date;
-    end: Date;
+    assignedUsers: AgendaUser[];
+    date: string;
+    startTime: string;
+    endTime: string;
   } | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  /* --- Fetch all users on mount --- */
+  useEffect(() => {
+    let cancelled = false;
+    async function loadAllUsers() {
+      setUsersLoading(true);
+      try {
+        const token = await getIdToken();
+        const fetched: AgendaUser[] = [];
+        let pageToken: string | null = null;
+
+        // Paginate through all users
+        do {
+          const url = new URL("/api/users", window.location.origin);
+          if (pageToken) url.searchParams.set("pageToken", pageToken);
+          const res = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          for (const u of data.users) {
+            fetched.push({
+              uid: u.uid,
+              email: u.email,
+              displayName: u.displayName,
+              photoURL: u.photoURL,
+            });
+          }
+          pageToken = data.nextPageToken ?? null;
+        } while (pageToken);
+
+        if (!cancelled) setAllUsers(fetched);
+      } catch {
+        // silent — users just won't appear in the picker
+      } finally {
+        if (!cancelled) setUsersLoading(false);
+      }
+    }
+    loadAllUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* --- Messages PT --- */
   const messages = useMemo(
@@ -128,25 +198,6 @@ function AgendaContent() {
     [],
   );
 
-  /* ---------- Resources ---------- */
-  const addResource = useCallback(() => {
-    const name = resourceInput.trim();
-    if (!name) return;
-    if (resources.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
-      setToast({ type: "warning", message: `"${name}" já existe.` });
-      return;
-    }
-    const color = RESOURCE_COLORS[resources.length % RESOURCE_COLORS.length];
-    setResources((prev) => [...prev, { id: uid(), name, eventColor: color }]);
-    setResourceInput("");
-  }, [resourceInput, resources]);
-
-  const removeResource = useCallback((id: string) => {
-    setResources((prev) => prev.filter((r) => r.id !== id));
-    // Remove events tied to this resource
-    setEvents((prev) => prev.filter((ev) => ev.resourceId !== id));
-  }, []);
-
   /* ---------- Equipment ---------- */
   const addEquipment = useCallback(() => {
     const name = equipmentInput.trim();
@@ -161,7 +212,6 @@ function AgendaContent() {
 
   const removeEquipment = useCallback((id: string) => {
     setEquipments((prev) => prev.filter((e) => e.id !== id));
-    // Remove equipment from events
     setEvents((prev) =>
       prev.map((ev) => ({
         ...ev,
@@ -198,26 +248,19 @@ function AgendaContent() {
   /* ---------- Calendar interactions ---------- */
   const handleSelectSlot = useCallback(
     ({ start, end }: { start: Date; end: Date }) => {
-      if (resources.length === 0) {
-        setToast({
-          type: "warning",
-          message:
-            "Adiciona pelo menos um recurso (pessoa) antes de criar eventos.",
-        });
-        return;
-      }
       setEditorMode("create");
       setEditingEventId(null);
       setEditorInitial({
         title: "",
-        resourceId: resources[0]?.id ?? "",
         equipmentIds: [],
-        start,
-        end,
+        assignedUsers: [],
+        date: toDateString(start),
+        startTime: toTimeString(start),
+        endTime: toTimeString(end),
       });
       setEditorOpen(true);
     },
-    [resources],
+    [],
   );
 
   const handleSelectEvent = useCallback((event: AgendaEvent) => {
@@ -225,10 +268,11 @@ function AgendaContent() {
     setEditingEventId(event.id);
     setEditorInitial({
       title: event.title,
-      resourceId: event.resourceId,
       equipmentIds: event.equipmentIds,
-      start: event.start,
-      end: event.end,
+      assignedUsers: event.assignedUsers,
+      date: toDateString(event.start),
+      startTime: toTimeString(event.start),
+      endTime: toTimeString(event.end),
     });
     setEditorOpen(true);
   }, []);
@@ -236,23 +280,26 @@ function AgendaContent() {
   const handleEditorSave = useCallback(
     (data: {
       title: string;
-      resourceId: string;
       equipmentIds: string[];
-      start: Date;
-      end: Date;
+      assignedUsers: AgendaUser[];
+      date: string;
+      startTime: string;
+      endTime: string;
     }) => {
-      const resource = resources.find((r) => r.id === data.resourceId);
+      const startDate = buildDateFromParts(data.date, data.startTime);
+      const endDate = buildDateFromParts(data.date, data.endTime);
+
       if (editorMode === "create") {
         setEvents((prev) => [
           ...prev,
           {
             id: uid(),
             title: data.title,
-            start: data.start,
-            end: data.end,
-            resourceId: data.resourceId,
+            start: startDate,
+            end: endDate,
             equipmentIds: data.equipmentIds,
-            color: resource?.eventColor ?? "#6366f1",
+            assignedUsers: data.assignedUsers,
+            color: pickColor(data.title),
           },
         ]);
         setToast({ type: "success", message: "Evento criado." });
@@ -263,11 +310,11 @@ function AgendaContent() {
               ? {
                   ...ev,
                   title: data.title,
-                  start: data.start,
-                  end: data.end,
-                  resourceId: data.resourceId,
+                  start: startDate,
+                  end: endDate,
                   equipmentIds: data.equipmentIds,
-                  color: resource?.eventColor ?? ev.color,
+                  assignedUsers: data.assignedUsers,
+                  color: pickColor(data.title),
                 }
               : ev,
           ),
@@ -276,7 +323,7 @@ function AgendaContent() {
       }
       setEditorOpen(false);
     },
-    [editorMode, editingEventId, resources],
+    [editorMode, editingEventId],
   );
 
   const handleEditorDelete = useCallback(() => {
@@ -347,6 +394,34 @@ function AgendaContent() {
             <span className="truncate font-medium leading-tight">
               {event.title}
             </span>
+            {/* Assigned users */}
+            {event.assignedUsers.length > 0 && (
+              <div className="flex -space-x-1">
+                {event.assignedUsers.slice(0, 3).map((u) =>
+                  u.photoURL ? (
+                    <img
+                      key={u.uid}
+                      src={u.photoURL}
+                      alt=""
+                      className="h-4 w-4 rounded-full border border-black/30 object-cover"
+                    />
+                  ) : (
+                    <span
+                      key={u.uid}
+                      className="flex h-4 w-4 items-center justify-center rounded-full border border-black/30 bg-white/20 text-[7px] font-bold uppercase"
+                    >
+                      {(u.displayName || u.email || "?")[0]}
+                    </span>
+                  ),
+                )}
+                {event.assignedUsers.length > 3 && (
+                  <span className="flex h-4 items-center pl-2 text-[8px] opacity-70">
+                    +{event.assignedUsers.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+            {/* Equipment badges */}
             {eqNames.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {eqNames.map((name) => (
@@ -386,8 +461,8 @@ function AgendaContent() {
         onClose={() => setEditorOpen(false)}
         onSave={handleEditorSave}
         onDelete={editorMode === "edit" ? handleEditorDelete : undefined}
-        resources={resources}
         equipments={equipments}
+        allUsers={allUsers}
         initial={editorInitial ?? undefined}
         mode={editorMode}
       />
@@ -401,80 +476,60 @@ function AgendaContent() {
           Agenda
         </h1>
         <p className="text-sm text-white/70">
-          Adiciona recursos (pessoas) e equipamentos. Clica no calendário para
-          criar eventos e arrasta equipamento para cima dos eventos para os
-          atribuir.
+          Clica no calendário para criar eventos. Arrasta equipamento para cima
+          dos eventos para os atribuir.
         </p>
       </header>
 
-      {/* Main layout */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Sidebar */}
-        <aside className="w-full shrink-0 space-y-6 lg:w-72">
-          {/* --- Resources section --- */}
-          <div className={`${cardClass} p-5`}>
-            <div className="mb-4 flex items-center gap-2">
-              <Users size={16} className="text-white/40" />
-              <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-                Recursos
-              </h2>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                addResource();
+      {/* Main layout — Calendar LEFT, Sidebar RIGHT */}
+      <div className="flex flex-col-reverse gap-6 lg:flex-row">
+        {/* Calendar */}
+        <div
+          ref={calendarRef}
+          className={`${cardClass} flex-1 overflow-hidden p-4`}
+        >
+          <div className="agenda-calendar" style={{ height: "80vh" }}>
+            <DnDCalendar
+              localizer={localizer}
+              events={events}
+              view={view}
+              onView={setView}
+              date={date}
+              onNavigate={setDate}
+              defaultView="week"
+              views={["month", "week", "day", "agenda"]}
+              step={30}
+              timeslots={2}
+              selectable
+              resizable
+              onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              eventPropGetter={eventStyleGetter}
+              components={{
+                event: EventComponent as any,
               }}
-              className="mb-4 flex gap-2"
-            >
-              <input
-                value={resourceInput}
-                onChange={(e) => setResourceInput(e.target.value)}
-                placeholder="Nome da pessoa…"
-                className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!resourceInput.trim()}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-                title="Adicionar recurso"
-              >
-                <UserPlus size={14} />
-              </button>
-            </form>
-
-            {resources.length === 0 ? (
-              <p className="py-3 text-center text-xs text-white/40">
-                Adiciona pessoas para atribuir a eventos.
-              </p>
-            ) : (
-              <div className="space-y-1.5">
-                {resources.map((r) => (
-                  <div
-                    key={r.id}
-                    className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition hover:bg-white/5"
-                  >
-                    <span
-                      className="h-3 w-3 shrink-0 rounded-full"
-                      style={{ backgroundColor: r.eventColor }}
-                    />
-                    <span className="flex-1 truncate text-sm text-white/85">
-                      {r.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeResource(r.id)}
-                      className="shrink-0 text-white/20 opacity-0 transition hover:text-red-300 group-hover:opacity-100"
-                      title="Remover"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+              messages={messages}
+              culture="pt-BR"
+              min={new Date(1970, 0, 1, 7, 0, 0)}
+              max={new Date(1970, 0, 1, 22, 0, 0)}
+              style={{ height: "100%" }}
+              tooltipAccessor={(ev) => {
+                const eqNames = ev.equipmentIds
+                  .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
+                  .filter(Boolean);
+                const userNames = ev.assignedUsers
+                  .map((u) => u.displayName || u.email)
+                  .filter(Boolean);
+                return `${ev.title}${userNames.length ? ` — ${userNames.join(", ")}` : ""}${eqNames.length ? ` | ${eqNames.join(", ")}` : ""}`;
+              }}
+            />
           </div>
+        </div>
 
+        {/* Sidebar — RIGHT */}
+        <aside className="w-full shrink-0 space-y-6 lg:w-72">
           {/* --- Equipment section --- */}
           <div className={`${cardClass} p-5`}>
             <div className="mb-4 flex items-center gap-2">
@@ -535,93 +590,47 @@ function AgendaContent() {
                 </h3>
               </div>
               <ul className="space-y-1">
-                {events.map((ev) => {
-                  const resource = resources.find(
-                    (r) => r.id === ev.resourceId,
-                  );
-                  return (
-                    <li
-                      key={ev.id}
-                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5 cursor-pointer"
-                      onClick={() => handleSelectEvent(ev)}
+                {events.map((ev) => (
+                  <li
+                    key={ev.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-white/70 transition hover:bg-white/5"
+                    onClick={() => handleSelectEvent(ev)}
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{
+                        backgroundColor: ev.color || "#6366f1",
+                      }}
+                    />
+                    <span className="flex-1 truncate">{ev.title}</span>
+                    {ev.assignedUsers.length > 0 && (
+                      <span className="shrink-0 text-[9px] text-white/40">
+                        {ev.assignedUsers.length}👤
+                      </span>
+                    )}
+                    {ev.equipmentIds.length > 0 && (
+                      <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
+                        {ev.equipmentIds.length}
+                        <Wrench size={8} className="ml-0.5 inline" />
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEvents((prev) => prev.filter((x) => x.id !== ev.id));
+                      }}
+                      className="shrink-0 text-white/20 transition hover:text-red-300"
+                      title="Apagar evento"
                     >
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor:
-                            resource?.eventColor || ev.color || "#6366f1",
-                        }}
-                      />
-                      <span className="flex-1 truncate">{ev.title}</span>
-                      {ev.equipmentIds.length > 0 && (
-                        <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] text-white/50">
-                          {ev.equipmentIds.length}
-                          <Wrench size={8} className="ml-0.5 inline" />
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEvents((prev) =>
-                            prev.filter((x) => x.id !== ev.id),
-                          );
-                        }}
-                        className="shrink-0 text-white/20 transition hover:text-red-300"
-                        title="Apagar evento"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-                    </li>
-                  );
-                })}
+                      <Trash2 size={11} />
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
           )}
         </aside>
-
-        {/* Calendar */}
-        <div
-          ref={calendarRef}
-          className={`${cardClass} flex-1 overflow-hidden p-4`}
-        >
-          <div className="agenda-calendar" style={{ height: "80vh" }}>
-            <DnDCalendar
-              localizer={localizer}
-              events={events}
-              view={view}
-              onView={setView}
-              date={date}
-              onNavigate={setDate}
-              defaultView="week"
-              views={["month", "week", "day", "agenda"]}
-              step={30}
-              timeslots={2}
-              selectable
-              resizable
-              onSelectSlot={handleSelectSlot}
-              onSelectEvent={handleSelectEvent}
-              onEventDrop={handleEventDrop}
-              onEventResize={handleEventResize}
-              eventPropGetter={eventStyleGetter}
-              components={{
-                event: EventComponent as any,
-              }}
-              messages={messages}
-              culture="pt-BR"
-              min={new Date(1970, 0, 1, 7, 0, 0)}
-              max={new Date(1970, 0, 1, 22, 0, 0)}
-              style={{ height: "100%" }}
-              tooltipAccessor={(ev) => {
-                const resource = resources.find((r) => r.id === ev.resourceId);
-                const eqNames = ev.equipmentIds
-                  .map((eqId) => equipments.find((e) => e.id === eqId)?.name)
-                  .filter(Boolean);
-                return `${ev.title}${resource ? ` — ${resource.name}` : ""}${eqNames.length ? ` | ${eqNames.join(", ")}` : ""}`;
-              }}
-            />
-          </div>
-        </div>
       </div>
     </div>
   );
