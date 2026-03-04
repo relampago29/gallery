@@ -3,6 +3,7 @@
 import { getTranslations } from "next-intl/server";
 import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
 import { DownloadAllButton } from "@/components/sessions/DownloadAllButton";
+import { SessionPhotoGrid } from "@/components/sessions/SessionPhotoGrid";
 import { clampHours } from "@/lib/sessions/share";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +62,7 @@ function sanitizeFilename(input: string) {
 function buildDownloadName(
   masterPath: string,
   title?: string | null,
-  fallback?: string
+  fallback?: string,
 ) {
   const ext = masterPath.includes(".")
     ? masterPath.split(".").pop() || "jpg"
@@ -83,7 +84,7 @@ function buildDownloadName(
 async function listSessionFiles(
   sessionId: string,
 
-  hours: number
+  hours: number,
 ): Promise<{
   files: SessionPhoto[];
   expiresAt: Date;
@@ -123,7 +124,7 @@ async function listSessionFiles(
           const downloadName = buildDownloadName(
             masterPath,
             data.title,
-            doc.id
+            doc.id,
           );
 
           const [url] = await file.getSignedUrl({
@@ -133,13 +134,14 @@ async function listSessionFiles(
           });
 
           const downloadUrl = `/api/session-photos/download?path=${encodeURIComponent(
-            masterPath
+            masterPath,
           )}&name=${encodeURIComponent(downloadName)}`;
 
           return {
             id: doc.id,
 
-            title: data.title || data.alt || masterPath.split("/").pop(),
+            title:
+              masterPath.split("/").pop() || data.title || data.alt || doc.id,
 
             url,
 
@@ -153,7 +155,7 @@ async function listSessionFiles(
         } catch {
           return null;
         }
-      })
+      }),
     )
   ).filter((f): f is SessionPhoto => f !== null);
 
@@ -173,7 +175,7 @@ async function listSessionFiles(
               const downloadName = buildDownloadName(
                 file.name,
                 file.name.slice(prefix.length),
-                file.name
+                file.name,
               );
 
               const [url] = await file.getSignedUrl({
@@ -192,13 +194,13 @@ async function listSessionFiles(
                 downloadName,
 
                 downloadUrl: `/api/session-photos/download?path=${encodeURIComponent(
-                  file.name
+                  file.name,
                 )}&name=${encodeURIComponent(downloadName)}`,
               } as SessionPhoto;
             } catch {
               return null;
             }
-          })
+          }),
       );
 
       const filtered = fallback.filter((f): f is SessionPhoto => Boolean(f));
@@ -266,8 +268,8 @@ export default async function SessionSharePage({
     sessionName && sessionName.trim().length
       ? sessionName
       : requestedId && requestedId.trim().length > 0
-      ? requestedId.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
-      : sessionId;
+        ? requestedId.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
+        : sessionId;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#030303] text-gray-100">
@@ -296,7 +298,7 @@ export default async function SessionSharePage({
             {t("linkActive", {
               hours,
               expiry: expiresAt.toLocaleString(
-                resolvedParams.locale === "en" ? "en-GB" : "pt-PT"
+                resolvedParams.locale === "en" ? "en-GB" : "pt-PT",
               ),
             })}
           </p>
@@ -307,49 +309,19 @@ export default async function SessionSharePage({
             {t("noPhotos")}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {files.map((file) => (
-              <div
-                key={file.id}
-                className="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-white/30"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-70" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={file.url}
-                    alt={file.title || t("noTitle")}
-                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="space-y-3 p-5">
-                  <div className="text-base font-medium text-white truncate">
-                    {file.title || t("noTitle")}
-                  </div>
-                  {file.createdAt ? (
-                    <div className="text-xs text-white/60 uppercase tracking-wide">
-                      {new Date(file.createdAt).toLocaleDateString(
-                        resolvedParams.locale === "en" ? "en-GB" : "pt-PT",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        }
-                      )}
-                    </div>
-                  ) : null}
-                  <a
-                    href={file.downloadUrl}
-                    download={file.downloadName || undefined}
-                    className="inline-flex w-full items-center justify-center rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
-                  >
-                    {t("transferBtn")}
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SessionPhotoGrid
+            files={files.map((f) => ({
+              id: f.id,
+              title: f.title,
+              url: f.url,
+              createdAt: f.createdAt,
+              downloadName: f.downloadName,
+              downloadUrl: f.downloadUrl,
+            }))}
+            locale={resolvedParams.locale}
+            transferLabel={t("transferBtn")}
+            noTitleLabel={t("noTitle")}
+          />
         )}
       </div>
     </main>

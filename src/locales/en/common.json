@@ -202,7 +202,8 @@
     "recentCapture": "Recently captured story",
     "close": "Close",
     "prevPhoto": "Previous photo",
-    "nextPhoto": "Next photo"
+    "nextPhoto": "Next photo",
+    "expandPhoto": "Expand photo"
   },
   "contactHomePage": {
     "badge": "Contact us",

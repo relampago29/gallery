@@ -10,10 +10,15 @@ import {
   CalendarDays,
   Check,
   Loader2,
+  Maximize2,
   ShoppingCart,
 } from "lucide-react";
 import { useCart, type CartItem } from "@/components/cart/CartContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import {
+  PhotoLightbox,
+  type LightboxPhoto,
+} from "@/components/shared/PhotoLightbox";
 
 type EventData = {
   id: string;
@@ -77,6 +82,7 @@ export default function PublicEventDetailPage() {
   const [photoCursor, setPhotoCursor] = useState<string | null>(null);
   const [photosEnd, setPhotosEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lightboxId, setLightboxId] = useState<string | null>(null);
 
   const fetchPhotos = useCallback(
     async (cursor: string | null, append = false) => {
@@ -273,6 +279,27 @@ export default function PublicEventDetailPage() {
                             </div>
                           )}
                         </div>
+                        {/* Expand button */}
+                        {thumb && (
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLightboxId(p.id);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.stopPropagation();
+                                setLightboxId(p.id);
+                              }
+                            }}
+                            className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white opacity-0 group-hover:opacity-100 cursor-pointer"
+                            aria-label="Ampliar foto"
+                          >
+                            <Maximize2 size={14} />
+                          </div>
+                        )}
                         {/* Selection indicator */}
                         <div
                           className={`absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full transition ${
@@ -313,6 +340,20 @@ export default function PublicEventDetailPage() {
           </>
         ) : null}
       </main>
+
+      <PhotoLightbox
+        photos={publishedPhotos
+          .map((p) => {
+            const src = pickPhotoThumb(p);
+            return src
+              ? ({ id: p.id, src, alt: p.title || undefined } as LightboxPhoto)
+              : null;
+          })
+          .filter((x): x is LightboxPhoto => x !== null)}
+        selectedId={lightboxId}
+        onClose={() => setLightboxId(null)}
+        onChangeId={setLightboxId}
+      />
 
       <CartDrawer />
     </div>
