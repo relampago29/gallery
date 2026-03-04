@@ -93,6 +93,19 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
     }
   }
 
+  const lightboxPhotos: LightboxPhoto[] = useMemo(
+    () =>
+      photos
+        .map((p) => {
+          const cover = pickThumb(p, "lg");
+          return cover.src
+            ? { id: p.id, src: cover.src, alt: p.alt || p.title || undefined }
+            : null;
+        })
+        .filter((x): x is LightboxPhoto => x !== null),
+    [photos],
+  );
+
   if (initialLoading) {
     return (
       <div className="py-16 text-center text-sm text-white/70">
@@ -116,19 +129,6 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
       </div>
     );
   }
-
-  const lightboxPhotos: LightboxPhoto[] = useMemo(
-    () =>
-      photos
-        .map((p) => {
-          const cover = pickThumb(p, "lg");
-          return cover.src
-            ? { id: p.id, src: cover.src, alt: p.alt || p.title || undefined }
-            : null;
-        })
-        .filter((x): x is LightboxPhoto => x !== null),
-    [photos],
-  );
 
   const cards = photos.map((p) => {
     const cover = pickThumb(p, "sm");

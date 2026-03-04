@@ -81,7 +81,7 @@ export default function PortfolioContent() {
   }
 
   return (
-    <div className="grid gap-8 sm:grid-cols-1 md:grid-cols-2">
+    <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
       {categories.map((cat) => (
         <button
           key={cat.id}
@@ -90,7 +90,7 @@ export default function PortfolioContent() {
           className="group relative cursor-pointer overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-md transition hover:border-white/25 hover:shadow-[0_25px_120px_rgba(0,0,0,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
         >
           {/* Cover image */}
-          <div className="aspect-3/2 w-full overflow-hidden bg-white/5">
+          <div className="aspect-4/3 w-full overflow-hidden bg-white/5">
             {cat.coverUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
