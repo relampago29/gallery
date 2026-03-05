@@ -95,14 +95,16 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
 
   const lightboxPhotos = useMemo(
     () =>
-      photos
-        .map((p) => {
-          const cover = pickThumb(p, "lg");
-          return cover.src
-            ? { id: p.id, src: cover.src, alt: p.alt || p.title || undefined }
-            : null;
-        })
-        .filter((x): x is LightboxPhoto => x !== null),
+      photos.reduce<LightboxPhoto[]>((acc, p) => {
+        const cover = pickThumb(p, "lg");
+        if (cover.src) {
+          const photo: LightboxPhoto = { id: p.id, src: cover.src };
+          const alt = p.alt || p.title;
+          if (alt) photo.alt = alt;
+          acc.push(photo);
+        }
+        return acc;
+      }, []),
     [photos],
   );
 
