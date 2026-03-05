@@ -93,7 +93,7 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
     }
   }
 
-  const lightboxPhotos: LightboxPhoto[] = useMemo(
+  const lightboxPhotos = useMemo(
     () =>
       photos
         .map((p) => {
