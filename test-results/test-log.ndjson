@@ -1,26 +1,26 @@
-{"id":"2030388190_0_0","name":"uses API and filters active","suite":"listActiveCategories","file":"src/lib/categories.test.ts","state":"pass","duration":8.833583999999973}
-{"id":"2030388190_0_1","name":"falls back to Firestore client when API fails","suite":"listActiveCategories","file":"src/lib/categories.test.ts","state":"pass","duration":0.41612499999996544}
-{"id":"1149248204_0_0","name":"pickThumb selects preferred size","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":12.673791999999935}
-{"id":"1149248204_0_1","name":"listPublicPhotos uses API first and returns nextCursor","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":0.5826250000000073}
-{"id":"1149248204_0_2","name":"listPublicPhotos falls back to Firestore when API fails","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":1.9338749999999436}
-{"id":"1149248204_0_3","name":"uploadMasterAndCreateProcessingDoc: success path uses API POST","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":1.8873330000000124}
-{"id":"1149248204_0_4","name":"uploadMasterAndCreateProcessingDoc: throws when API fails","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":1204.9993750000003}
-{"id":"1149248204_0_5","name":"deletePublicPhoto: propagates server error","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":1.1499579999999696}
-{"id":"910547543_0_0","name":"keeps regular values untouched","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.46570900000006077}
-{"id":"910547543_0_1","name":"never returns below 1 hour","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.07387500000004366}
-{"id":"910547543_0_2","name":"caps values above the 168h (7d) window","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.0634579999999687}
-{"id":"910547543_0_3","name":"defaults to 48h when the input is invalid","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.04762499999992542}
-{"id":"-720775482_0_0","name":"returns immediately when user exists","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":7.844541999999933}
-{"id":"-720775482_0_1","name":"signs in anonymously when no user, resolves","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":1.9778749999999263}
-{"id":"-720775482_0_2","name":"propagates error from signInAnonymously","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":1.1651669999999967}
-{"id":"746024529_0_0","name":"returns sorted items","suite":"GET /api/categories","file":"src/app/api/categories/route.test.ts","state":"pass","duration":39.133500000000026}
-{"id":"746024529_0_1","name":"handles error and returns 500","suite":"GET /api/categories","file":"src/app/api/categories/route.test.ts","state":"pass","duration":1.7093750000000227}
-{"id":"-1328674422_0_0","name":"POST requires photoId","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":197.8650419999999}
-{"id":"-1328674422_0_1","name":"POST deletes when exists","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":0.47270800000001145}
-{"id":"-1328674422_0_2","name":"DELETE uses id param and handles missing","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":0.6982910000001539}
-{"id":"-1741782245_0_0","name":"validates required fields","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":206.7433749999999}
-{"id":"-1741782245_0_1","name":"rejects invalid masterPath","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.3611670000000231}
-{"id":"-1741782245_0_2","name":"creates document and returns 201","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.4194589999999607}
-{"id":"-1741782245_0_3","name":"handles server error","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.32874999999989996}
-{"id":"126041405_0_0","name":"returns items with nextCursor","suite":"GET /api/public-photos/list","file":"src/app/api/public-photos/list/route.test.ts","state":"pass","duration":34.67787499999997}
-{"id":"126041405_0_1","name":"handles server error","suite":"GET /api/public-photos/list","file":"src/app/api/public-photos/list/route.test.ts","state":"pass","duration":3.7464579999999614}
+{"id":"2030388190_0_0","name":"uses API and filters active","suite":"listActiveCategories","file":"src/lib/categories.test.ts","state":"pass","duration":12.83404100000007}
+{"id":"2030388190_0_1","name":"falls back to Firestore client when API fails","suite":"listActiveCategories","file":"src/lib/categories.test.ts","state":"pass","duration":0.2810829999999669}
+{"id":"1149248204_0_0","name":"pickThumb selects preferred size","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":11.053666000000021}
+{"id":"1149248204_0_1","name":"listPublicPhotos uses API first and returns nextCursor","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":0.5370000000000346}
+{"id":"1149248204_0_2","name":"listPublicPhotos falls back to Firestore when API fails","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":0.49650000000008276}
+{"id":"1149248204_0_3","name":"uploadMasterAndCreateProcessingDoc: success path uses API POST","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":0.9077089999999544}
+{"id":"1149248204_0_4","name":"uploadMasterAndCreateProcessingDoc: throws when API fails","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":1205.0754580000003}
+{"id":"1149248204_0_5","name":"deletePublicPhoto: propagates server error","suite":"publicPhotos helpers","file":"src/lib/publicPhotos.test.ts","state":"pass","duration":0.9760409999998956}
+{"id":"910547543_0_0","name":"keeps regular values untouched","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.5094159999999874}
+{"id":"910547543_0_1","name":"never returns below 1 hour","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.09558300000003328}
+{"id":"910547543_0_2","name":"caps values above the 168h (7d) window","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.0767919999999549}
+{"id":"910547543_0_3","name":"defaults to 48h when the input is invalid","suite":"clampHours","file":"src/app/__tests__/sessionLinks.test.ts","state":"pass","duration":0.05120799999997416}
+{"id":"-720775482_0_0","name":"returns immediately when user exists","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":13.195582999999942}
+{"id":"-720775482_0_1","name":"signs in anonymously when no user, resolves","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":1.7019169999999804}
+{"id":"-720775482_0_2","name":"propagates error from signInAnonymously","suite":"ensureFirebaseUser","file":"src/lib/firebase/ensureAuth.test.ts","state":"pass","duration":0.7603749999999536}
+{"id":"746024529_0_0","name":"returns sorted items","suite":"GET /api/categories","file":"src/app/api/categories/route.test.ts","state":"pass","duration":39.4982500000001}
+{"id":"746024529_0_1","name":"handles error and returns 500","suite":"GET /api/categories","file":"src/app/api/categories/route.test.ts","state":"pass","duration":2.3237080000000105}
+{"id":"-1328674422_0_0","name":"POST requires photoId","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":217.20895900000005}
+{"id":"-1328674422_0_1","name":"POST deletes when exists","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":0.4808749999999691}
+{"id":"-1328674422_0_2","name":"DELETE uses id param and handles missing","suite":"DELETE/POST /api/public-photos/delete","file":"src/app/api/public-photos/delete/route.test.ts","state":"pass","duration":0.7194999999999254}
+{"id":"-1741782245_0_0","name":"validates required fields","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":217.332}
+{"id":"-1741782245_0_1","name":"rejects invalid masterPath","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.3572079999999005}
+{"id":"-1741782245_0_2","name":"creates document and returns 201","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.41945800000007694}
+{"id":"-1741782245_0_3","name":"handles server error","suite":"POST /api/public-photos/create","file":"src/app/api/public-photos/create/route.test.ts","state":"pass","duration":0.32741699999996854}
+{"id":"126041405_0_0","name":"returns items with nextCursor","suite":"GET /api/public-photos/list","file":"src/app/api/public-photos/list/route.test.ts","state":"pass","duration":42.71479099999999}
+{"id":"126041405_0_1","name":"handles server error","suite":"GET /api/public-photos/list","file":"src/app/api/public-photos/list/route.test.ts","state":"pass","duration":2.7302499999999554}

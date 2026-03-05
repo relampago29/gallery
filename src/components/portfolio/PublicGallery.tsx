@@ -165,15 +165,17 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
               {p.status === "processing" ? t("processing") : t("noPreview")}
             </div>
           )}
-          {/* Expand button */}
+          {/* Clickable overlay to open lightbox */}
           {cover.src && (
             <button
               type="button"
               onClick={() => setSelectedPhotoId(p.id)}
-              className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-black/50 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white opacity-0 group-hover:opacity-100"
+              className="absolute inset-0 z-10 flex cursor-pointer items-end justify-end p-3"
               aria-label={t("expandPhoto") || "Ampliar foto"}
             >
-              <Maximize2 size={14} />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white/80 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:scale-110 group-hover:border-white/50 group-hover:bg-black/60 group-hover:text-white">
+                <Maximize2 size={15} />
+              </span>
             </button>
           )}
           <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100 pointer-events-none" />

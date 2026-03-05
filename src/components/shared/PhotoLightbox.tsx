@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
@@ -36,12 +38,36 @@ export function PhotoLightbox({
   const hasPrev = selectedIndex > 0;
   const hasNext = selectedIndex >= 0 && selectedIndex < photos.length - 1;
 
-  function goToPrev() {
-    if (hasPrev) onChangeId(photos[selectedIndex - 1].id);
-  }
-  function goToNext() {
-    if (hasNext) onChangeId(photos[selectedIndex + 1].id);
-  }
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  // Touch / swipe support
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const goToPrev = useCallback(() => {
+    if (hasPrev) {
+      setImgLoaded(false);
+      onChangeId(photos[selectedIndex - 1].id);
+    }
+  }, [hasPrev, onChangeId, photos, selectedIndex]);
+
+  const goToNext = useCallback(() => {
+    if (hasNext) {
+      setImgLoaded(false);
+      onChangeId(photos[selectedIndex + 1].id);
+    }
+  }, [hasNext, onChangeId, photos, selectedIndex]);
+
+  // Entrance animation
+  useEffect(() => {
+    if (selected) {
+      requestAnimationFrame(() => setVisible(true));
+    } else {
+      setVisible(false);
+      setImgLoaded(false);
+    }
+  }, [selected]);
 
   useEffect(() => {
     if (!selected) return;
@@ -60,27 +86,61 @@ export function PhotoLightbox({
       window.removeEventListener("keydown", handleKey);
       document.body.style.overflow = prev;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, selectedIndex, photos.length]);
+  }, [selected, selectedIndex, photos.length, onClose, goToPrev, goToNext]);
 
   if (!selected) return null;
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    // Only count horizontal swipes (min 50px, mostly horizontal)
+    if (absDx > 50 && absDx > absDy * 1.5) {
+      if (dx > 0) goToPrev();
+      else goToNext();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md transition-opacity duration-300 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* Close */}
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-4 top-4 z-20 rounded-full border border-white/20 bg-black/50 p-2 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white"
-        aria-label="Fechar"
+      {/* Top bar */}
+      <div
+        className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-4 py-3 sm:px-6"
+        onClick={(e) => e.stopPropagation()}
       >
-        <X size={20} />
-      </button>
+        {/* Photo counter */}
+        <div className="rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm sm:text-sm">
+          {selectedIndex + 1} / {photos.length}
+        </div>
+
+        {/* Close */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/20 hover:text-white active:scale-95"
+          aria-label="Fechar"
+        >
+          <X size={22} />
+        </button>
+      </div>
 
       {/* Prev */}
       {hasPrev && (
@@ -90,10 +150,10 @@ export function PhotoLightbox({
             e.stopPropagation();
             goToPrev();
           }}
-          className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/50 p-2 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white sm:left-4 sm:p-3"
+          className="absolute left-2 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/20 hover:text-white active:scale-95 sm:left-4 sm:h-12 sm:w-12"
           aria-label="Foto anterior"
         >
-          <ChevronLeft size={24} />
+          <ChevronLeft size={26} />
         </button>
       )}
 
@@ -105,24 +165,42 @@ export function PhotoLightbox({
             e.stopPropagation();
             goToNext();
           }}
-          className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/50 p-2 text-white/70 backdrop-blur-sm transition hover:border-white/40 hover:bg-black/70 hover:text-white sm:right-4 sm:p-3"
+          className="absolute right-2 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur-sm transition-all duration-200 hover:bg-white/20 hover:text-white active:scale-95 sm:right-4 sm:h-12 sm:w-12"
           aria-label="Próxima foto"
         >
-          <ChevronRight size={24} />
+          <ChevronRight size={26} />
         </button>
       )}
 
       {/* Image */}
       <div
-        className="relative max-h-[90vh] max-w-5xl"
+        className="relative flex max-h-[85vh] max-w-5xl items-center justify-center px-12 sm:px-16"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Loading spinner */}
+        {!imgLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+          </div>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
+          key={selected.id}
           src={selected.src}
           alt={selected.alt || ""}
-          className="max-h-[90vh] w-auto rounded-2xl object-contain shadow-2xl"
+          onLoad={() => setImgLoaded(true)}
+          className={`max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl transition-all duration-300 ${
+            imgLoaded ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          }`}
+          draggable={false}
         />
+      </div>
+
+      {/* Bottom hint (mobile) */}
+      <div className="absolute bottom-4 left-0 right-0 text-center sm:hidden">
+        <span className="rounded-full bg-black/40 px-3 py-1 text-xs text-white/50 backdrop-blur-sm">
+          ← Deslize para navegar →
+        </span>
       </div>
     </div>
   );
