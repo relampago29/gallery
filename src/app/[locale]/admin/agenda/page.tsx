@@ -34,9 +34,7 @@ import {
 import { AdminNotification } from "@/components/admin/Notification";
 
 /* ——— CSS imports ——— */
-// @ts-expect-error css modules without type declarations
 import "react-big-calendar/lib/css/react-big-calendar.css";
-// @ts-expect-error css modules without type declarations
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 
 /* ——— Localizer ——— */
