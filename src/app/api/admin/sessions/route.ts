@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb, bucketAdmin } from "@/lib/firebase/admin";
 import { requireAdmin } from "../../session-orders/helpers";
 
 export async function GET(req: Request) {
@@ -37,14 +37,14 @@ export async function GET(req: Request) {
             typeof data.paymentStatus === "string" ? data.paymentStatus : null,
           photoCount: photosSnap.data().count ?? 0,
         };
-      })
+      }),
     );
 
     return NextResponse.json({ sessions });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,22 +63,45 @@ export async function DELETE(req: Request) {
 
     const db = getAdminDb();
     const sessionRef = db.collection("client_sessions").doc(sessionId);
+
+    // 1. Delete photos subcollection (Firestore does NOT delete subcollections automatically)
+    const photosSnap = await sessionRef.collection("photos").limit(500).get();
+    if (!photosSnap.empty) {
+      const photosBatch = db.batch();
+      photosSnap.docs.forEach((doc) => photosBatch.delete(doc.ref));
+      await photosBatch.commit();
+    }
+
+    // 2. Delete related session_orders
     const ordersSnap = await db
       .collection("session_orders")
       .where("sessionId", "==", sessionId)
       .limit(200)
       .get();
 
+    // 3. Delete session document + orders in one batch
     const batch = db.batch();
     batch.delete(sessionRef);
     ordersSnap.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
 
-    return NextResponse.json({ ok: true, deletedOrders: ordersSnap.size });
+    // 4. Delete storage files (masters/sessions/{sessionId}/*)
+    try {
+      const prefix = `masters/sessions/${sessionId}/`;
+      await bucketAdmin.deleteFiles({ prefix, force: true });
+    } catch {
+      // Ignore storage errors — files may not exist
+    }
+
+    return NextResponse.json({
+      ok: true,
+      deletedOrders: ordersSnap.size,
+      deletedPhotos: photosSnap.size,
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

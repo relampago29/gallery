@@ -156,7 +156,7 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
             <img
               src={cover.src}
               alt={p.alt || p.title || t("defaultAlt")}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+              className="h-full w-full object-cover"
               loading="lazy"
               decoding="async"
             />
@@ -165,20 +165,19 @@ export function PublicGallery({ categoryId }: { categoryId?: string }) {
               {p.status === "processing" ? t("processing") : t("noPreview")}
             </div>
           )}
-          {/* Clickable overlay to open lightbox */}
+          {/* Hover overlay + expand button */}
           {cover.src && (
             <button
               type="button"
               onClick={() => setSelectedPhotoId(p.id)}
-              className="absolute inset-0 z-10 flex cursor-pointer items-end justify-end p-3"
+              className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-black/0 transition-colors duration-200 group-hover:bg-black/30"
               aria-label={t("expandPhoto") || "Ampliar foto"}
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white/80 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:scale-110 group-hover:border-white/50 group-hover:bg-black/60 group-hover:text-white">
-                <Maximize2 size={15} />
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <Maximize2 size={18} />
               </span>
             </button>
           )}
-          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 transition group-hover:opacity-100 pointer-events-none" />
         </div>
         <div className="px-5 py-3">
           <div className="text-xs text-white/50 uppercase tracking-wide">

@@ -42,11 +42,6 @@ type UploadResult = {
   error?: string;
 };
 
-function buildSequentialLabel(sequenceNumber: number, base?: string | null) {
-  const safeBase = base && base.trim().length ? base.trim() : "Foto";
-  return `${safeBase} ${sequenceNumber}`;
-}
-
 async function runWithConcurrency(
   tasks: {
     fn: () => Promise<void>;
@@ -54,7 +49,7 @@ async function runWithConcurrency(
     sequenceNumber: number;
   }[],
   limit = MAX_PARALLEL_UPLOADS,
-  onProgress?: (completed: number) => void
+  onProgress?: (completed: number) => void,
 ) {
   if (!tasks.length) return [] as UploadResult[];
   const poolSize = Math.max(1, Math.min(limit, tasks.length));
@@ -101,7 +96,7 @@ async function reserveSequenceNumbers(count: number, sessionId: string) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(
-      data?.error || `Falha (${res.status}) ao reservar numeração.`
+      data?.error || `Falha (${res.status}) ao reservar numeração.`,
     );
   }
   const data = await res.json();
@@ -117,7 +112,7 @@ export default function UploadPrivatePhotoPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [sessionName, setSessionName] = useState("");
   const [sessionCode, setSessionCode] = useState<string>(() =>
-    generateSessionCode()
+    generateSessionCode(),
   );
   const [lastSessionCode, setLastSessionCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -152,7 +147,7 @@ export default function UploadPrivatePhotoPage() {
 
   const handleFiles = useCallback((incoming: FileList | File[]) => {
     const imageFiles = Array.from(incoming).filter((f) =>
-      f.type.startsWith("image/")
+      f.type.startsWith("image/"),
     );
     if (imageFiles.length > 0) setFiles(imageFiles);
   }, []);
@@ -168,7 +163,7 @@ export default function UploadPrivatePhotoPage() {
       if (busy || globalLock) return;
       handleFiles(e.dataTransfer.files);
     },
-    [busy, globalLock, handleFiles]
+    [busy, globalLock, handleFiles],
   );
 
   const copyCode = useCallback((code: string) => {
@@ -188,7 +183,7 @@ export default function UploadPrivatePhotoPage() {
     e.preventDefault();
     if (globalLock && !busy) {
       setMsg(
-        "Existe outro upload em curso. Aguarda que termine antes de iniciar outro."
+        "Existe outro upload em curso. Aguarda que termine antes de iniciar outro.",
       );
       setMsgType("error");
       return;
@@ -222,7 +217,7 @@ export default function UploadPrivatePhotoPage() {
       const start = await reserveSequenceNumbers(files.length, sessionCode);
       const tasks = files.map((f, index) => {
         const sequenceNumber = start + index;
-        const generatedTitle = buildSequentialLabel(sequenceNumber);
+        const fileTitle = f.name.replace(/\.[^/.]+$/, "");
         return {
           fileName: f.name,
           sequenceNumber,
@@ -234,8 +229,8 @@ export default function UploadPrivatePhotoPage() {
             await registerPrivateSessionPhoto({
               sessionId: sessionCode,
               masterPath,
-              title: generatedTitle,
-              alt: generatedTitle,
+              title: fileTitle,
+              alt: fileTitle,
               createdAt,
               sequenceNumber,
             });
@@ -254,7 +249,7 @@ export default function UploadPrivatePhotoPage() {
             progress: value,
             scope: uploadScope,
           });
-        }
+        },
       );
       const failures = results.filter((r) => !r.ok);
       setFailedUploads(failures);
@@ -265,7 +260,7 @@ export default function UploadPrivatePhotoPage() {
           failures.length
             ? `${failures.length} falharam.`
             : "Partilha este código com o cliente para selecionar as fotos."
-        }`
+        }`,
       );
       setMsgType(failures.length ? "error" : "success");
       setFiles([]);

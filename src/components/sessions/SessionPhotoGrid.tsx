@@ -46,25 +46,24 @@ export function SessionPhotoGrid({
             className="group overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-white/30"
           >
             <div className="relative aspect-4/3 overflow-hidden">
-              <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/10 to-transparent opacity-70" />
-              {/* Clickable overlay to open lightbox */}
-              <button
-                type="button"
-                onClick={() => setSelectedId(file.id)}
-                className="absolute inset-0 z-10 flex cursor-pointer items-end justify-end p-3"
-                aria-label="Ampliar foto"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 bg-black/40 text-white/80 shadow-lg backdrop-blur-md transition-all duration-200 group-hover:scale-110 group-hover:border-white/50 group-hover:bg-black/60 group-hover:text-white">
-                  <Maximize2 size={15} />
-                </span>
-              </button>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={file.url}
                 alt={file.title || noTitleLabel}
-                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                className="h-full w-full object-cover"
                 loading="lazy"
               />
+              {/* Hover overlay + expand button */}
+              <button
+                type="button"
+                onClick={() => setSelectedId(file.id)}
+                className="absolute inset-0 z-10 flex cursor-pointer items-center justify-center bg-black/0 transition-colors duration-200 group-hover:bg-black/30"
+                aria-label="Ampliar foto"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <Maximize2 size={18} />
+                </span>
+              </button>
             </div>
             <div className="space-y-3 p-5">
               <div className="text-base font-medium text-white truncate">

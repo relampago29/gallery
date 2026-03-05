@@ -174,7 +174,7 @@ export function PhotoLightbox({
 
       {/* Image */}
       <div
-        className="relative flex max-h-[85vh] max-w-5xl items-center justify-center px-12 sm:px-16"
+        className="relative flex max-h-[70vh] max-w-[min(90vw,56rem)] items-center justify-center px-14 sm:px-20"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Loading spinner */}
@@ -189,15 +189,15 @@ export function PhotoLightbox({
           src={selected.src}
           alt={selected.alt || ""}
           onLoad={() => setImgLoaded(true)}
-          className={`max-h-[85vh] w-auto rounded-2xl object-contain shadow-2xl transition-all duration-300 ${
+          className={`max-h-[70vh] max-w-full rounded-2xl object-contain shadow-2xl transition-all duration-300 ${
             imgLoaded ? "scale-100 opacity-100" : "scale-95 opacity-0"
           }`}
           draggable={false}
         />
       </div>
 
-      {/* Bottom hint (mobile) */}
-      <div className="absolute bottom-4 left-0 right-0 text-center sm:hidden">
+      {/* Bottom hint – only on touch devices (no fine pointer) and small screens */}
+      <div className="absolute bottom-4 left-0 right-0 text-center md:hidden pointer-fine:hidden">
         <span className="rounded-full bg-black/40 px-3 py-1 text-xs text-white/50 backdrop-blur-sm">
           ← Deslize para navegar →
         </span>
