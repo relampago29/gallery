@@ -91,6 +91,15 @@ export default function DashboardPage() {
         setChecking(false);
         return;
       }
+
+      // Force unverified users to verify their email first
+      if (!u.emailVerified) {
+        router.replace(
+          `/${locale}/verify-pending?email=${encodeURIComponent(u.email ?? "")}`,
+        );
+        return;
+      }
+
       const expiry = getAuthExpiry();
       if (!expiry) {
         setAuthExpiry();

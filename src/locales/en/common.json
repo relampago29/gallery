@@ -265,7 +265,27 @@
     "resetEmailFailed": "Could not send the reset email.",
     "userNotFound": "No account found with this email.",
     "backToLogin": "Back to login",
-    "tooManyRequests": "Too many requests. Please wait a moment and try again."
+    "tooManyRequests": "Too many requests. Please wait a moment and try again.",
+    "emailNotVerified": "You need to verify your email before accessing this area.",
+    "openWebmail": "Open my {provider}",
+    "verificationEmailSent": "We sent a verification email. Confirm your account to continue."
+  },
+  "verifyPending": {
+    "title": "Verify your email",
+    "subtitle": "We sent a verification email to <strong>{email}</strong>. Open your inbox and click the link to activate your account.",
+    "checkSpam": "Can't find it? Check your spam folder.",
+    "openWebmail": "Open my {provider}",
+    "resendEmail": "Resend email",
+    "resending": "Resending…",
+    "resendSuccess": "Email resent successfully!",
+    "resendFailed": "Could not resend. Please try again.",
+    "resendCooldown": "You can resend in {seconds}s",
+    "alreadyVerified": "I've already verified",
+    "checking": "Checking…",
+    "notVerifiedYet": "Email not verified yet. Click the link we sent you.",
+    "verified": "Email verified successfully!",
+    "redirecting": "Redirecting…",
+    "backToLogin": "Back to login"
   },
   "authAction": {
     "loading": "Processing…",

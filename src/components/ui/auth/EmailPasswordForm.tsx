@@ -5,6 +5,7 @@ import { auth } from "@/lib/firebase/client";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -18,8 +19,9 @@ import {
   isAuthExpired,
   setAuthExpiry,
 } from "@/lib/firebase/sessionExpiry";
-import { ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, Mail } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { getMailProvider } from "@/lib/utils/mailProvider";
 
 type Props = {
   callbackUrl?: string;
@@ -100,12 +102,21 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
     setFirebaseLoading(true);
     setFirebaseError(null);
     try {
-      await signInWithEmailAndPassword(
+      const cred = await signInWithEmailAndPassword(
         auth,
         firebaseEmail.trim(),
         firebasePassword,
       );
       setAuthExpiry();
+
+      // Block unverified users from protected areas
+      if (!cred.user.emailVerified) {
+        router.replace(
+          `/${locale}/verify-pending?email=${encodeURIComponent(cred.user.email ?? firebaseEmail.trim())}`,
+        );
+        return;
+      }
+
       router.replace(targetUrl);
     } catch (err: any) {
       const code = err?.code || "";
@@ -143,8 +154,19 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       if (username.trim()) {
         await updateProfile(credential.user, { displayName: username.trim() });
       }
+
+      // Send verification email
+      await sendEmailVerification(credential.user, {
+        url: `${window.location.origin}/${locale}/login/action`,
+        handleCodeInApp: false,
+      }).catch(() => {}); // fire-and-forget; page will have resend
+
       setAuthExpiry();
-      router.replace(targetUrl);
+
+      // Redirect to verify-pending instead of dashboard
+      router.replace(
+        `/${locale}/verify-pending?email=${encodeURIComponent(credential.user.email ?? firebaseEmail.trim())}`,
+      );
     } catch (err: any) {
       const code = err?.code || "";
       if (code === "auth/email-already-in-use") {
@@ -412,6 +434,23 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
               <p className="text-sm leading-relaxed text-green-400">
                 {t("resetEmailSent")}
               </p>
+
+              {/* Dynamic webmail button */}
+              {(() => {
+                const provider = getMailProvider(forgotEmail);
+                return provider ? (
+                  <a
+                    href={provider.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary btn-sm w-full gap-2"
+                  >
+                    <ExternalLink size={14} />
+                    {t("openWebmail", { provider: provider.name })}
+                  </a>
+                ) : null;
+              })()}
+
               <button
                 type="button"
                 className="btn btn-sm btn-ghost text-white/60"

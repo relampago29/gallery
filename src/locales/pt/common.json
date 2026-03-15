@@ -265,7 +265,27 @@
     "resetEmailFailed": "Não foi possível enviar o email de recuperação.",
     "userNotFound": "Não existe conta com este email.",
     "backToLogin": "Voltar ao login",
-    "tooManyRequests": "Demasiados pedidos. Aguarda um momento e tenta novamente."
+    "tooManyRequests": "Demasiados pedidos. Aguarda um momento e tenta novamente.",
+    "emailNotVerified": "Precisas de verificar o teu e-mail antes de aceder.",
+    "openWebmail": "Abrir o meu {provider}",
+    "verificationEmailSent": "Enviámos um e-mail de verificação. Confirma a tua conta para continuar."
+  },
+  "verifyPending": {
+    "title": "Verifica o teu e-mail",
+    "subtitle": "Enviámos um e-mail de verificação para <strong>{email}</strong>. Abre a tua caixa de entrada e clica no link para ativar a conta.",
+    "checkSpam": "Não encontras? Verifica a pasta de spam.",
+    "openWebmail": "Abrir o meu {provider}",
+    "resendEmail": "Reenviar e-mail",
+    "resending": "A reenviar…",
+    "resendSuccess": "E-mail reenviado com sucesso!",
+    "resendFailed": "Não foi possível reenviar. Tenta novamente.",
+    "resendCooldown": "Podes reenviar em {seconds}s",
+    "alreadyVerified": "Já verifiquei",
+    "checking": "A verificar…",
+    "notVerifiedYet": "O e-mail ainda não foi verificado. Clica no link que enviámos.",
+    "verified": "E-mail verificado com sucesso!",
+    "redirecting": "A redirecionar…",
+    "backToLogin": "Voltar ao login"
   },
   "authAction": {
     "loading": "A processar…",
