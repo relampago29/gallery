@@ -9,27 +9,28 @@ const DOC_PATH = "settings/contact";
 
 /**
  * GET /api/settings/contact-email
- * Lê o email de contacto guardado no Firestore.
+ * Lê a accessKey do StaticForms guardada no Firestore.
+ * Endpoint público (o formulário de contacto precisa dela).
  */
 export async function GET() {
   try {
     const db = getAdminDb();
     const snap = await db.doc(DOC_PATH).get();
-    const email = snap.exists ? snap.data()?.email ?? null : null;
+    const accessKey = snap.exists ? (snap.data()?.accessKey ?? null) : null;
     return NextResponse.json({
-      email: typeof email === "string" ? email : null,
+      accessKey: typeof accessKey === "string" ? accessKey : null,
     });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 /**
  * POST /api/settings/contact-email
- * Guarda/atualiza o email de contacto.
+ * Guarda/atualiza a accessKey do StaticForms.
  * Requer admin autenticado.
  */
 export async function POST(req: Request) {
@@ -40,25 +41,29 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const email = typeof body?.email === "string" ? body.email.trim() : "";
+    const accessKey =
+      typeof body?.accessKey === "string" ? body.accessKey.trim() : "";
 
-    if (!email) {
-      return NextResponse.json({ error: "email is required" }, { status: 400 });
+    if (!accessKey) {
+      return NextResponse.json(
+        { error: "accessKey is required" },
+        { status: 400 },
+      );
     }
 
     const db = getAdminDb();
     await db
       .doc(DOC_PATH)
       .set(
-        { email, updatedAt: new Date().toISOString(), updatedBy: uid },
-        { merge: true }
+        { accessKey, updatedAt: new Date().toISOString(), updatedBy: uid },
+        { merge: true },
       );
 
-    return NextResponse.json({ email });
+    return NextResponse.json({ accessKey });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

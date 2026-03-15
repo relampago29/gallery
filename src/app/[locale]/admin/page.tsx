@@ -8,29 +8,29 @@ async function getPaymentPhone(): Promise<string | null> {
   try {
     const db = getAdminDb();
     const snap = await db.doc("settings/payment").get();
-    const phone = snap.exists ? snap.data()?.phone ?? null : null;
+    const phone = snap.exists ? (snap.data()?.phone ?? null) : null;
     return typeof phone === "string" ? phone : null;
   } catch {
     return null;
   }
 }
 
-async function getContactEmail(): Promise<string | null> {
+async function getContactAccessKey(): Promise<string | null> {
   try {
     const db = getAdminDb();
     const snap = await db.doc("settings/contact").get();
-    const email = snap.exists ? snap.data()?.email ?? null : null;
-    return typeof email === "string" ? email : null;
+    const accessKey = snap.exists ? (snap.data()?.accessKey ?? null) : null;
+    return typeof accessKey === "string" ? accessKey : null;
   } catch {
     return null;
   }
 }
 
 export default async function AdminIndex() {
-  const [locale, phone, email] = await Promise.all([
+  const [locale, phone, accessKey] = await Promise.all([
     getLocale(),
     getPaymentPhone(),
-    getContactEmail(),
+    getContactAccessKey(),
   ]);
   return (
     <div className="space-y-10">
@@ -67,7 +67,7 @@ export default async function AdminIndex() {
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
         <PaymentPhoneCard initialPhone={phone} />
-        <ContactEmailCard initialEmail={email} />
+        <ContactEmailCard initialAccessKey={accessKey} />
       </div>
     </div>
   );

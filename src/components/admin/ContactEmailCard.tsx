@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { Key } from "lucide-react";
 
 type Props = {
-  initialEmail: string | null;
+  initialAccessKey: string | null;
 };
 
-export default function ContactEmailCard({ initialEmail }: Props) {
-  const [email, setEmail] = useState(initialEmail || "");
+export default function ContactEmailCard({ initialAccessKey }: Props) {
+  const [accessKey, setAccessKey] = useState(initialAccessKey || "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +29,7 @@ export default function ContactEmailCard({ initialEmail }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ accessKey: accessKey.trim() }),
       });
 
       const ct = res.headers.get("content-type") || "";
@@ -42,8 +43,8 @@ export default function ContactEmailCard({ initialEmail }: Props) {
         throw new Error(data?.error || "Falha ao guardar.");
       }
 
-      setEmail(data?.email || email);
-      setMessage("Email de contacto atualizado.");
+      setAccessKey(data?.accessKey || accessKey);
+      setMessage("Access Key do StaticForms atualizada.");
     } catch (err: any) {
       setError(err?.message || "Não foi possível guardar.");
     } finally {
@@ -55,46 +56,34 @@ export default function ContactEmailCard({ initialEmail }: Props) {
     <div className="flex flex-1 flex-col rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
       <div className="space-y-1">
         <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
-          Contacto
+          Formulário de contacto
         </p>
-        <h3 className="text-lg font-semibold text-white">Email</h3>
+        <h3 className="text-lg font-semibold text-white">StaticForms</h3>
         <p className="text-sm leading-relaxed text-white/60">
-          Define o email de contacto visível para os clientes.
+          Cola a Access Key do StaticForms. Os emails do formulário serão
+          enviados para o email associado a esta key.
         </p>
       </div>
       <div className="mt-auto space-y-3 pt-5">
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-white/40">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect width="20" height="16" x="2" y="4" rx="2" />
-              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-            </svg>
+            <Key size={16} />
           </span>
           <input
-            type="email"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.07] py-2.5 pl-11 pr-4 text-sm text-white placeholder-white/40 transition focus:border-white/30 focus:bg-white/10 focus:outline-none"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Ex.: contacto@exemplo.pt"
+            type="text"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.07] py-2.5 pl-11 pr-4 text-sm text-white placeholder-white/40 transition focus:border-white/30 focus:bg-white/10 focus:outline-none font-mono"
+            value={accessKey}
+            onChange={(e) => setAccessKey(e.target.value)}
+            placeholder="sf_xxxxxxxxxxxxxxxxx"
           />
         </div>
         <button
           type="button"
           onClick={save}
-          disabled={busy || !email.trim()}
+          disabled={busy || !accessKey.trim()}
           className="w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
         >
-          {busy ? "A guardar…" : "Guardar email"}
+          {busy ? "A guardar…" : "Guardar Access Key"}
         </button>
         {message ? <p className="text-xs text-emerald-400">{message}</p> : null}
         {error ? <p className="text-xs text-red-400">{error}</p> : null}

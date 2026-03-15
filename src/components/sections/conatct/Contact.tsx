@@ -1,7 +1,7 @@
 // src/components/sections/conatct/Contact.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send, CheckCircle, AlertCircle } from "lucide-react";
 
@@ -11,6 +11,17 @@ const Contact = () => {
   const t = useTranslations("contactHomePage");
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [accessKey, setAccessKey] = useState<string | null>(null);
+
+  // Fetch the admin-configured StaticForms accessKey
+  useEffect(() => {
+    fetch("/api/settings/contact-email")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.accessKey) setAccessKey(d.accessKey);
+      })
+      .catch(() => {});
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -27,25 +38,34 @@ const Contact = () => {
       return;
     }
 
-    const payload = {
-      firstName: (fd.get("firstName") as string)?.trim() || "",
-      lastName: (fd.get("lastName") as string)?.trim() || "",
-      email: (fd.get("email") as string)?.trim() || "",
-      subject: (fd.get("subject") as string)?.trim() || "",
-      message: (fd.get("message") as string)?.trim() || "",
-    };
+    if (!accessKey) {
+      setErrorMsg(t("errorGeneric"));
+      setState("error");
+      return;
+    }
+
+    const fullName =
+      `${(fd.get("firstName") as string)?.trim() || ""} ${(fd.get("lastName") as string)?.trim() || ""}`.trim();
 
     try {
-      const res = await fetch("/api/contact", {
+      const res = await fetch("https://api.staticforms.xyz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          accessKey,
+          name: fullName,
+          email: (fd.get("email") as string)?.trim() || "",
+          subject: (fd.get("subject") as string)?.trim() || "",
+          message: (fd.get("message") as string)?.trim() || "",
+          replyTo: "@",
+          honeypot: "",
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(data?.error || t("errorGeneric"));
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || t("errorGeneric"));
       }
 
       setState("success");
