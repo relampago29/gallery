@@ -149,12 +149,16 @@ export default function VerifyPendingPage() {
         <div className="space-y-2">
           <h2 className="text-xl font-semibold text-white">{t("title")}</h2>
           {email ? (
-            <p
-              className="text-sm leading-relaxed text-white/60"
-              dangerouslySetInnerHTML={{
-                __html: t("subtitle", { email }),
-              }}
-            />
+            <p className="text-sm leading-relaxed text-white/60">
+              {t.rich("subtitle", {
+                email,
+                strong: (chunks) => (
+                  <strong className="font-semibold text-white/80">
+                    {chunks}
+                  </strong>
+                ),
+              })}
+            </p>
           ) : null}
           <p className="text-xs text-white/40">{t("checkSpam")}</p>
         </div>
