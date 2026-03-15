@@ -1,17 +1,29 @@
 // src/components/sections/conatct/Contact.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send, CheckCircle, AlertCircle } from "lucide-react";
 
 type FormState = "idle" | "submitting" | "success" | "error";
+
+const RECAPTCHA_SITE_KEY = "6Le4mYssAAAAADCOZOMxgKkbsLgaNcUgIFPZ3zb_";
+
+declare global {
+  interface Window {
+    grecaptcha: {
+      ready: (cb: () => void) => void;
+      execute: (siteKey: string, opts: { action: string }) => Promise<string>;
+    };
+  }
+}
 
 const Contact = () => {
   const t = useTranslations("contactHomePage");
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [accessKey, setAccessKey] = useState<string | null>(null);
+  const recaptchaLoaded = useRef(false);
 
   // Fetch the admin-configured StaticForms accessKey
   useEffect(() => {
@@ -22,6 +34,36 @@ const Contact = () => {
       })
       .catch(() => {});
   }, []);
+
+  // Load reCAPTCHA v3 script once
+  useEffect(() => {
+    if (recaptchaLoaded.current) return;
+    if (document.querySelector(`script[src*="recaptcha/api.js"]`)) {
+      recaptchaLoaded.current = true;
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+    recaptchaLoaded.current = true;
+  }, []);
+
+  async function getRecaptchaToken(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!window.grecaptcha) {
+        reject(new Error("reCAPTCHA not loaded"));
+        return;
+      }
+      window.grecaptcha.ready(() => {
+        window.grecaptcha
+          .execute(RECAPTCHA_SITE_KEY, { action: "contact" })
+          .then(resolve)
+          .catch(reject);
+      });
+    });
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,6 +90,9 @@ const Contact = () => {
       `${(fd.get("firstName") as string)?.trim() || ""} ${(fd.get("lastName") as string)?.trim() || ""}`.trim();
 
     try {
+      // Get reCAPTCHA v3 token
+      const recaptchaToken = await getRecaptchaToken();
+
       const res = await fetch("https://api.staticforms.xyz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,6 +104,7 @@ const Contact = () => {
           message: (fd.get("message") as string)?.trim() || "",
           replyTo: "@",
           honeypot: "",
+          "g-recaptcha-response": recaptchaToken,
         }),
       });
 
