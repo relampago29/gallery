@@ -89,7 +89,8 @@ export default function VerifyPendingPage() {
       });
       setResendMsg({ type: "success", text: t("resendSuccess") });
       setCooldown(RESEND_COOLDOWN);
-    } catch {
+    } catch (err) {
+      console.error("[verify-pending] resend failed:", err);
       setResendMsg({ type: "error", text: t("resendFailed") });
     } finally {
       setResending(false);

@@ -156,10 +156,15 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       }
 
       // Send verification email
-      await sendEmailVerification(credential.user, {
-        url: `${window.location.origin}/${locale}/login/action`,
-        handleCodeInApp: false,
-      }).catch(() => {}); // fire-and-forget; page will have resend
+      try {
+        await sendEmailVerification(credential.user, {
+          url: `${window.location.origin}/${locale}/login/action`,
+          handleCodeInApp: false,
+        });
+      } catch (verifyErr) {
+        console.error("[auth] sendEmailVerification failed:", verifyErr);
+        // Continue anyway — user can resend from /verify-pending
+      }
 
       setAuthExpiry();
 
