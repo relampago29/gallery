@@ -89,9 +89,16 @@ export default function VerifyPendingPage() {
       });
       setResendMsg({ type: "success", text: t("resendSuccess") });
       setCooldown(RESEND_COOLDOWN);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[verify-pending] resend failed:", err);
-      setResendMsg({ type: "error", text: t("resendFailed") });
+      const code = err?.code || "";
+      if (code === "auth/too-many-requests") {
+        setResendMsg({ type: "error", text: t("tooManyRequests") });
+      } else if (code === "auth/network-request-failed") {
+        setResendMsg({ type: "error", text: t("networkError") });
+      } else {
+        setResendMsg({ type: "error", text: t("resendFailed") });
+      }
     } finally {
       setResending(false);
     }

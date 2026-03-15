@@ -203,7 +203,21 @@ export default function DashboardPage() {
       setPasswords({ current: "", next: "", confirm: "" });
     } catch (err: any) {
       console.error("[dashboard] update password", err);
-      setStatus({ type: "error", message: t("errorGeneric") });
+      const code = err?.code || "";
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
+      ) {
+        setStatus({ type: "error", message: t("wrongCurrentPassword") });
+      } else if (code === "auth/weak-password") {
+        setStatus({ type: "error", message: t("weakPassword") });
+      } else if (code === "auth/too-many-requests") {
+        setStatus({ type: "error", message: t("tooManyRequests") });
+      } else if (code === "auth/network-request-failed") {
+        setStatus({ type: "error", message: t("networkError") });
+      } else {
+        setStatus({ type: "error", message: t("errorGeneric") });
+      }
     }
   }
 

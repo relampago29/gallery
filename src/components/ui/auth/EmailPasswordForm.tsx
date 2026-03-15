@@ -122,9 +122,18 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       const code = err?.code || "";
       if (
         code === "auth/invalid-credential" ||
-        code === "auth/user-not-found"
+        code === "auth/user-not-found" ||
+        code === "auth/wrong-password"
       ) {
         setFirebaseError(t("invalidCredentials"));
+      } else if (code === "auth/invalid-email") {
+        setFirebaseError(t("invalidEmail"));
+      } else if (code === "auth/user-disabled") {
+        setFirebaseError(t("userDisabled"));
+      } else if (code === "auth/too-many-requests") {
+        setFirebaseError(t("tooManyRequests"));
+      } else if (code === "auth/network-request-failed") {
+        setFirebaseError(t("networkError"));
       } else {
         setFirebaseError(err?.message ?? t("loginFailed"));
       }
@@ -178,6 +187,14 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         setFirebaseError(t("emailAlreadyInUse"));
       } else if (code === "auth/weak-password") {
         setFirebaseError(t("weakPassword"));
+      } else if (code === "auth/invalid-email") {
+        setFirebaseError(t("invalidEmail"));
+      } else if (code === "auth/too-many-requests") {
+        setFirebaseError(t("tooManyRequests"));
+      } else if (code === "auth/network-request-failed") {
+        setFirebaseError(t("networkError"));
+      } else if (code === "auth/operation-not-allowed") {
+        setFirebaseError(t("operationNotAllowed"));
       } else {
         setFirebaseError(err?.message ?? t("signupFailed"));
       }
@@ -211,6 +228,10 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         setForgotError(t("userNotFound"));
       } else if (code === "auth/too-many-requests") {
         setForgotError(t("tooManyRequests"));
+      } else if (code === "auth/invalid-email") {
+        setForgotError(t("invalidEmail"));
+      } else if (code === "auth/network-request-failed") {
+        setForgotError(t("networkError"));
       } else {
         setForgotError(err?.message ?? t("resetEmailFailed"));
       }

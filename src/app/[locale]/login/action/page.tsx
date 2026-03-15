@@ -55,6 +55,8 @@ export default function AuthActionPage() {
           const code = err?.code || "";
           if (code === "auth/expired-action-code") {
             setErrorMsg(t("expiredCode"));
+          } else if (code === "auth/network-request-failed") {
+            setErrorMsg(t("networkError"));
           } else {
             setErrorMsg(t("invalidCode"));
           }
@@ -71,6 +73,8 @@ export default function AuthActionPage() {
             setErrorMsg(t("expiredCode"));
           } else if (code === "auth/invalid-action-code") {
             setErrorMsg(t("invalidCode"));
+          } else if (code === "auth/network-request-failed") {
+            setErrorMsg(t("networkError"));
           } else {
             setErrorMsg(t("verifyEmailFailed"));
           }
@@ -112,6 +116,8 @@ export default function AuthActionPage() {
       ) {
         setErrorMsg(t("expiredCode"));
         setPageState("error");
+      } else if (code === "auth/network-request-failed") {
+        setErrorMsg(t("networkError"));
       } else {
         setErrorMsg(t("resetFailed"));
       }
