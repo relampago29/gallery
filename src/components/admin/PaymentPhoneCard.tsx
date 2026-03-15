@@ -19,21 +19,29 @@ export default function PaymentPhoneCard({ initialPhone }: Props) {
     setError(null);
     try {
       const user = auth.currentUser;
-      const token = user ? await user.getIdToken() : null;
+      const token = user ? await user.getIdToken(true) : null;
       if (!token) throw new Error("Precisas de iniciar sessão.");
+
       const res = await fetch("/api/settings/payment-phone", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ phone: phone.trim() }),
       });
+
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("application/json")) {
+        throw new Error("Resposta inesperada do servidor.");
+      }
+
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "Falha ao guardar.");
       }
-      const data = await res.json();
+
       setPhone(data?.phone || phone);
       setMessage("Número MBWay atualizado.");
     } catch (err: any) {

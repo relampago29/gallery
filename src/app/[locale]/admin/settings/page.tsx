@@ -63,7 +63,7 @@ type SectionKey = "location" | "contacts" | "hours" | "social";
 async function getIdToken() {
   const user = auth.currentUser;
   if (!user) throw new Error("Inicia sessão para continuar");
-  return user.getIdToken();
+  return user.getIdToken(true);
 }
 
 /* ─── Reusable Field ──────────────────────────── */
