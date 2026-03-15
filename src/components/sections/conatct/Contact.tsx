@@ -1,29 +1,16 @@
 // src/components/sections/conatct/Contact.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send, CheckCircle, AlertCircle } from "lucide-react";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
-const STATIC_FORMS_KEY = "sf_kbe7ji7h9ikc0mf35kn01ac0";
-
 const Contact = () => {
   const t = useTranslations("contactHomePage");
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
-  const [toEmail, setToEmail] = useState<string | null>(null);
-
-  // Fetch the admin-configured contact email (public endpoint)
-  useEffect(() => {
-    fetch("/api/settings/contact-email")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.email) setToEmail(d.email);
-      })
-      .catch(() => {});
-  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,26 +27,16 @@ const Contact = () => {
       return;
     }
 
-    // Build the JSON body for StaticForms
-    const fullName =
-      `${(fd.get("firstName") as string)?.trim() || ""} ${(fd.get("lastName") as string)?.trim() || ""}`.trim();
-    const payload: Record<string, string> = {
-      accessKey: STATIC_FORMS_KEY,
-      name: fullName,
+    const payload = {
+      firstName: (fd.get("firstName") as string)?.trim() || "",
+      lastName: (fd.get("lastName") as string)?.trim() || "",
       email: (fd.get("email") as string)?.trim() || "",
       subject: (fd.get("subject") as string)?.trim() || "",
       message: (fd.get("message") as string)?.trim() || "",
-      replyTo: "@",
-      honeypot: "",
     };
 
-    // If admin set a custom destination, include it
-    if (toEmail) {
-      payload.$domain = toEmail;
-    }
-
     try {
-      const res = await fetch("https://api.staticforms.xyz/submit", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -67,8 +44,8 @@ const Contact = () => {
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || t("errorGeneric"));
+      if (!res.ok) {
+        throw new Error(data?.error || t("errorGeneric"));
       }
 
       setState("success");
