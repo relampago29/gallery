@@ -19,7 +19,7 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
 
   const queryCallback = React.useMemo(
     () => searchParams?.get("callbackUrl"),
-    [searchParams]
+    [searchParams],
   );
   const normalizedCallback =
     queryCallback ||
@@ -46,7 +46,7 @@ const CardAuth = ({ defaultCallbackUrl }: Props) => {
       </div>
 
       {/* Auth form card */}
-      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-2xl backdrop-blur-xl">
+      <div className="relative rounded-3xl border border-white/10 bg-black/60 p-6 shadow-2xl backdrop-blur-xl">
         <EmailPasswordForm callbackUrl={normalizedCallback} />
       </div>
 

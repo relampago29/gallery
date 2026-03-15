@@ -5,6 +5,7 @@ import { auth } from "@/lib/firebase/client";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
@@ -17,8 +18,8 @@ import {
   isAuthExpired,
   setAuthExpiry,
 } from "@/lib/firebase/sessionExpiry";
-import { Eye, EyeOff } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
 type Props = {
   callbackUrl?: string;
@@ -41,6 +42,12 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const locale = useLocale();
 
   const targetUrl = useMemo(() => {
     return callbackUrl && callbackUrl.length > 0 ? callbackUrl : "/";
@@ -96,7 +103,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       await signInWithEmailAndPassword(
         auth,
         firebaseEmail.trim(),
-        firebasePassword
+        firebasePassword,
       );
       setAuthExpiry();
       router.replace(targetUrl);
@@ -131,7 +138,7 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       const credential = await createUserWithEmailAndPassword(
         auth,
         firebaseEmail.trim(),
-        firebasePassword
+        firebasePassword,
       );
       if (username.trim()) {
         await updateProfile(credential.user, { displayName: username.trim() });
@@ -149,6 +156,39 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
       }
     } finally {
       setFirebaseLoading(false);
+    }
+  }
+
+  async function onForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      setForgotError(t("emailPasswordRequired"));
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError(null);
+    try {
+      const actionCodeSettings = {
+        url: `${window.location.origin}/${locale}/login/action`,
+        handleCodeInApp: false,
+      };
+      await sendPasswordResetEmail(
+        auth,
+        forgotEmail.trim(),
+        actionCodeSettings,
+      );
+      setForgotSuccess(true);
+    } catch (err: any) {
+      const code = err?.code || "";
+      if (code === "auth/user-not-found") {
+        setForgotError(t("userNotFound"));
+      } else if (code === "auth/too-many-requests") {
+        setForgotError(t("tooManyRequests"));
+      } else {
+        setForgotError(err?.message ?? t("resetEmailFailed"));
+      }
+    } finally {
+      setForgotLoading(false);
     }
   }
 
@@ -292,6 +332,21 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           </label>
         )}
 
+        {mode === "login" && (
+          <button
+            type="button"
+            className="-mt-1 self-end text-xs text-white/40 transition hover:text-white/70 cursor-pointer"
+            onClick={() => {
+              setShowForgot(true);
+              setForgotEmail(firebaseEmail);
+              setForgotError(null);
+              setForgotSuccess(false);
+            }}
+          >
+            {t("forgotPassword")}
+          </button>
+        )}
+
         {firebaseError && (
           <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
             {firebaseError}
@@ -306,8 +361,8 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           {firebaseLoading
             ? t("processing")
             : mode === "login"
-            ? t("loginTab")
-            : t("signupTab")}
+              ? t("loginTab")
+              : t("signupTab")}
         </button>
 
         {firebaseUser && (
@@ -323,6 +378,85 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
           </button>
         )}
       </form>
+
+      {/* Forgot password overlay */}
+      {showForgot && (
+        <div className="absolute inset-0 z-20 flex flex-col gap-5 rounded-3xl border border-white/10 bg-black/95 p-6 backdrop-blur-xl">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 self-start text-sm text-white/40 transition hover:text-white/70 cursor-pointer"
+            onClick={() => {
+              setShowForgot(false);
+              setForgotError(null);
+              setForgotSuccess(false);
+            }}
+          >
+            <ArrowLeft size={14} />
+            {t("backToLogin")}
+          </button>
+
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-white">
+              {t("forgotPasswordTitle")}
+            </h2>
+            <p className="text-sm text-white/50">
+              {t("forgotPasswordSubtitle")}
+            </p>
+          </div>
+
+          {forgotSuccess ? (
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                <Mail size={24} className="text-green-400" />
+              </div>
+              <p className="text-sm leading-relaxed text-green-400">
+                {t("resetEmailSent")}
+              </p>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost text-white/60"
+                onClick={() => {
+                  setShowForgot(false);
+                  setForgotSuccess(false);
+                }}
+              >
+                {t("backToLogin")}
+              </button>
+            </div>
+          ) : (
+            <form className="space-y-4" onSubmit={onForgotPassword}>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium text-white/70">
+                  {t("emailLabel")}
+                </span>
+                <input
+                  className="input input-bordered w-full bg-white/5 text-white placeholder:text-white/30"
+                  type="email"
+                  placeholder={t("emailPlaceholder")}
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  autoComplete="email"
+                  autoFocus
+                />
+              </label>
+
+              {forgotError && (
+                <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  {forgotError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="btn btn-primary w-full"
+                disabled={forgotLoading}
+              >
+                {forgotLoading ? t("sending") : t("sendResetLink")}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }
