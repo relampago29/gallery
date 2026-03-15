@@ -1,16 +1,29 @@
 // src/components/sections/conatct/Contact.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Send, CheckCircle, AlertCircle } from "lucide-react";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
+const STATIC_FORMS_KEY = "sf_kbe7ji7h9ikc0mf35kn01ac0";
+
 const Contact = () => {
   const t = useTranslations("contactHomePage");
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [toEmail, setToEmail] = useState<string | null>(null);
+
+  // Fetch the admin-configured contact email (public endpoint)
+  useEffect(() => {
+    fetch("/api/settings/contact-email")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.email) setToEmail(d.email);
+      })
+      .catch(() => {});
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -18,18 +31,46 @@ const Contact = () => {
     setErrorMsg("");
 
     const form = e.currentTarget;
-    const data = new FormData(form);
+    const fd = new FormData(form);
 
-    // honeypot
-    if ((data.get("company") as string)?.trim()) {
+    // Honeypot check (client-side early exit)
+    if ((fd.get("honeypot") as string)?.trim()) {
       setState("success");
       form.reset();
       return;
     }
 
+    // Build the JSON body for StaticForms
+    const fullName =
+      `${(fd.get("firstName") as string)?.trim() || ""} ${(fd.get("lastName") as string)?.trim() || ""}`.trim();
+    const payload: Record<string, string> = {
+      accessKey: STATIC_FORMS_KEY,
+      name: fullName,
+      email: (fd.get("email") as string)?.trim() || "",
+      subject: (fd.get("subject") as string)?.trim() || "",
+      message: (fd.get("message") as string)?.trim() || "",
+      replyTo: "@",
+      honeypot: "",
+    };
+
+    // If admin set a custom destination, include it
+    if (toEmail) {
+      payload.$domain = toEmail;
+    }
+
     try {
-      const res = await fetch("/api/contact", { method: "POST", body: data });
-      if (!res.ok) throw new Error(t("errorGeneric"));
+      const res = await fetch("https://api.staticforms.xyz/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || t("errorGeneric"));
+      }
+
       setState("success");
       form.reset();
     } catch (err: any) {
@@ -68,15 +109,20 @@ const Contact = () => {
         {/* Form card */}
         <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-10">
           <form onSubmit={onSubmit} className="space-y-5">
-            {/* honeypot */}
-            <input
-              type="text"
-              name="company"
-              tabIndex={-1}
-              autoComplete="off"
-              className="hidden"
+            {/* Honeypot — invisible to real users, catches bots */}
+            <div
+              className="absolute -left-[9999px] opacity-0 h-0 w-0 overflow-hidden"
               aria-hidden="true"
-            />
+            >
+              <label htmlFor="honeypot">Do not fill this</label>
+              <input
+                type="text"
+                id="honeypot"
+                name="honeypot"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               {/* First name */}
