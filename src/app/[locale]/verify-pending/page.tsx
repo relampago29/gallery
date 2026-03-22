@@ -5,7 +5,6 @@ import { useEffect, useState, useCallback } from "react";
 import { auth } from "@/lib/firebase/client";
 import {
   onAuthStateChanged,
-  sendEmailVerification,
   type User,
 } from "firebase/auth";
 import { useLocale, useTranslations } from "next-intl";
@@ -77,32 +76,36 @@ export default function VerifyPendingPage() {
     return () => clearInterval(id);
   }, [cooldown]);
 
-  // Resend verification email
+  // Resend verification email via backend
   const handleResend = useCallback(async () => {
-    if (!user || cooldown > 0) return;
+    if (cooldown > 0) return;
+    const targetEmail = user?.email || emailFromQuery;
+    if (!targetEmail) return;
     setResending(true);
     setResendMsg(null);
     try {
-      await sendEmailVerification(user, {
-        url: `${window.location.origin}/${locale}/login/action`,
-        handleCodeInApp: false,
+      const res = await fetch("/api/auth/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
       });
-      setResendMsg({ type: "success", text: t("resendSuccess") });
-      setCooldown(RESEND_COOLDOWN);
-    } catch (err: any) {
-      console.error("[verify-pending] resend failed:", err);
-      const code = err?.code || "";
-      if (code === "auth/too-many-requests") {
-        setResendMsg({ type: "error", text: t("tooManyRequests") });
-      } else if (code === "auth/network-request-failed") {
-        setResendMsg({ type: "error", text: t("networkError") });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "user-not-found") {
+          setResendMsg({ type: "error", text: t("resendFailed") });
+        } else {
+          setResendMsg({ type: "error", text: t("resendFailed") });
+        }
       } else {
-        setResendMsg({ type: "error", text: t("resendFailed") });
+        setResendMsg({ type: "success", text: t("resendSuccess") });
+        setCooldown(RESEND_COOLDOWN);
       }
+    } catch {
+      setResendMsg({ type: "error", text: t("networkError") });
     } finally {
       setResending(false);
     }
-  }, [user, cooldown, locale, t]);
+  }, [user, emailFromQuery, cooldown, t]);
 
   // "I've already verified" handler
   const handleCheckVerified = useCallback(async () => {
@@ -188,7 +191,7 @@ export default function VerifyPendingPage() {
         <button
           type="button"
           className="btn btn-outline btn-sm w-full gap-2 text-white/60"
-          disabled={resending || cooldown > 0 || !user}
+          disabled={resending || cooldown > 0 || (!user && !emailFromQuery)}
           onClick={handleResend}
         >
           <RefreshCw size={14} className={resending ? "animate-spin" : ""} />

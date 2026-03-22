@@ -5,8 +5,6 @@ import { auth } from "@/lib/firebase/client";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  sendEmailVerification,
-  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
@@ -164,14 +162,15 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         await updateProfile(credential.user, { displayName: username.trim() });
       }
 
-      // Send verification email
+      // Send verification email via our backend (Resend)
       try {
-        await sendEmailVerification(credential.user, {
-          url: `${window.location.origin}/${locale}/login/action`,
-          handleCodeInApp: false,
+        await fetch("/api/auth/send-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: credential.user.email ?? firebaseEmail.trim() }),
         });
       } catch (verifyErr) {
-        console.error("[auth] sendEmailVerification failed:", verifyErr);
+        console.error("[auth] send-verification failed:", verifyErr);
         // Continue anyway — user can resend from /verify-pending
       }
 
@@ -212,29 +211,23 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
     setForgotLoading(true);
     setForgotError(null);
     try {
-      const actionCodeSettings = {
-        url: `${window.location.origin}/${locale}/login/action`,
-        handleCodeInApp: false,
-      };
-      await sendPasswordResetEmail(
-        auth,
-        forgotEmail.trim(),
-        actionCodeSettings,
-      );
-      setForgotSuccess(true);
-    } catch (err: any) {
-      const code = err?.code || "";
-      if (code === "auth/user-not-found") {
-        setForgotError(t("userNotFound"));
-      } else if (code === "auth/too-many-requests") {
-        setForgotError(t("tooManyRequests"));
-      } else if (code === "auth/invalid-email") {
-        setForgotError(t("invalidEmail"));
-      } else if (code === "auth/network-request-failed") {
-        setForgotError(t("networkError"));
+      const res = await fetch("/api/auth/send-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === "invalid-email") {
+          setForgotError(t("invalidEmail"));
+        } else {
+          setForgotError(t("resetEmailFailed"));
+        }
       } else {
-        setForgotError(err?.message ?? t("resetEmailFailed"));
+        setForgotSuccess(true);
       }
+    } catch {
+      setForgotError(t("networkError"));
     } finally {
       setForgotLoading(false);
     }
