@@ -22,18 +22,7 @@ const Contact = () => {
   const t = useTranslations("contactHomePage");
   const [state, setState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
-  const [accessKey, setAccessKey] = useState<string | null>(null);
   const recaptchaLoaded = useRef(false);
-
-  // Fetch the admin-configured StaticForms accessKey
-  useEffect(() => {
-    fetch("/api/settings/contact-email")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.accessKey) setAccessKey(d.accessKey);
-      })
-      .catch(() => {});
-  }, []);
 
   // Load reCAPTCHA v3 script once
   useEffect(() => {
@@ -80,38 +69,28 @@ const Contact = () => {
       return;
     }
 
-    if (!accessKey) {
-      setErrorMsg(t("errorGeneric"));
-      setState("error");
-      return;
-    }
-
-    const fullName =
-      `${(fd.get("firstName") as string)?.trim() || ""} ${(fd.get("lastName") as string)?.trim() || ""}`.trim();
-
     try {
       // Get reCAPTCHA v3 token
       const recaptchaToken = await getRecaptchaToken();
 
-      const res = await fetch("https://api.staticforms.xyz/submit", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accessKey,
-          name: fullName,
+          firstName: (fd.get("firstName") as string)?.trim() || "",
+          lastName: (fd.get("lastName") as string)?.trim() || "",
           email: (fd.get("email") as string)?.trim() || "",
           subject: (fd.get("subject") as string)?.trim() || "",
           message: (fd.get("message") as string)?.trim() || "",
-          replyTo: "@",
           honeypot: "",
-          "g-recaptcha-response": recaptchaToken,
+          recaptchaToken,
         }),
       });
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok || data?.success === false) {
-        throw new Error(data?.message || t("errorGeneric"));
+      if (!res.ok) {
+        throw new Error(data?.error || t("errorGeneric"));
       }
 
       setState("success");

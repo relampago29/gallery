@@ -25,10 +25,7 @@ export async function POST(req: Request) {
     const email = (body.email ?? "").trim().toLowerCase();
 
     if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     const auth = getAdminAuth();
@@ -66,16 +63,10 @@ export async function POST(req: Request) {
     // Surface specific Firebase Admin errors
     const code = err?.errorInfo?.code || err?.code || "";
     if (code === "auth/user-not-found") {
-      return NextResponse.json(
-        { error: "user-not-found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "user-not-found" }, { status: 404 });
     }
     if (code === "auth/invalid-email") {
-      return NextResponse.json(
-        { error: "invalid-email" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "invalid-email" }, { status: 400 });
     }
 
     return NextResponse.json(

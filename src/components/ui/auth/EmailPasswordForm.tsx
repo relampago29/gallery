@@ -167,7 +167,9 @@ export default function EmailPasswordForm({ callbackUrl }: Props) {
         await fetch("/api/auth/send-verification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: credential.user.email ?? firebaseEmail.trim() }),
+          body: JSON.stringify({
+            email: credential.user.email ?? firebaseEmail.trim(),
+          }),
         });
       } catch (verifyErr) {
         console.error("[auth] send-verification failed:", verifyErr);

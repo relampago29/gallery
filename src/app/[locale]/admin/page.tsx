@@ -15,22 +15,22 @@ async function getPaymentPhone(): Promise<string | null> {
   }
 }
 
-async function getContactAccessKey(): Promise<string | null> {
+async function getContactEmail(): Promise<string | null> {
   try {
     const db = getAdminDb();
     const snap = await db.doc("settings/contact").get();
-    const accessKey = snap.exists ? (snap.data()?.accessKey ?? null) : null;
-    return typeof accessKey === "string" ? accessKey : null;
+    const email = snap.exists ? (snap.data()?.email ?? null) : null;
+    return typeof email === "string" ? email : null;
   } catch {
     return null;
   }
 }
 
 export default async function AdminIndex() {
-  const [locale, phone, accessKey] = await Promise.all([
+  const [locale, phone, contactEmail] = await Promise.all([
     getLocale(),
     getPaymentPhone(),
-    getContactAccessKey(),
+    getContactEmail(),
   ]);
   return (
     <div className="space-y-10">
@@ -67,7 +67,7 @@ export default async function AdminIndex() {
 
       <div className="flex flex-col gap-6 sm:flex-row sm:items-stretch">
         <PaymentPhoneCard initialPhone={phone} />
-        <ContactEmailCard initialAccessKey={accessKey} />
+        <ContactEmailCard initialEmail={contactEmail} />
       </div>
     </div>
   );

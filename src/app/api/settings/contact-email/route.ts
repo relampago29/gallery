@@ -9,16 +9,15 @@ const DOC_PATH = "settings/contact";
 
 /**
  * GET /api/settings/contact-email
- * Lê a accessKey do StaticForms guardada no Firestore.
- * Endpoint público (o formulário de contacto precisa dela).
+ * Lê o email de destino do formulário de contacto guardado no Firestore.
  */
 export async function GET() {
   try {
     const db = getAdminDb();
     const snap = await db.doc(DOC_PATH).get();
-    const accessKey = snap.exists ? (snap.data()?.accessKey ?? null) : null;
+    const email = snap.exists ? (snap.data()?.email ?? null) : null;
     return NextResponse.json({
-      accessKey: typeof accessKey === "string" ? accessKey : null,
+      email: typeof email === "string" ? email : null,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -30,7 +29,7 @@ export async function GET() {
 
 /**
  * POST /api/settings/contact-email
- * Guarda/atualiza a accessKey do StaticForms.
+ * Guarda/atualiza o email de destino do formulário de contacto.
  * Requer admin autenticado.
  */
 export async function POST(req: Request) {
@@ -41,25 +40,21 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const accessKey =
-      typeof body?.accessKey === "string" ? body.accessKey.trim() : "";
+    const email = typeof body?.email === "string" ? body.email.trim() : "";
 
-    if (!accessKey) {
-      return NextResponse.json(
-        { error: "accessKey is required" },
-        { status: 400 },
-      );
+    if (!email) {
+      return NextResponse.json({ error: "email is required" }, { status: 400 });
     }
 
     const db = getAdminDb();
     await db
       .doc(DOC_PATH)
       .set(
-        { accessKey, updatedAt: new Date().toISOString(), updatedBy: uid },
+        { email, updatedAt: new Date().toISOString(), updatedBy: uid },
         { merge: true },
       );
 
-    return NextResponse.json({ accessKey });
+    return NextResponse.json({ email });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },

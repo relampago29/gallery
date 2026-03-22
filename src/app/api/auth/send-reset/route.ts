@@ -25,10 +25,7 @@ export async function POST(req: Request) {
     const email = (body.email ?? "").trim().toLowerCase();
 
     if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
     const auth = getAdminAuth();
@@ -70,10 +67,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true });
     }
     if (code === "auth/invalid-email") {
-      return NextResponse.json(
-        { error: "invalid-email" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "invalid-email" }, { status: 400 });
     }
 
     return NextResponse.json(

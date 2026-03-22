@@ -3,10 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { auth } from "@/lib/firebase/client";
-import {
-  onAuthStateChanged,
-  type User,
-} from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";

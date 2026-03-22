@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { auth } from "@/lib/firebase/client";
-import { Key } from "lucide-react";
+import { Mail } from "lucide-react";
 
 type Props = {
-  initialAccessKey: string | null;
+  initialEmail: string | null;
 };
 
-export default function ContactEmailCard({ initialAccessKey }: Props) {
-  const [accessKey, setAccessKey] = useState(initialAccessKey || "");
+export default function ContactEmailCard({ initialEmail }: Props) {
+  const [email, setEmail] = useState(initialEmail || "");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function ContactEmailCard({ initialAccessKey }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ accessKey: accessKey.trim() }),
+        body: JSON.stringify({ email: email.trim() }),
       });
 
       const ct = res.headers.get("content-type") || "";
@@ -43,8 +43,8 @@ export default function ContactEmailCard({ initialAccessKey }: Props) {
         throw new Error(data?.error || "Falha ao guardar.");
       }
 
-      setAccessKey(data?.accessKey || accessKey);
-      setMessage("Access Key do StaticForms atualizada.");
+      setEmail(data?.email || email);
+      setMessage("Email de destino do formulário atualizado.");
     } catch (err: any) {
       setError(err?.message || "Não foi possível guardar.");
     } finally {
@@ -58,32 +58,32 @@ export default function ContactEmailCard({ initialAccessKey }: Props) {
         <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
           Formulário de contacto
         </p>
-        <h3 className="text-lg font-semibold text-white">StaticForms</h3>
+        <h3 className="text-lg font-semibold text-white">Email de destino</h3>
         <p className="text-sm leading-relaxed text-white/60">
-          Cola a Access Key do StaticForms. Os emails do formulário serão
-          enviados para o email associado a esta key.
+          Define o email que receberá as mensagens enviadas pelo formulário de
+          contacto do site.
         </p>
       </div>
       <div className="mt-auto space-y-3 pt-5">
         <div className="relative">
           <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-white/40">
-            <Key size={16} />
+            <Mail size={16} />
           </span>
           <input
-            type="text"
-            className="w-full rounded-xl border border-white/10 bg-white/[0.07] py-2.5 pl-11 pr-4 text-sm text-white placeholder-white/40 transition focus:border-white/30 focus:bg-white/10 focus:outline-none font-mono"
-            value={accessKey}
-            onChange={(e) => setAccessKey(e.target.value)}
-            placeholder="sf_xxxxxxxxxxxxxxxxx"
+            type="email"
+            className="w-full rounded-xl border border-white/10 bg-white/[0.07] py-2.5 pl-11 pr-4 text-sm text-white placeholder-white/40 transition focus:border-white/30 focus:bg-white/10 focus:outline-none"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@exemplo.com"
           />
         </div>
         <button
           type="button"
           onClick={save}
-          disabled={busy || !accessKey.trim()}
+          disabled={busy || !email.trim()}
           className="w-full rounded-xl bg-white py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
         >
-          {busy ? "A guardar…" : "Guardar Access Key"}
+          {busy ? "A guardar…" : "Guardar Email"}
         </button>
         {message ? <p className="text-xs text-emerald-400">{message}</p> : null}
         {error ? <p className="text-xs text-red-400">{error}</p> : null}
