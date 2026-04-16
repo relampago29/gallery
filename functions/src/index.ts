@@ -43,7 +43,7 @@ type SizeEntry = {
 
 function makeDownloadUrl(bucketName: string, path: string, token: string) {
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
-    path
+    path,
   )}?alt=media&token=${token}`;
 }
 
@@ -68,106 +68,132 @@ export const onPublicMasterUpload = onObjectFinalized(
     const fileName = name.split("/").pop()!;
     const photoId = fileName.replace(/\.[^.]+$/, "");
 
-    const bucket = admin.storage().bucket(bucketName);
-    const [masterBuffer] = await bucket.file(name).download();
-
-    // metadados para proporção
-    const baseMeta = await sharp(masterBuffer).metadata();
-    const masterW = baseMeta.width ?? SIZES[SIZES.length - 1];
-    const masterH = baseMeta.height ?? SIZES[SIZES.length - 1];
-
-    const sizes: Record<string, SizeEntry> = {};
-
-    for (const targetW of SIZES) {
-      const width = Math.min(targetW, masterW);
-      const height = Math.round((masterH * width) / masterW);
-
-      const pipeline = sharp(masterBuffer).rotate().resize({
-        width,
-        withoutEnlargement: true,
-      });
-
-      const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
-        pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
-        pipeline.clone().webp({ quality: 82 }).toBuffer(),
-        pipeline.clone().avif({ quality: 60 }).toBuffer(),
-      ]);
-
-      const basePrefix = `variants/public/${photoId}`;
-      const jpgPath = `${basePrefix}/${width}.jpg`;
-      const webpPath = `${basePrefix}/${width}.webp`;
-      const avifPath = `${basePrefix}/${width}.avif`;
-
-      // token de download público
-      const t1 = uuidv4();
-      const t2 = uuidv4();
-      const t3 = uuidv4();
-
-      await Promise.all([
-        bucket.file(jpgPath).save(jpgBuf, {
-          resumable: false,
-          contentType: "image/jpeg",
-          metadata: {
-            cacheControl: "public,max-age=31536000,immutable",
-            metadata: { firebaseStorageDownloadTokens: t1 },
-          },
-        }),
-        bucket.file(webpPath).save(webpBuf, {
-          resumable: false,
-          contentType: "image/webp",
-          metadata: {
-            cacheControl: "public,max-age=31536000,immutable",
-            metadata: { firebaseStorageDownloadTokens: t2 },
-          },
-        }),
-        bucket.file(avifPath).save(avifBuf, {
-          resumable: false,
-          contentType: "image/avif",
-          metadata: {
-            cacheControl: "public,max-age=31536000,immutable",
-            metadata: { firebaseStorageDownloadTokens: t3 },
-          },
-        }),
-      ]);
-
-      sizes[String(width)] = {
-        jpg: makeDownloadUrl(bucketName, jpgPath, t1),
-        webp: makeDownloadUrl(bucketName, webpPath, t2),
-        avif: makeDownloadUrl(bucketName, avifPath, t3),
-        width,
-        height,
-      };
-    }
-
-    // Atualiza Firestore: tenta localizar pelo masterPath
-    const db = admin.firestore();
-    const snap = await db
-      .collection("public_photos")
-      .where("masterPath", "==", name)
-      .limit(1)
-      .get();
-
-    if (!snap.empty) {
-      await snap.docs[0].ref.update({
-        status: "ready",
-        published: true,
-        sizes,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } else {
-      // fallback: grava por id
-      await db.collection("public_photos").doc(photoId).set(
+    // Helper para marcar erro no Firestore
+    const markError = async (errorMsg: string) => {
+      const db = admin.firestore();
+      const snap = await db
+        .collection("public_photos")
+        .where("masterPath", "==", name)
+        .limit(1)
+        .get();
+      const ref = !snap.empty
+        ? snap.docs[0].ref
+        : db.collection("public_photos").doc(photoId);
+      await ref.set(
         {
+          status: "error",
+          errorMessage: errorMsg,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    };
+
+    try {
+      const bucket = admin.storage().bucket(bucketName);
+      const [masterBuffer] = await bucket.file(name).download();
+
+      // metadados para proporção
+      const baseMeta = await sharp(masterBuffer).metadata();
+      const masterW = baseMeta.width ?? SIZES[SIZES.length - 1];
+      const masterH = baseMeta.height ?? SIZES[SIZES.length - 1];
+
+      const sizes: Record<string, SizeEntry> = {};
+
+      for (const targetW of SIZES) {
+        const width = Math.min(targetW, masterW);
+        const height = Math.round((masterH * width) / masterW);
+
+        const pipeline = sharp(masterBuffer).rotate().resize({
+          width,
+          withoutEnlargement: true,
+        });
+
+        const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
+          pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
+          pipeline.clone().webp({ quality: 82 }).toBuffer(),
+          pipeline.clone().avif({ quality: 60 }).toBuffer(),
+        ]);
+
+        const basePrefix = `variants/public/${photoId}`;
+        const jpgPath = `${basePrefix}/${width}.jpg`;
+        const webpPath = `${basePrefix}/${width}.webp`;
+        const avifPath = `${basePrefix}/${width}.avif`;
+
+        // token de download público
+        const t1 = uuidv4();
+        const t2 = uuidv4();
+        const t3 = uuidv4();
+
+        await Promise.all([
+          bucket.file(jpgPath).save(jpgBuf, {
+            resumable: false,
+            contentType: "image/jpeg",
+            metadata: {
+              cacheControl: "public,max-age=31536000,immutable",
+              metadata: { firebaseStorageDownloadTokens: t1 },
+            },
+          }),
+          bucket.file(webpPath).save(webpBuf, {
+            resumable: false,
+            contentType: "image/webp",
+            metadata: {
+              cacheControl: "public,max-age=31536000,immutable",
+              metadata: { firebaseStorageDownloadTokens: t2 },
+            },
+          }),
+          bucket.file(avifPath).save(avifBuf, {
+            resumable: false,
+            contentType: "image/avif",
+            metadata: {
+              cacheControl: "public,max-age=31536000,immutable",
+              metadata: { firebaseStorageDownloadTokens: t3 },
+            },
+          }),
+        ]);
+
+        sizes[String(width)] = {
+          jpg: makeDownloadUrl(bucketName, jpgPath, t1),
+          webp: makeDownloadUrl(bucketName, webpPath, t2),
+          avif: makeDownloadUrl(bucketName, avifPath, t3),
+          width,
+          height,
+        };
+      }
+
+      // Atualiza Firestore: tenta localizar pelo masterPath
+      const db = admin.firestore();
+      const snap = await db
+        .collection("public_photos")
+        .where("masterPath", "==", name)
+        .limit(1)
+        .get();
+
+      if (!snap.empty) {
+        await snap.docs[0].ref.update({
           status: "ready",
           published: true,
           sizes,
-          masterPath: name,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+        });
+      } else {
+        // fallback: grava por id
+        await db.collection("public_photos").doc(photoId).set(
+          {
+            status: "ready",
+            published: true,
+            sizes,
+            masterPath: name,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+    } catch (err: any) {
+      console.error(`[onPublicMasterUpload] Error processing ${name}:`, err);
+      await markError(err?.message || "Unknown processing error");
     }
-  }
+  },
 );
 
 /**
@@ -188,7 +214,7 @@ export const onPublicPhotoDelete = onDocumentDeleted(
     } catch (e) {
       console.error("[onPublicPhotoDelete] cleanup failed:", e);
     }
-  }
+  },
 );
 
 /**
@@ -306,10 +332,10 @@ export const onEventMasterUpload = onObjectFinalized(
           masterPath: name,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
     }
-  }
+  },
 );
 
 /**
@@ -335,7 +361,7 @@ export const onEventPhotoDelete = onDocumentDeleted(
     } catch (e) {
       console.error("[onEventPhotoDelete] cleanup failed:", e);
     }
-  }
+  },
 );
 
 function sanitizeName(input: string, fallback = "foto") {
@@ -351,7 +377,7 @@ function sanitizeName(input: string, fallback = "foto") {
 
 function toDownloadUrl(bucket: string, path: string, token: string) {
   return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(
-    path
+    path,
   )}?alt=media&token=${token}`;
 }
 
@@ -403,7 +429,7 @@ export const downloadSessionOrder = onRequest(
         } catch (err) {
           console.error(
             "[downloadSessionOrder] token verification failed",
-            err
+            err,
           );
         }
       }
@@ -459,7 +485,7 @@ export const downloadSessionOrder = onRequest(
           ? masterPath.split(".").pop() || "jpg"
           : "jpg";
         const baseName = sanitizeName(
-          String(photo.title || masterPath.split("/").pop() || "foto")
+          String(photo.title || masterPath.split("/").pop() || "foto"),
         );
         let finalName = baseName.toLowerCase().endsWith(`.${ext}`)
           ? baseName
@@ -489,11 +515,11 @@ export const downloadSessionOrder = onRequest(
       const zip = new ZipStream({ zlib: { level: 0 } }); // store only, evitar inflar JPG
       res.setHeader("Content-Type", "application/zip");
       const zipName = sanitizeName(
-        data.sessionName || data.sessionId || "sessao"
+        data.sessionName || data.sessionId || "sessao",
       );
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename=\"${zipName}.zip\"`
+        `attachment; filename=\"${zipName}.zip\"`,
       );
       res.setHeader("Cache-Control", "private, max-age=30");
 
@@ -530,7 +556,7 @@ export const downloadSessionOrder = onRequest(
               (err?: Error | null) => {
                 if (err) return reject(err);
                 resolve();
-              }
+              },
             );
           });
           appended += 1;
@@ -581,7 +607,7 @@ export const downloadSessionOrder = onRequest(
         res.end();
       }
     }
-  }
+  },
 );
 
 /**
@@ -683,7 +709,7 @@ export const downloadEventOrder = onRequest(
           ? masterPath.split(".").pop() || "jpg"
           : "jpg";
         const baseName = sanitizeName(
-          String(item.title || masterPath.split("/").pop() || "foto")
+          String(item.title || masterPath.split("/").pop() || "foto"),
         );
         let finalName = baseName.toLowerCase().endsWith(`.${ext}`)
           ? baseName
@@ -716,7 +742,7 @@ export const downloadEventOrder = onRequest(
       const zipName = sanitizeName(String(firstEventName));
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename=\"${zipName}.zip\"`
+        `attachment; filename=\"${zipName}.zip\"`,
       );
       res.setHeader("Cache-Control", "private, max-age=30");
 
@@ -753,7 +779,7 @@ export const downloadEventOrder = onRequest(
               (err?: Error | null) => {
                 if (err) return reject(err);
                 resolve();
-              }
+              },
             );
           });
           appended += 1;
@@ -804,5 +830,5 @@ export const downloadEventOrder = onRequest(
         res.end();
       }
     }
-  }
+  },
 );

@@ -47,7 +47,7 @@ function sleep(ms: number) {
 async function retry<T>(
   fn: () => Promise<T>,
   attempts: number,
-  baseDelayMs: number
+  baseDelayMs: number,
 ): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i += 1) {
@@ -73,7 +73,7 @@ async function uploadWithRetry(path: string, file: File) {
         task.on("state_changed", undefined, reject, () => resolve());
       }),
     MAX_UPLOAD_RETRIES,
-    BASE_RETRY_DELAY_MS
+    BASE_RETRY_DELAY_MS,
   );
 }
 
@@ -92,21 +92,21 @@ async function postJsonWithRetry(url: string, payload: any) {
       return res;
     },
     MAX_DOC_RETRIES,
-    BASE_RETRY_DELAY_MS
+    BASE_RETRY_DELAY_MS,
   );
 }
 
 export function pickThumb(
   p: PublicPhoto,
-  preferSize: "sm" | "md" | "lg" = "md"
+  preferSize: "sm" | "md" | "lg" = "md",
 ): { src?: string; w?: number; h?: number } {
   const sizes = p.sizes || {};
   const order =
     preferSize === "sm"
       ? ["400", "640", "800", "960"]
       : preferSize === "lg"
-      ? ["960", "800", "640", "400"]
-      : ["640", "800", "960", "400"];
+        ? ["960", "800", "640", "400"]
+        : ["640", "800", "960", "400"];
   for (const k of order) {
     const s = sizes[k];
     if (!s) continue;
@@ -176,7 +176,7 @@ export async function listPublicPhotos({
   if (cursor != null) constraints.push(startAfter(cursor));
 
   const snap = await getDocs(
-    query(collection(db, "public_photos"), ...constraints)
+    query(collection(db, "public_photos"), ...constraints),
   );
   const items = snap.docs.map((d) => ({
     id: d.id,
@@ -209,12 +209,12 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
       : String(Date.now());
   const masterPath = `masters/public/${photoId}.${ext}`;
 
-  // Upload para o Firebase Storage (requer utilizador Firebase Auth no cliente)
-  await uploadWithRetry(masterPath, opts.file);
-
   const createdAt = Date.now();
 
+  // 1) Criar o documento Firestore ANTES do upload,
+  //    para garantir que a Cloud Function o encontra ao disparar.
   await postJsonWithRetry("/api/public-photos/create", {
+    photoId,
     title: opts.title || null,
     alt: opts.alt || opts.title || null,
     categoryId: opts.categoryId,
@@ -224,6 +224,10 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
       ? { sequenceNumber: opts.sequenceNumber }
       : {}),
   });
+
+  // 2) Só depois enviar o ficheiro para o Storage
+  //    (isto dispara a Cloud Function que já vai encontrar o doc)
+  await uploadWithRetry(masterPath, opts.file);
 
   return { photoId, masterPath, createdAt };
 }
@@ -297,7 +301,7 @@ type RegisterPrivatePhotoOpts = {
 };
 
 export async function registerPrivateSessionPhoto(
-  opts: RegisterPrivatePhotoOpts
+  opts: RegisterPrivatePhotoOpts,
 ) {
   const res = await postJsonWithRetry("/api/session-photos/register", {
     sessionId: opts.sessionId,
