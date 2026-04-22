@@ -14,20 +14,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileImage,
-  Copy,
-  Check,
-  RefreshCw,
-  KeyRound,
 } from "lucide-react";
-
-function generateSessionCode() {
-  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let code = "";
-  for (let i = 0; i < 8; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
-}
 
 const parsedConcurrency = Number(process.env.NEXT_PUBLIC_UPLOAD_CONCURRENCY);
 const MAX_PARALLEL_UPLOADS =
@@ -111,10 +98,7 @@ export default function UploadPrivatePhotoPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [sessionName, setSessionName] = useState("");
-  const [sessionCode, setSessionCode] = useState<string>(() =>
-    generateSessionCode(),
-  );
-  const [lastSessionCode, setLastSessionCode] = useState<string | null>(null);
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -122,7 +106,6 @@ export default function UploadPrivatePhotoPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [failedUploads, setFailedUploads] = useState<UploadResult[]>([]);
   const [dragOver, setDragOver] = useState(false);
-  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     state: globalUpload,
@@ -166,12 +149,6 @@ export default function UploadPrivatePhotoPage() {
     [busy, globalLock, handleFiles],
   );
 
-  const copyCode = useCallback((code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, []);
-
   const cardClass =
     "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm";
   const inputBase =
@@ -188,11 +165,12 @@ export default function UploadPrivatePhotoPage() {
       setMsgType("error");
       return;
     }
-    if (files.length === 0 || !sessionCode) return;
+    if (files.length === 0) return;
     setBusy(true);
     setProgress(0);
     setMsg(null);
     setFailedUploads([]);
+    const sessionCode = crypto.randomUUID();
     try {
       setUploadProgress({
         label: "Sessões privadas",
@@ -205,7 +183,8 @@ export default function UploadPrivatePhotoPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: sessionCode,
-          name: sessionName.trim() || sessionCode,
+          name: sessionName.trim(),
+          ...(ownerEmail.trim() && { ownerEmail: ownerEmail.trim() }),
         }),
       });
       if (!resMeta.ok) {
@@ -254,12 +233,11 @@ export default function UploadPrivatePhotoPage() {
       const failures = results.filter((r) => !r.ok);
       setFailedUploads(failures);
       const successCount = results.length - failures.length;
-      setLastSessionCode(sessionCode);
       setMsg(
-        `${successCount} ficheiro(s) enviados para "${sessionCode}". ${
+        `${successCount} ficheiro(s) enviados com sucesso. ${
           failures.length
             ? `${failures.length} falharam.`
-            : "Partilha este código com o cliente para selecionar as fotos."
+            : "A sessão ficará disponível na área do cliente."
         }`,
       );
       setMsgType(failures.length ? "error" : "success");
@@ -287,9 +265,8 @@ export default function UploadPrivatePhotoPage() {
           Carregar sessões privadas
         </h1>
         <p className="text-sm text-white/70">
-          Envia fotos para uma sessão privada e partilha o código com o cliente.
-          O acesso público mantém-se em{" "}
-          <span className="font-mono text-white/80">{sessionsPath}</span>.
+          Envia fotos para uma sessão privada. O cliente acede automaticamente
+          na sua área de sessões.
         </p>
       </header>
 
@@ -320,28 +297,18 @@ export default function UploadPrivatePhotoPage() {
                 />
               </label>
 
-              <div className="space-y-1.5">
+              <label className="space-y-1.5">
                 <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/50">
-                  Código de acesso
+                  Email do cliente (opcional)
                 </span>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-2">
-                  <KeyRound size={14} className="shrink-0 text-white/40" />
-                  <span className="flex-1 font-mono text-lg tracking-widest text-white">
-                    {sessionCode}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSessionCode(generateSessionCode())}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl text-white/40 transition hover:bg-white/10 hover:text-white/70"
-                    title="Gerar novo código"
-                  >
-                    <RefreshCw size={14} />
-                  </button>
-                </div>
-                <p className="text-[10px] text-white/30">
-                  Cliente usa em {sessionsPath}
-                </p>
-              </div>
+                <input
+                  className={inputBase}
+                  placeholder="Ex.: cliente@email.com"
+                  type="email"
+                  value={ownerEmail}
+                  onChange={(e) => setOwnerEmail(e.target.value)}
+                />
+              </label>
             </div>
           </div>
 
@@ -517,7 +484,6 @@ export default function UploadPrivatePhotoPage() {
                 busy ||
                 savingSession ||
                 files.length === 0 ||
-                !sessionCode ||
                 !sessionName.trim() ||
                 globalLock
               }
@@ -529,95 +495,41 @@ export default function UploadPrivatePhotoPage() {
         </form>
       </section>
 
-      {/* Session sharing card */}
+      {/* Instructions card */}
       <section className={cardClass}>
         <div className="space-y-5 px-6 py-6">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-              Partilha com o cliente
+              Como funciona
             </p>
             <h3 className="text-2xl font-semibold text-white">
-              Código da sessão
+              Sessões privadas
             </h3>
-            <p className="text-sm text-white/70">
-              Depois de terminares o upload envia este código ao cliente. Ele só
-              precisa de visitar{" "}
-              <span className="font-mono text-white/80">{sessionsPath}</span> e
-              introduzir o identificador para escolher as fotos favoritas.
-            </p>
           </div>
 
-          {lastSessionCode ? (
-            <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <div className="text-[10px] uppercase tracking-[0.3em] text-white/40">
-                  Código
-                </div>
-                <div className="font-mono text-3xl tracking-[0.15em] text-white">
-                  {lastSessionCode}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => copyCode(lastSessionCode)}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-2.5 text-sm text-white transition hover:bg-white/10"
-              >
-                {copied ? (
-                  <>
-                    <Check size={14} />
-                    Copiado!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    Copiar código
-                  </>
-                )}
-              </button>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-transparent px-5 py-5 text-center text-sm text-white/50">
-              Assim que guardares uma sessão privada o código fica disponível
-              aqui.
-            </div>
-          )}
-
           <div className="rounded-2xl border border-white/10 bg-white/3 p-4">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-white/50">
-              Passos
-            </p>
             <ol className="space-y-2.5 text-sm text-white/70">
               <li className="flex items-start gap-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
                   1
                 </span>
-                <span>Faz upload das fotos para a pasta privada.</span>
+                <span>Faz upload das fotos e indica o email do cliente.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
                   2
                 </span>
-                <span>Envia o código ao cliente.</span>
+                <span>
+                  O cliente faz login e vê a sessão automaticamente na sua área.
+                </span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
                   3
                 </span>
                 <span>
-                  O cliente entra em{" "}
-                  <span className="font-mono text-white/80">
-                    {sessionsPath}
-                  </span>
-                  , introduz o código e escolhe as fotos.
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
-                  4
-                </span>
-                <span>
-                  Quando confirmares o pagamento, o download fica disponível
-                  automaticamente.
+                  O cliente escolhe as fotos e efetua o pagamento (ou transfere
+                  diretamente se tiver acesso grátis).
                 </span>
               </li>
             </ol>

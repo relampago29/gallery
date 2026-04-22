@@ -35,10 +35,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Sessões privadas (bloqueadas por agora)
+    // Sessões privadas — leitura permitida ao owner e guests autorizados
     match /client_sessions/{sessionId} {
-      allow read, write: if false;
-      match /photos/{photoId} { allow read, write: if false; }
+      allow read: if request.auth != null && (
+        resource.data.ownerUid == request.auth.uid ||
+        request.auth.uid in resource.data.allowedUids
+      );
+      allow write: if false;
+      match /photos/{photoId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/client_sessions/$(sessionId)).data.ownerUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/client_sessions/$(sessionId)).data.allowedUids
+        );
+        allow write: if false;
+      }
+    }
+    // Pedidos de sessão — leitura pelo utilizador dono
+    match /session_orders/{orderId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     match /{document=**} { allow read, write: if false; }

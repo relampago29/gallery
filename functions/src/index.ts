@@ -25,9 +25,9 @@ admin.initializeApp();
 
 // ✔ Define região e recursos globais para TODAS as funções v2
 setGlobalOptions({
-  region: "europe-west1", // região suportada pelo Firebase
+  region: "europe-west1",
   timeoutSeconds: 540,
-  memory: "1GiB",
+  memory: "512MiB", // default para a maioria das funções
 });
 
 // larguras a gerar
@@ -52,6 +52,7 @@ function makeDownloadUrl(bucketName: string, path: string, token: string) {
  * Gera variantes (jpg/webp/avif) e atualiza Firestore com sizes + published:true.
  */
 export const onPublicMasterUpload = onObjectFinalized(
+  { memory: "2GiB" },
   async (event: CloudEvent<StorageObjectData>) => {
     const object = event.data;
     if (!object) return;
@@ -63,6 +64,8 @@ export const onPublicMasterUpload = onObjectFinalized(
 
     if (!name || !contentType) return;
     if (!name.startsWith("masters/public/")) return;
+    // Ignorar ficheiros temporários usados pelo script de reprocessamento
+    if (name.endsWith(".tmp")) return;
 
     // photoId = nome sem extensão
     const fileName = name.split("/").pop()!;
@@ -109,11 +112,10 @@ export const onPublicMasterUpload = onObjectFinalized(
           withoutEnlargement: true,
         });
 
-        const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
-          pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
-          pipeline.clone().webp({ quality: 82 }).toBuffer(),
-          pipeline.clone().avif({ quality: 60 }).toBuffer(),
-        ]);
+        // Processar formatos sequencialmente para reduzir pico de memória
+        const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
+        const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
+        const avifBuf = await pipeline.clone().avif({ quality: 60 }).toBuffer();
 
         const basePrefix = `variants/public/${photoId}`;
         const jpgPath = `${basePrefix}/${width}.jpg`;
@@ -222,6 +224,7 @@ export const onPublicPhotoDelete = onDocumentDeleted(
  * Gera variantes (jpg/webp/avif) e atualiza Firestore (events/{eventId}/photos) com sizes + published:true.
  */
 export const onEventMasterUpload = onObjectFinalized(
+  { memory: "2GiB" },
   async (event: CloudEvent<StorageObjectData>) => {
     const object = event.data;
     if (!object) return;
@@ -260,11 +263,10 @@ export const onEventMasterUpload = onObjectFinalized(
         withoutEnlargement: true,
       });
 
-      const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
-        pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
-        pipeline.clone().webp({ quality: 82 }).toBuffer(),
-        pipeline.clone().avif({ quality: 60 }).toBuffer(),
-      ]);
+      // Processar formatos sequencialmente para reduzir pico de memória
+      const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
+      const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
+      const avifBuf = await pipeline.clone().avif({ quality: 60 }).toBuffer();
 
       const basePrefix = `variants/events/${eventId}/${photoId}`;
       const jpgPath = `${basePrefix}/${width}.jpg`;

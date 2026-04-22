@@ -49,9 +49,9 @@ const zip_stream_1 = __importDefault(require("zip-stream"));
 admin.initializeApp();
 // ✔ Define região e recursos globais para TODAS as funções v2
 (0, v2_1.setGlobalOptions)({
-    region: "europe-west1", // região suportada pelo Firebase
+    region: "europe-west1",
     timeoutSeconds: 540,
-    memory: "1GiB",
+    memory: "512MiB", // default para a maioria das funções
 });
 // larguras a gerar
 const SIZES = [640, 960, 1600];
@@ -62,7 +62,7 @@ function makeDownloadUrl(bucketName, path, token) {
  * Trigger v2: quando um master é carregado em masters/public/{photoId}.{ext}
  * Gera variantes (jpg/webp/avif) e atualiza Firestore com sizes + published:true.
  */
-exports.onPublicMasterUpload = (0, storage_1.onObjectFinalized)(async (event) => {
+exports.onPublicMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB" }, async (event) => {
     const object = event.data;
     if (!object)
         return;
@@ -74,94 +74,119 @@ exports.onPublicMasterUpload = (0, storage_1.onObjectFinalized)(async (event) =>
         return;
     if (!name.startsWith("masters/public/"))
         return;
+    // Ignorar ficheiros temporários usados pelo script de reprocessamento
+    if (name.endsWith(".tmp"))
+        return;
     // photoId = nome sem extensão
     const fileName = name.split("/").pop();
     const photoId = fileName.replace(/\.[^.]+$/, "");
-    const bucket = admin.storage().bucket(bucketName);
-    const [masterBuffer] = await bucket.file(name).download();
-    // metadados para proporção
-    const baseMeta = await (0, sharp_1.default)(masterBuffer).metadata();
-    const masterW = baseMeta.width ?? SIZES[SIZES.length - 1];
-    const masterH = baseMeta.height ?? SIZES[SIZES.length - 1];
-    const sizes = {};
-    for (const targetW of SIZES) {
-        const width = Math.min(targetW, masterW);
-        const height = Math.round((masterH * width) / masterW);
-        const pipeline = (0, sharp_1.default)(masterBuffer).rotate().resize({
-            width,
-            withoutEnlargement: true,
-        });
-        const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
-            pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
-            pipeline.clone().webp({ quality: 82 }).toBuffer(),
-            pipeline.clone().avif({ quality: 60 }).toBuffer(),
-        ]);
-        const basePrefix = `variants/public/${photoId}`;
-        const jpgPath = `${basePrefix}/${width}.jpg`;
-        const webpPath = `${basePrefix}/${width}.webp`;
-        const avifPath = `${basePrefix}/${width}.avif`;
-        // token de download público
-        const t1 = (0, uuid_1.v4)();
-        const t2 = (0, uuid_1.v4)();
-        const t3 = (0, uuid_1.v4)();
-        await Promise.all([
-            bucket.file(jpgPath).save(jpgBuf, {
-                resumable: false,
-                contentType: "image/jpeg",
-                metadata: {
-                    cacheControl: "public,max-age=31536000,immutable",
-                    metadata: { firebaseStorageDownloadTokens: t1 },
-                },
-            }),
-            bucket.file(webpPath).save(webpBuf, {
-                resumable: false,
-                contentType: "image/webp",
-                metadata: {
-                    cacheControl: "public,max-age=31536000,immutable",
-                    metadata: { firebaseStorageDownloadTokens: t2 },
-                },
-            }),
-            bucket.file(avifPath).save(avifBuf, {
-                resumable: false,
-                contentType: "image/avif",
-                metadata: {
-                    cacheControl: "public,max-age=31536000,immutable",
-                    metadata: { firebaseStorageDownloadTokens: t3 },
-                },
-            }),
-        ]);
-        sizes[String(width)] = {
-            jpg: makeDownloadUrl(bucketName, jpgPath, t1),
-            webp: makeDownloadUrl(bucketName, webpPath, t2),
-            avif: makeDownloadUrl(bucketName, avifPath, t3),
-            width,
-            height,
-        };
-    }
-    // Atualiza Firestore: tenta localizar pelo masterPath
-    const db = admin.firestore();
-    const snap = await db
-        .collection("public_photos")
-        .where("masterPath", "==", name)
-        .limit(1)
-        .get();
-    if (!snap.empty) {
-        await snap.docs[0].ref.update({
-            status: "ready",
-            published: true,
-            sizes,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-    else {
-        // fallback: grava por id
-        await db.collection("public_photos").doc(photoId).set({
-            status: "ready",
-            published: true,
-            sizes,
-            masterPath: name,
+    // Helper para marcar erro no Firestore
+    const markError = async (errorMsg) => {
+        const db = admin.firestore();
+        const snap = await db
+            .collection("public_photos")
+            .where("masterPath", "==", name)
+            .limit(1)
+            .get();
+        const ref = !snap.empty
+            ? snap.docs[0].ref
+            : db.collection("public_photos").doc(photoId);
+        await ref.set({
+            status: "error",
+            errorMessage: errorMsg,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
+    };
+    try {
+        const bucket = admin.storage().bucket(bucketName);
+        const [masterBuffer] = await bucket.file(name).download();
+        // metadados para proporção
+        const baseMeta = await (0, sharp_1.default)(masterBuffer).metadata();
+        const masterW = baseMeta.width ?? SIZES[SIZES.length - 1];
+        const masterH = baseMeta.height ?? SIZES[SIZES.length - 1];
+        const sizes = {};
+        for (const targetW of SIZES) {
+            const width = Math.min(targetW, masterW);
+            const height = Math.round((masterH * width) / masterW);
+            const pipeline = (0, sharp_1.default)(masterBuffer).rotate().resize({
+                width,
+                withoutEnlargement: true,
+            });
+            // Processar formatos sequencialmente para reduzir pico de memória
+            const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
+            const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
+            const avifBuf = await pipeline.clone().avif({ quality: 60 }).toBuffer();
+            const basePrefix = `variants/public/${photoId}`;
+            const jpgPath = `${basePrefix}/${width}.jpg`;
+            const webpPath = `${basePrefix}/${width}.webp`;
+            const avifPath = `${basePrefix}/${width}.avif`;
+            // token de download público
+            const t1 = (0, uuid_1.v4)();
+            const t2 = (0, uuid_1.v4)();
+            const t3 = (0, uuid_1.v4)();
+            await Promise.all([
+                bucket.file(jpgPath).save(jpgBuf, {
+                    resumable: false,
+                    contentType: "image/jpeg",
+                    metadata: {
+                        cacheControl: "public,max-age=31536000,immutable",
+                        metadata: { firebaseStorageDownloadTokens: t1 },
+                    },
+                }),
+                bucket.file(webpPath).save(webpBuf, {
+                    resumable: false,
+                    contentType: "image/webp",
+                    metadata: {
+                        cacheControl: "public,max-age=31536000,immutable",
+                        metadata: { firebaseStorageDownloadTokens: t2 },
+                    },
+                }),
+                bucket.file(avifPath).save(avifBuf, {
+                    resumable: false,
+                    contentType: "image/avif",
+                    metadata: {
+                        cacheControl: "public,max-age=31536000,immutable",
+                        metadata: { firebaseStorageDownloadTokens: t3 },
+                    },
+                }),
+            ]);
+            sizes[String(width)] = {
+                jpg: makeDownloadUrl(bucketName, jpgPath, t1),
+                webp: makeDownloadUrl(bucketName, webpPath, t2),
+                avif: makeDownloadUrl(bucketName, avifPath, t3),
+                width,
+                height,
+            };
+        }
+        // Atualiza Firestore: tenta localizar pelo masterPath
+        const db = admin.firestore();
+        const snap = await db
+            .collection("public_photos")
+            .where("masterPath", "==", name)
+            .limit(1)
+            .get();
+        if (!snap.empty) {
+            await snap.docs[0].ref.update({
+                status: "ready",
+                published: true,
+                sizes,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        else {
+            // fallback: grava por id
+            await db.collection("public_photos").doc(photoId).set({
+                status: "ready",
+                published: true,
+                sizes,
+                masterPath: name,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+    }
+    catch (err) {
+        console.error(`[onPublicMasterUpload] Error processing ${name}:`, err);
+        await markError(err?.message || "Unknown processing error");
     }
 });
 /**
@@ -185,7 +210,7 @@ exports.onPublicPhotoDelete = (0, firestore_1.onDocumentDeleted)("public_photos/
  * Trigger v2: quando um master é carregado em masters/events/{eventId}/{photoId}.{ext}
  * Gera variantes (jpg/webp/avif) e atualiza Firestore (events/{eventId}/photos) com sizes + published:true.
  */
-exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)(async (event) => {
+exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB" }, async (event) => {
     const object = event.data;
     if (!object)
         return;
@@ -219,11 +244,10 @@ exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)(async (event) => 
             width,
             withoutEnlargement: true,
         });
-        const [jpgBuf, webpBuf, avifBuf] = await Promise.all([
-            pipeline.clone().jpeg({ quality: 82 }).toBuffer(),
-            pipeline.clone().webp({ quality: 82 }).toBuffer(),
-            pipeline.clone().avif({ quality: 60 }).toBuffer(),
-        ]);
+        // Processar formatos sequencialmente para reduzir pico de memória
+        const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
+        const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
+        const avifBuf = await pipeline.clone().avif({ quality: 60 }).toBuffer();
         const basePrefix = `variants/events/${eventId}/${photoId}`;
         const jpgPath = `${basePrefix}/${width}.jpg`;
         const webpPath = `${basePrefix}/${width}.webp`;

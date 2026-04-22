@@ -3,13 +3,29 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
 import { randomUUID } from "crypto";
 
 type Body = {
   sessionId?: string;
   photoIds?: string[];
 };
+
+/** Verifica token e devolve { uid, isAdmin } ou null */
+async function verifyToken(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+  try {
+    const decoded = await getAdminAuth().verifyIdToken(token);
+    const isAdmin =
+      (decoded as any)?.isAdmin === true ||
+      (decoded as any)?.claims?.isAdmin === true;
+    return { uid: decoded.uid, email: decoded.email, isAdmin };
+  } catch {
+    return null;
+  }
+}
 
 function sanitizeSessionId(raw: string) {
   return raw
@@ -26,7 +42,8 @@ function sanitizePhotoIds(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   const cleaned: string[] = [];
   for (const raw of input) {
-    const value = typeof raw === "string" ? raw.trim() : String(raw || "").trim();
+    const value =
+      typeof raw === "string" ? raw.trim() : String(raw || "").trim();
     if (!value) continue;
     if (!cleaned.includes(value)) cleaned.push(value);
     if (cleaned.length >= MAX_SELECTION) break;
@@ -36,22 +53,66 @@ function sanitizePhotoIds(input: unknown): string[] {
 
 export async function POST(req: Request) {
   try {
+    // Auth obrigatório
+    const auth = await verifyToken(req);
+    if (!auth) {
+      return NextResponse.json(
+        { error: "Autenticação obrigatória" },
+        { status: 401 },
+      );
+    }
+
     const payload = (await req.json().catch(() => ({}))) as Body;
     const sessionId = sanitizeSessionId(payload.sessionId || "");
     const photoIds = sanitizePhotoIds(payload.photoIds);
 
     if (!sessionId) {
-      return NextResponse.json({ error: "sessionId obrigatório" }, { status: 400 });
+      return NextResponse.json(
+        { error: "sessionId obrigatório" },
+        { status: 400 },
+      );
     }
     if (!photoIds.length) {
-      return NextResponse.json({ error: "Seleciona pelo menos uma foto" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Seleciona pelo menos uma foto" },
+        { status: 400 },
+      );
     }
 
     const db = getAdminDb();
     const sessionRef = db.collection("client_sessions").doc(sessionId);
     const sessionSnap = await sessionRef.get();
     if (!sessionSnap.exists) {
-      return NextResponse.json({ error: "Sessão não encontrada" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Sessão não encontrada" },
+        { status: 404 },
+      );
+    }
+
+    const sessionData = sessionSnap.data() || {};
+
+    // Verificar acesso
+    if (!auth.isAdmin) {
+      const isOwner = sessionData.ownerUid === auth.uid;
+      const allowedUids: string[] = Array.isArray(sessionData.allowedUids)
+        ? sessionData.allowedUids
+        : [];
+      const isGuest = allowedUids.includes(auth.uid);
+      if (!isOwner && !isGuest) {
+        return NextResponse.json(
+          { error: "Sem acesso a esta sessão" },
+          { status: 403 },
+        );
+      }
+    }
+
+    // Verificar se o utilizador tem acesso gratuito
+    let hasFreeAccess = false;
+    if (auth.isAdmin || sessionData.ownerUid === auth.uid) {
+      hasFreeAccess = true;
+    } else {
+      const guests = sessionData.allowedUsers || {};
+      hasFreeAccess = guests[auth.uid]?.freeAccess === true;
     }
 
     const photoCollection = sessionRef.collection("photos");
@@ -69,7 +130,7 @@ export async function POST(req: Request) {
         } catch {
           return null;
         }
-      })
+      }),
     );
 
     const fallbackPrefix = `masters/sessions/${sessionId}/`;
@@ -90,7 +151,8 @@ export async function POST(req: Request) {
       }
 
       if (typeof rawId === "string" && rawId.startsWith(fallbackPrefix)) {
-        const fallbackTitle = rawId.slice(fallbackPrefix.length) || rawId.split("/").pop() || rawId;
+        const fallbackTitle =
+          rawId.slice(fallbackPrefix.length) || rawId.split("/").pop() || rawId;
         selectedPhotos.push({
           id: rawId,
           title: fallbackTitle,
@@ -101,21 +163,30 @@ export async function POST(req: Request) {
     });
 
     if (!selectedPhotos.length) {
-      return NextResponse.json({ error: "Não encontrámos essas fotos" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Não encontrámos essas fotos" },
+        { status: 400 },
+      );
     }
 
     const publicToken = randomUUID().replace(/-/g, "");
     const now = Date.now();
-    const orderPayload = {
+
+    // Se tem acesso gratuito, o pedido já nasce como "paid"
+    const initialStatus = hasFreeAccess ? "paid" : "pending";
+
+    const orderPayload: Record<string, unknown> = {
       sessionId,
-      sessionName: (sessionSnap.data()?.name as string | undefined) || sessionId,
+      sessionName: (sessionData.name as string | undefined) || sessionId,
       selectedCount: selectedPhotos.length,
       selectedPhotos,
-      status: "pending" as const,
+      status: initialStatus,
+      userId: auth.uid,
+      userEmail: auth.email || null,
       createdAt: now,
       updatedAt: FieldValue.serverTimestamp(),
       createdAtServer: FieldValue.serverTimestamp(),
-      paymentConfirmedAt: null,
+      paymentConfirmedAt: hasFreeAccess ? FieldValue.serverTimestamp() : null,
       fulfilledAt: null,
       publicToken,
     };
@@ -123,27 +194,52 @@ export async function POST(req: Request) {
     const ordersCol = db.collection("session_orders");
     const docRef = await ordersCol.add(orderPayload);
 
-    return NextResponse.json({ orderId: docRef.id, token: publicToken }, { status: 201 });
+    return NextResponse.json(
+      {
+        orderId: docRef.id,
+        token: publicToken,
+        status: initialStatus,
+        freeAccess: hasFreeAccess,
+      },
+      { status: 201 },
+    );
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET(req: Request) {
   try {
+    // Auth obrigatório para consultar pedidos
+    const auth = await verifyToken(req);
+    if (!auth) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const sessionId = sanitizeSessionId(searchParams.get("sessionId") || "");
     if (!sessionId) {
-      return NextResponse.json({ error: "sessionId obrigatório" }, { status: 400 });
+      return NextResponse.json(
+        { error: "sessionId obrigatório" },
+        { status: 400 },
+      );
     }
 
     const db = getAdminDb();
-    const snapshot = await db
+
+    // Filtrar pedidos pelo userId do utilizador autenticado (a menos que seja admin)
+    let query = db
       .collection("session_orders")
-      .where("sessionId", "==", sessionId)
-      .orderBy("createdAt", "desc")
-      .limit(1)
-      .get();
+      .where("sessionId", "==", sessionId);
+
+    if (!auth.isAdmin) {
+      query = query.where("userId", "==", auth.uid);
+    }
+
+    const snapshot = await query.orderBy("createdAt", "desc").limit(1).get();
 
     if (snapshot.empty) {
       return NextResponse.json({ order: null });
@@ -160,10 +256,15 @@ export async function GET(req: Request) {
         createdAt: data.createdAt || null,
         sessionId: data.sessionId,
         sessionName: data.sessionName || data.sessionId,
-        selectedCount: data.selectedCount || (Array.isArray(data.selectedPhotos) ? data.selectedPhotos.length : 0),
+        selectedCount:
+          data.selectedCount ||
+          (Array.isArray(data.selectedPhotos) ? data.selectedPhotos.length : 0),
       },
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 },
+    );
   }
 }

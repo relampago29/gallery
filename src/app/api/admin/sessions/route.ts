@@ -27,6 +27,10 @@ export async function GET(req: Request) {
           name: typeof data.name === "string" ? data.name : doc.id,
           createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
           status: typeof data.status === "string" ? data.status : "open",
+          ownerEmail:
+            typeof data.ownerEmail === "string" ? data.ownerEmail : null,
+          ownerUid: typeof data.ownerUid === "string" ? data.ownerUid : null,
+          allowedUsers: data.allowedUsers || {},
           lastSequenceNumber:
             typeof data.lastSequenceNumber === "number"
               ? data.lastSequenceNumber

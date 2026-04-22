@@ -9,13 +9,12 @@ import {
   Search,
   RefreshCw,
   Trash2,
-  Copy,
-  Check,
   ImageIcon,
   ChevronLeft,
   ChevronRight,
   Calendar,
   CreditCard,
+  User,
 } from "lucide-react";
 
 type SessionRow = {
@@ -26,6 +25,9 @@ type SessionRow = {
   selectedCount: number | null;
   paymentStatus: string | null;
   photoCount: number;
+  ownerEmail?: string | null;
+  ownerUid?: string | null;
+  allowedUsers?: Record<string, { email: string; freeAccess?: boolean }>;
 };
 
 async function getIdToken() {
@@ -50,11 +52,20 @@ function formatDate(value: number | null) {
 function statusLabel(status: string | null) {
   switch (status) {
     case "paid":
-      return { text: "Pago", cls: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200" };
+      return {
+        text: "Pago",
+        cls: "border-emerald-400/40 bg-emerald-500/10 text-emerald-200",
+      };
     case "pending":
-      return { text: "Pendente", cls: "border-amber-400/40 bg-amber-500/10 text-amber-200" };
+      return {
+        text: "Pendente",
+        cls: "border-amber-400/40 bg-amber-500/10 text-amber-200",
+      };
     default:
-      return { text: status || "—", cls: "border-white/15 bg-white/5 text-white/60" };
+      return {
+        text: status || "—",
+        cls: "border-white/15 bg-white/5 text-white/60",
+      };
   }
 }
 
@@ -69,14 +80,21 @@ export default function PrivateSessionsAdminPage() {
   const [filter, setFilter] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     type?: "success" | "error" | "warning" | "info";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
   const PAGE_SIZE = 10;
-  const [actionModal, setActionModal] = useState<{ id: string; type: "delete"; name?: string } | null>(null);
+  const [actionModal, setActionModal] = useState<{
+    id: string;
+    type: "delete";
+    name?: string;
+  } | null>(null);
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -107,15 +125,20 @@ export default function PrivateSessionsAdminPage() {
 
   const filtered = filter.trim()
     ? items.filter((s) =>
-        [s.name, s.id, s.paymentStatus, s.status]
+        [s.name, s.id, s.paymentStatus, s.status, s.ownerEmail]
           .filter(Boolean)
-          .some((field) => field?.toLowerCase().includes(filter.trim().toLowerCase()))
+          .some((field) =>
+            field?.toLowerCase().includes(filter.trim().toLowerCase()),
+          ),
       )
     : items;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(pageIndex, totalPages - 1);
-  const pageItems = filtered.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE);
+  const pageItems = filtered.slice(
+    currentPage * PAGE_SIZE,
+    currentPage * PAGE_SIZE + PAGE_SIZE,
+  );
 
   const goPage = (idx: number) => {
     if (idx < 0 || idx >= totalPages) return;
@@ -142,21 +165,12 @@ export default function PrivateSessionsAdminPage() {
       setItems((prev) => prev.filter((s) => s.id !== id));
       setToast({ type: "success", message: "Sessão apagada com sucesso." });
     } catch (err: any) {
-      setToast({ type: "error", message: err?.message || "Não foi possível apagar esta sessão." });
+      setToast({
+        type: "error",
+        message: err?.message || "Não foi possível apagar esta sessão.",
+      });
     } finally {
       setDeletingId(null);
-    }
-  }
-
-  function copySessionCode(e: React.MouseEvent, code: string) {
-    e.stopPropagation();
-    if (!code) return;
-    try {
-      navigator.clipboard.writeText(code);
-      setCopiedId(code);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      setToast({ type: "error", message: "Não foi possível copiar o código." });
     }
   }
 
@@ -180,8 +194,10 @@ export default function PrivateSessionsAdminPage() {
             <div className="text-lg font-semibold">Apagar sessão</div>
             <p className="mt-2 text-sm text-white/70">
               Tem a certeza que queres apagar a sessão{" "}
-              <span className="font-semibold text-white">{actionModal.name || actionModal.id}</span>?
-              Esta ação não pode ser desfeita.
+              <span className="font-semibold text-white">
+                {actionModal.name || actionModal.id}
+              </span>
+              ? Esta ação não pode ser desfeita.
             </p>
             <div className="mt-5 flex gap-3">
               <button
@@ -211,7 +227,9 @@ export default function PrivateSessionsAdminPage() {
 
       {/* Header */}
       <header className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/60">Admin</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+          Admin
+        </p>
         <h1 className="text-4xl font-semibold text-white tracking-tight">
           Sessões privadas
         </h1>
@@ -232,14 +250,17 @@ export default function PrivateSessionsAdminPage() {
           {loading ? "A carregar…" : "Recarregar"}
         </button>
         <div className="relative w-full sm:w-80">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" />
+          <Search
+            size={14}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40"
+          />
           <input
             value={filter}
             onChange={(e) => {
               setFilter(e.target.value);
               setPageIndex(0);
             }}
-            placeholder="Filtrar por nome, código, estado…"
+            placeholder="Filtrar por nome, email, estado…"
             className="w-full rounded-2xl border border-white/15 bg-white/10 pl-10 pr-4 py-2.5 text-sm text-white placeholder-white/40 focus:border-white/50 focus:outline-none focus:ring-1 focus:ring-white/20"
           />
         </div>
@@ -271,45 +292,46 @@ export default function PrivateSessionsAdminPage() {
             return (
               <div
                 key={item.id}
-                onClick={() => router.push(`/${locale}/admin/sessions/${item.id}`)}
+                onClick={() =>
+                  router.push(`/${locale}/admin/sessions/${item.id}`)
+                }
                 className={`${cardClass} cursor-pointer p-5 transition hover:border-white/20 hover:bg-white/[0.07]`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  {/* Left — name + code */}
+                  {/* Left — name + owner */}
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className="truncate text-base font-semibold text-white">
                         {item.name || "Sessão sem nome"}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs tracking-wider text-white/40">
-                        {item.id}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => copySessionCode(e, item.id)}
-                        className="flex h-5 w-5 items-center justify-center rounded text-white/30 transition hover:bg-white/10 hover:text-white/60"
-                        title="Copiar código"
-                      >
-                        {copiedId === item.id ? <Check size={10} /> : <Copy size={10} />}
-                      </button>
-                    </div>
+                    {item.ownerEmail && (
+                      <div className="flex items-center gap-1.5 text-xs text-white/40">
+                        <User size={10} />
+                        <span>{item.ownerEmail}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Meta pills */}
                   <div className="flex flex-wrap items-center gap-3 text-xs">
                     <div className="flex items-center gap-1.5 text-white/50">
                       <ImageIcon size={12} />
-                      <span className="font-medium text-white/70">{item.photoCount}</span>
+                      <span className="font-medium text-white/70">
+                        {item.photoCount}
+                      </span>
                       fotos
                     </div>
                     <div className="flex items-center gap-1.5 text-white/50">
                       <Calendar size={12} />
-                      <span className="text-white/70">{formatDate(item.createdAt)}</span>
+                      <span className="text-white/70">
+                        {formatDate(item.createdAt)}
+                      </span>
                     </div>
                     {item.paymentStatus && (
-                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${ps.cls}`}>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${ps.cls}`}
+                      >
                         <CreditCard size={10} />
                         {ps.text}
                       </span>
@@ -322,7 +344,11 @@ export default function PrivateSessionsAdminPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActionModal({ id: item.id, type: "delete", name: item.name });
+                        setActionModal({
+                          id: item.id,
+                          type: "delete",
+                          name: item.name,
+                        });
                       }}
                       disabled={deletingId === item.id}
                       className="flex h-8 w-8 items-center justify-center rounded-xl text-white/30 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
@@ -340,7 +366,8 @@ export default function PrivateSessionsAdminPage() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-white/40">
-                {filtered.length} sessões · Página {currentPage + 1} de {totalPages}
+                {filtered.length} sessões · Página {currentPage + 1} de{" "}
+                {totalPages}
               </p>
               <div className="flex items-center gap-2">
                 <button

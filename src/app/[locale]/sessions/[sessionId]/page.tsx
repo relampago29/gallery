@@ -1,329 +1,419 @@
-﻿import "server-only";
+"use client";
 
-import { getTranslations } from "next-intl/server";
-import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
-import { DownloadAllButton } from "@/components/sessions/DownloadAllButton";
-import { SessionPhotoGrid } from "@/components/sessions/SessionPhotoGrid";
-import { clampHours } from "@/lib/sessions/share";
-
-export const dynamic = "force-dynamic";
-
-export const revalidate = 0;
-
-type PageProps = {
-  params: Promise<{ locale: string; sessionId: string }>;
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
+import { FormEvent, useMemo, useState, useEffect, useCallback } from "react";
+import NavBar from "@/components/shared/navbar/navbar";
+import { useLocale, useTranslations } from "next-intl";
+import { useRouter, useParams } from "next/navigation";
+import { auth } from "@/lib/firebase/client";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import Image from "next/image";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 type SessionPhoto = {
   id: string;
-
   title?: string | null;
-
   url: string;
-
   createdAt?: number;
-
-  downloadName?: string;
-
-  downloadUrl: string;
 };
 
-function sanitizeSessionId(raw: string) {
-  return raw
-
-    .trim()
-
-    .replace(/%20/g, "-")
-
-    .replace(/[^A-Za-z0-9_-]/g, "-")
-
-    .replace(/-+/g, "-")
-
-    .replace(/^-|-$/g, "");
-}
-
-function sanitizeFilename(input: string) {
-  return (
-    input
-
-      .trim()
-
-      .replace(/\s+/g, "_")
-
-      .replace(/[^A-Za-z0-9._-]/g, "_")
-
-      .replace(/_+/g, "_")
-
-      .replace(/^_+|_+$/g, "") || "foto"
-  );
-}
-
-function buildDownloadName(
-  masterPath: string,
-  title?: string | null,
-  fallback?: string,
-) {
-  const ext = masterPath.includes(".")
-    ? masterPath.split(".").pop() || "jpg"
-    : "jpg";
-
-  const base = sanitizeFilename(title || fallback || "foto");
-
-  const normalizedExt = ext.toLowerCase();
-
-  const baseWithoutExt = base.toLowerCase().endsWith(`.${normalizedExt}`)
-    ? base.slice(0, base.length - (normalizedExt.length + 1))
-    : base;
-
-  return `${baseWithoutExt}.${ext}`
-    .replace(/\.+/g, ".")
-    .replace(/\.{2,}/g, ".");
-}
-
-async function listSessionFiles(
-  sessionId: string,
-
-  hours: number,
-): Promise<{
+type SessionPayload = {
+  sessionId: string;
+  sessionName: string;
   files: SessionPhoto[];
-  expiresAt: Date;
-  sessionName?: string | null;
-}> {
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000);
+  freeAccess: boolean;
+};
 
-  const db = getAdminDb();
+type ExistingOrder = {
+  id: string;
+  status: string;
+  token?: string | null;
+  selectedCount?: number;
+  sessionName?: string;
+};
 
-  const sessionRef = db.collection("client_sessions").doc(sessionId);
+export default function SessionDetailPage() {
+  const t = useTranslations("sessionsPage");
+  const locale = useLocale();
+  const router = useRouter();
+  const params = useParams<{ sessionId: string }>();
+  const sessionId = params?.sessionId || "";
 
-  const sessionSnap = await sessionRef.get();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<SessionPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [existingOrder, setExistingOrder] = useState<ExistingOrder | null>(null);
+  const [checkingOrder, setCheckingOrder] = useState(false);
 
-  const sessionName = sessionSnap.exists
-    ? (sessionSnap.data()?.name as string | undefined | null)
-    : null;
+  // Auth listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
 
-  const photosSnap = await sessionRef
-    .collection("photos")
-    .orderBy("createdAt", "asc")
-    .get();
-
-  const photos = photosSnap.docs;
-
-  const files: SessionPhoto[] = (
-    await Promise.all(
-      photos.map(async (doc) => {
-        const data = doc.data() || {};
-
-        const masterPath = data.masterPath as string | undefined;
-
-        if (!masterPath) return null;
-
-        try {
-          const file = bucketAdmin.file(masterPath);
-
-          const downloadName = buildDownloadName(
-            masterPath,
-            data.title,
-            doc.id,
-          );
-
-          const [url] = await file.getSignedUrl({
-            action: "read",
-
-            expires: expiresAt,
-          });
-
-          const downloadUrl = `/api/session-photos/download?path=${encodeURIComponent(
-            masterPath,
-          )}&name=${encodeURIComponent(downloadName)}`;
-
-          return {
-            id: doc.id,
-
-            title:
-              masterPath.split("/").pop() || data.title || data.alt || doc.id,
-
-            url,
-
-            createdAt:
-              typeof data.createdAt === "number" ? data.createdAt : undefined,
-
-            downloadName,
-
-            downloadUrl,
-          } as SessionPhoto;
-        } catch {
-          return null;
-        }
-      }),
-    )
-  ).filter((f): f is SessionPhoto => f !== null);
-
-  if (files.length === 0) {
-    const prefix = `masters/sessions/${sessionId}/`;
-
-    try {
-      const [objects] = await bucketAdmin.getFiles({ prefix });
-
-      const fallback = await Promise.all(
-        (objects || [])
-
-          .filter((f) => f.name !== prefix && !f.name.endsWith("/"))
-
-          .map(async (file) => {
-            try {
-              const downloadName = buildDownloadName(
-                file.name,
-                file.name.slice(prefix.length),
-                file.name,
-              );
-
-              const [url] = await file.getSignedUrl({
-                action: "read",
-
-                expires: expiresAt,
-              });
-
-              return {
-                id: file.name,
-
-                title: file.name.slice(prefix.length),
-
-                url,
-
-                downloadName,
-
-                downloadUrl: `/api/session-photos/download?path=${encodeURIComponent(
-                  file.name,
-                )}&name=${encodeURIComponent(downloadName)}`,
-              } as SessionPhoto;
-            } catch {
-              return null;
-            }
-          }),
+  // Redirect if not logged in
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.isAnonymous) {
+      router.replace(
+        `/${locale}/login?callbackUrl=${encodeURIComponent(`/${locale}/sessions/${sessionId}`)}`,
       );
+    }
+  }, [user, authLoading, locale, router, sessionId]);
 
-      const filtered = fallback.filter((f): f is SessionPhoto => Boolean(f));
+  // Load session photos
+  const loadSession = useCallback(async () => {
+    if (!user || user.isAnonymous || !sessionId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await user.getIdToken();
+      const params = new URLSearchParams({ sessionId });
+      const res = await fetch(`/api/session-photos/list?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || t("sessionNotFound"));
+      }
+      const data = await res.json();
+      if (!data?.files?.length) {
+        throw new Error(t("noPhotosYet"));
+      }
+      setSession({
+        sessionId: data.sessionId,
+        sessionName: data.sessionName,
+        files: data.files,
+        freeAccess: data.freeAccess === true,
+      });
+      // Check existing orders
+      void fetchExistingOrder(data.sessionId, token);
+    } catch (err: any) {
+      setError(err?.message || t("searchFailed"));
+    } finally {
+      setLoading(false);
+    }
+  }, [user, sessionId, t]);
 
-      if (filtered.length) {
-        return { files: filtered, expiresAt, sessionName };
+  useEffect(() => {
+    if (user && !user.isAnonymous) {
+      loadSession();
+    }
+  }, [user, loadSession]);
+
+  async function fetchExistingOrder(sid: string, idToken?: string) {
+    setCheckingOrder(true);
+    try {
+      const tok = idToken || (await user?.getIdToken());
+      const res = await fetch(
+        `/api/session-orders?sessionId=${encodeURIComponent(sid)}`,
+        {
+          headers: { Authorization: `Bearer ${tok}` },
+          cache: "no-store",
+        },
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const ord = data?.order || null;
+      if (ord && (ord.status === "rejected" || ord.status === "cancelled")) {
+        setExistingOrder(null);
+      } else {
+        setExistingOrder(ord);
       }
     } catch {
-      // ignore fallback error; keeps files empty so UI pode avisar
+      setExistingOrder(null);
+    } finally {
+      setCheckingOrder(false);
     }
   }
 
-  return { files, expiresAt, sessionName };
-}
-
-export const runtime = "nodejs";
-
-export default async function SessionSharePage({
-  params,
-  searchParams,
-}: PageProps) {
-  const resolvedParams = await params;
-  const resolvedSearch = searchParams ? await searchParams : undefined;
-  const requestedId = decodeURIComponent(resolvedParams.sessionId || "");
-  const sessionId = sanitizeSessionId(requestedId);
-  const hoursParam = Array.isArray(resolvedSearch?.hours)
-    ? resolvedSearch?.hours[0]
-    : resolvedSearch?.hours;
-  const hours = clampHours(hoursParam ? Number(hoursParam) : 48);
-  const t = await getTranslations("sessionSharePage");
-
-  if (!sessionId) {
-    return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto py-16 px-4 text-center space-y-4">
-          <h1 className="text-2xl font-semibold">{t("invalidSession")}</h1>
-          <p className="text-gray-600">{t("invalidSessionHint")}</p>
-        </div>
-      </main>
-    );
-  }
-
-  let filesData: {
-    files: SessionPhoto[];
-    expiresAt: Date;
-    sessionName?: string | null;
+  const togglePhoto = (photoId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(photoId)) next.delete(photoId);
+      else next.add(photoId);
+      return next;
+    });
   };
-  try {
-    filesData = await listSessionFiles(sessionId, hours);
-  } catch (err: any) {
+
+  const selectAll = () => {
+    if (!session) return;
+    setSelected(new Set(session.files.map((f) => f.id)));
+  };
+  const clearSelection = () => setSelected(new Set());
+  const selectionCount = selected.size;
+  const allSelected = session ? selectionCount === session.files.length : false;
+
+  const proceed = async () => {
+    if (!session || !selectionCount || !user) return;
+    setCreatingOrder(true);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch("/api/session-orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          sessionId: session.sessionId,
+          photoIds: Array.from(selected),
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || t("proceedFailed"));
+      }
+      const payload = await res.json();
+      const orderId = payload?.orderId;
+      const token = payload?.token;
+      const status = payload?.status;
+      if (!orderId || !token) throw new Error(t("createOrderFailed"));
+
+      // Se já está pago (free access), ir direto para download
+      if (status === "paid") {
+        router.push(
+          `/${locale}/sessions/orders/${orderId}/download?token=${token}`,
+        );
+      } else {
+        router.push(
+          `/${locale}/sessions/orders/${orderId}?token=${token}`,
+        );
+      }
+    } catch (err: any) {
+      setError(err?.message || t("proceedError"));
+    } finally {
+      setCreatingOrder(false);
+    }
+  };
+
+  const resumeOrder = () => {
+    if (!existingOrder || !existingOrder.token) return;
+    const target =
+      existingOrder.status === "pending"
+        ? `/${locale}/sessions/orders/${existingOrder.id}?token=${existingOrder.token}`
+        : `/${locale}/sessions/orders/${existingOrder.id}/download?token=${existingOrder.token}`;
+    router.push(target);
+  };
+
+  // Auth loading
+  if (authLoading || !user || user.isAnonymous) {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto py-16 px-4 text-center space-y-4">
-          <h1 className="text-2xl font-semibold">{t("listError")}</h1>
-          <p className="text-gray-600">
-            {t("listErrorHint", { error: err?.message || String(err) })}
-          </p>
-        </div>
-      </main>
+      <div className="min-h-screen bg-[#030303] text-gray-100">
+        <NavBar />
+        <main className="flex items-center justify-center py-32">
+          <Loader2 size={28} className="animate-spin text-white/40" />
+        </main>
+      </div>
     );
   }
-
-  const { files, expiresAt, sessionName } = filesData;
-  const friendlyName =
-    sessionName && sessionName.trim().length
-      ? sessionName
-      : requestedId && requestedId.trim().length > 0
-        ? requestedId.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim()
-        : sessionId;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#030303] text-gray-100">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_55%)]" />
-        <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-[#7c3aed2a] blur-3xl" />
-        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#f472b62b] blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-[#030303] text-gray-100">
+      <NavBar />
+      <main className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+        <div className="space-y-8">
+          {/* Back button */}
+          <button
+            type="button"
+            onClick={() => router.push(`/${locale}/sessions`)}
+            className="inline-flex items-center gap-2 text-sm text-white/50 transition hover:text-white"
+          >
+            <ArrowLeft size={14} />
+            {t("backToSessions")}
+          </button>
 
-      <div className="relative z-10 mx-auto max-w-6xl space-y-10 py-12 px-4 sm:px-6 lg:px-8">
-        <header className="space-y-4 text-center sm:text-left">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/60">
-                {t("badge")}
-              </p>
-              <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight">
-                {friendlyName || sessionId}
-              </h1>
+          {loading ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+              <Loader2 size={24} className="mx-auto mb-3 animate-spin text-white/40" />
+              <p className="text-sm text-white/50">{t("searching")}</p>
             </div>
-            {files.length > 0 ? (
-              <DownloadAllButton sessionId={sessionId} />
-            ) : null}
-          </div>
-          <p className="text-sm text-white/70">
-            {t("linkActive", {
-              hours,
-              expiry: expiresAt.toLocaleString(
-                resolvedParams.locale === "en" ? "en-GB" : "pt-PT",
-              ),
-            })}
-          </p>
-        </header>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-400/40 bg-red-500/10 p-4 text-sm text-red-100">
+              {error}
+            </div>
+          ) : session ? (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                      {t("sessionLabel")}
+                    </p>
+                    <h2 className="text-2xl font-semibold text-white">
+                      {session.sessionName}
+                    </h2>
+                    <p className="text-sm text-white/70">
+                      {session.freeAccess
+                        ? t("freeAccessNote")
+                        : t("choosePhotos")}
+                    </p>
+                  </div>
+                  {existingOrder?.status !== "paid" && (
+                    <div className="space-y-2 text-sm">
+                      <div className="text-white">
+                        {t("selected")}:{" "}
+                        <span className="font-semibold">{selectionCount}</span>
+                      </div>
+                      <div className="flex gap-2 text-xs uppercase tracking-wide text-white/60">
+                        <button
+                          type="button"
+                          className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
+                          onClick={selectAll}
+                        >
+                          {t("selectAll")}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full border border-white/20 px-3 py-1 hover:bg-white/10"
+                          onClick={clearSelection}
+                        >
+                          {t("clear")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-        {files.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center text-white/70 backdrop-blur-sm">
-            {t("noPhotos")}
-          </div>
-        ) : (
-          <SessionPhotoGrid
-            files={files.map((f) => ({
-              id: f.id,
-              title: f.title,
-              url: f.url,
-              createdAt: f.createdAt,
-              downloadName: f.downloadName,
-              downloadUrl: f.downloadUrl,
-            }))}
-            locale={resolvedParams.locale}
-            transferLabel={t("transferBtn")}
-            noTitleLabel={t("noTitle")}
-          />
-        )}
-      </div>
-    </main>
+              {/* Existing order card */}
+              {checkingOrder && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+                  {t("checkingOrders")}
+                </div>
+              )}
+
+              {existingOrder ? (
+                <div className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6 text-white/80">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                      {t("existingOrderLabel")}
+                    </p>
+                    <h2 className="text-2xl font-semibold text-white">
+                      {t("existingOrderTitle")}
+                    </h2>
+                    <p className="text-sm text-white/70">
+                      {existingOrder.status === "pending"
+                        ? t("existingOrderPending")
+                        : existingOrder.status === "paid"
+                          ? t("existingOrderPaid")
+                          : t("existingOrderDone")}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={resumeOrder}
+                      disabled={!existingOrder.token}
+                      className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                    >
+                      {existingOrder.status === "pending"
+                        ? t("goToPayment")
+                        : t("downloadPhotos")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExistingOrder(null);
+                        setSelected(new Set());
+                      }}
+                      className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
+                    >
+                      {t("chooseAgain")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Photo grid */}
+                  <div className="photo-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {session.files.map((photo) => {
+                      const isSelected = selected.has(photo.id);
+                      const imageSrc =
+                        photo?.url?.trim()?.length
+                          ? photo.url
+                          : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+                      return (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => togglePhoto(photo.id)}
+                          className={`relative overflow-hidden rounded-3xl border ${isSelected ? "border-white/80" : "border-white/10"} bg-white/5 text-left shadow-[0_25px_120px_rgba(0,0,0,0.45)] transition hover:border-white/40`}
+                        >
+                          <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">
+                            {isSelected ? t("photoSelected") : t("photoSelect")}
+                          </span>
+                          <div className="relative aspect-[4/5]">
+                            <Image
+                              src={imageSrc}
+                              alt={photo.title || t("photoAlt")}
+                              fill
+                              sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+                              className="object-cover"
+                              loading="lazy"
+                              unoptimized
+                              style={{ backgroundColor: "#0a0a0a" }}
+                            />
+                            <div
+                              className={`pointer-events-none absolute inset-0 bg-black/60 transition ${isSelected ? "opacity-40" : "opacity-0"}`}
+                            />
+                          </div>
+                          <div className="p-4">
+                            <div className="truncate text-base font-medium text-white">
+                              {photo.title || t("noTitle")}
+                            </div>
+                            {photo.createdAt && (
+                              <div className="text-xs uppercase tracking-wide text-white/60">
+                                {new Date(photo.createdAt).toLocaleDateString(
+                                  "pt-PT",
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Bottom actions */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <button
+                      type="button"
+                      disabled={!selectionCount || creatingOrder}
+                      onClick={proceed}
+                      className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+                    >
+                      {creatingOrder
+                        ? t("preparing")
+                        : session.freeAccess
+                          ? t("proceedFree", { count: selectionCount })
+                          : t("proceed", { count: selectionCount })}
+                    </button>
+                  </div>
+                  {!selectionCount && (
+                    <p className="text-center text-sm text-white/60">
+                      {t("selectAtLeastOne")}
+                    </p>
+                  )}
+                  {allSelected && (
+                    <p className="text-center text-sm text-emerald-300/80">
+                      {t("allPhotosSelected")}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </main>
+    </div>
   );
 }

@@ -2,7 +2,23 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminDb, bucketAdmin } from "@/lib/firebase/admin";
+import { getAdminDb, getAdminAuth, bucketAdmin } from "@/lib/firebase/admin";
+
+/** Verifica token e devolve { uid, isAdmin } ou null */
+async function verifyToken(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) return null;
+  try {
+    const decoded = await getAdminAuth().verifyIdToken(token);
+    const isAdmin =
+      (decoded as any)?.isAdmin === true ||
+      (decoded as any)?.claims?.isAdmin === true;
+    return { uid: decoded.uid, isAdmin };
+  } catch {
+    return null;
+  }
+}
 
 type SessionPhoto = {
   id: string;
@@ -38,13 +54,49 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "invalid sessionId" }, { status: 400 });
     }
 
+    // Auth: requer utilizador autenticado (owner, guest ou admin)
+    const auth = await verifyToken(req);
+    if (!auth) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const expiresAt = Date.now() + hours * 60 * 60 * 1000;
     const db = getAdminDb();
     const sessionRef = db.collection("client_sessions").doc(sessionId);
     const sessionSnap = await sessionRef.get();
-    const sessionName = sessionSnap.exists ? (sessionSnap.data()?.name as string | undefined) : undefined;
 
-    const photosSnap = await sessionRef.collection("photos").orderBy("createdAt", "asc").get();
+    if (!sessionSnap.exists) {
+      return NextResponse.json({ error: "session not found" }, { status: 404 });
+    }
+
+    const sessionData = sessionSnap.data() || {};
+    const sessionName = sessionData.name as string | undefined;
+
+    // Verificar acesso: admin, owner, ou guest
+    if (!auth.isAdmin) {
+      const isOwner = sessionData.ownerUid === auth.uid;
+      const allowedUids: string[] = Array.isArray(sessionData.allowedUids)
+        ? sessionData.allowedUids
+        : [];
+      const isGuest = allowedUids.includes(auth.uid);
+      if (!isOwner && !isGuest) {
+        return NextResponse.json({ error: "access denied" }, { status: 403 });
+      }
+    }
+
+    // Verificar se o utilizador precisa de pagar ou tem acesso gratuito
+    let userFreeAccess = false;
+    if (auth.isAdmin || sessionData.ownerUid === auth.uid) {
+      userFreeAccess = true;
+    } else {
+      const guests = sessionData.allowedUsers || {};
+      userFreeAccess = guests[auth.uid]?.freeAccess === true;
+    }
+
+    const photosSnap = await sessionRef
+      .collection("photos")
+      .orderBy("createdAt", "asc")
+      .get();
     const files: SessionPhoto[] = [];
 
     await Promise.all(
@@ -58,19 +110,20 @@ export async function GET(req: Request) {
             expires: expiresAt,
           });
           const downloadUrl = `/api/session-photos/download?path=${encodeURIComponent(masterPath)}&name=${encodeURIComponent(
-            data.title || doc.id
+            data.title || doc.id,
           )}`;
           files.push({
             id: doc.id,
             title: data.title || data.alt || masterPath.split("/").pop(),
             url,
             downloadUrl,
-            createdAt: typeof data.createdAt === "number" ? data.createdAt : undefined,
+            createdAt:
+              typeof data.createdAt === "number" ? data.createdAt : undefined,
           });
         } catch {
           // ignore errors for missing files
         }
-      })
+      }),
     );
 
     if (!files.length) {
@@ -91,14 +144,16 @@ export async function GET(req: Request) {
                   title: file.name.slice(prefix.length) || file.name,
                   url,
                   downloadUrl: `/api/session-photos/download?path=${encodeURIComponent(file.name)}&name=${encodeURIComponent(
-                    file.name.split("/").pop() || file.name
+                    file.name.split("/").pop() || file.name,
                   )}`,
-                  createdAt: file.metadata?.timeCreated ? Date.parse(file.metadata.timeCreated) : undefined,
+                  createdAt: file.metadata?.timeCreated
+                    ? Date.parse(file.metadata.timeCreated)
+                    : undefined,
                 });
               } catch {
                 // ignore fallback errors
               }
-            })
+            }),
         );
       } catch {
         // ignore fallback errors
@@ -110,8 +165,12 @@ export async function GET(req: Request) {
       sessionName: sessionName || sessionId,
       files,
       expiresAt,
+      freeAccess: userFreeAccess,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 },
+    );
   }
 }
