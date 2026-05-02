@@ -18,11 +18,9 @@ export async function GET(req: Request) {
     }
 
     let uid: string;
-    let email: string | undefined;
     try {
       const decoded = await getAdminAuth().verifyIdToken(token);
       uid = decoded.uid;
-      email = decoded.email;
     } catch {
       return NextResponse.json({ error: "invalid token" }, { status: 401 });
     }

@@ -5,10 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
 import {
   ArrowLeft,
-  Check,
   Download,
   RefreshCw,
-  ExternalLink,
   ImageIcon,
   Lock,
   UserPlus,
@@ -260,7 +258,7 @@ export default function SessionDetailPage() {
         />
       )}
 
-      {/* Back + header */}}
+      {/* Back + header */}
       <header className="space-y-4">
         <button
           type="button"
