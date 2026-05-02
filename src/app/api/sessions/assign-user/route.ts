@@ -72,6 +72,8 @@ export async function POST(req: Request) {
     await sessionRef.update({
       ownerUid,
       ownerEmail,
+      // Ensure allowedUids exists for array-contains queries
+      ...(!(snap.data()?.allowedUids) && { allowedUids: [], allowedUsers: {} }),
       updatedAt: FieldValue.serverTimestamp(),
     });
 

@@ -33,7 +33,6 @@ export async function GET(req: Request) {
     const ownerSnap = await db
       .collection("client_sessions")
       .where("ownerUid", "==", uid)
-      .orderBy("createdAt", "desc")
       .limit(100)
       .get();
 
@@ -41,7 +40,6 @@ export async function GET(req: Request) {
     const guestSnap = await db
       .collection("client_sessions")
       .where("allowedUids", "array-contains", uid)
-      .orderBy("createdAt", "desc")
       .limit(100)
       .get();
 
@@ -86,6 +84,9 @@ export async function GET(req: Request) {
         photoCount: photosSnap.data().count ?? 0,
       });
     }
+
+    // Sort by createdAt descending (avoids composite index dependency)
+    sessions.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
     return NextResponse.json({ sessions });
   } catch (err: any) {
