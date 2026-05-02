@@ -57,6 +57,15 @@ type SessionOrder = {
   token: string;
 };
 
+type PrivateSession = {
+  id: string;
+  name: string;
+  createdAt: number | null;
+  role: "owner" | "guest";
+  freeAccess: boolean;
+  photoCount?: number;
+};
+
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const locale = useLocale();
@@ -435,6 +444,7 @@ function HistoryPanel({ locale }: { locale: string }) {
   const [sub, setSub] = useState<HistorySub>("events");
   const [eventOrders, setEventOrders] = useState<EventOrder[]>([]);
   const [sessionOrders, setSessionOrders] = useState<SessionOrder[]>([]);
+  const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadEventOrders = useCallback(async () => {
@@ -456,9 +466,21 @@ function HistoryPanel({ locale }: { locale: string }) {
   }, []);
 
   const loadSessionOrders = useCallback(async () => {
-    // We don't have a "my session orders" endpoint yet, so we leave it empty for now
-    // TODO: Implement /api/session-orders/mine once needed
-    setSessionOrders([]);
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/sessions/my-sessions", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPrivateSessions(Array.isArray(data.sessions) ? data.sessions : []);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -663,7 +685,7 @@ function HistoryPanel({ locale }: { locale: string }) {
             )}
           </div>
         )
-      ) : /* sessions */ sessionOrders.length === 0 ? (
+      ) : /* sessions */ privateSessions.length === 0 ? (
         <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
             <Camera size={28} className="text-white/30" />
@@ -675,39 +697,27 @@ function HistoryPanel({ locale }: { locale: string }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {sessionOrders.map((order) => {
-            const canDownload =
-              order.status === "paid" || order.status === "fulfilled";
-            return (
-              <div
-                key={order.id}
-                className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white">
-                      {order.sessionName}
-                    </p>
-                    {statusBadge(order.status)}
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                    <span>{order.selectedCount} fotos</span>
-                    <span>{formatDate(order.createdAt)}</span>
-                  </div>
+          {privateSessions.map((session) => (
+            <Link
+              key={session.id}
+              href={`/${locale}/sessions/${session.id}`}
+              className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between transition hover:border-white/20 hover:bg-white/[0.07]"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-white">{session.name}</p>
+                  <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
+                    {session.role === "owner" ? t("roleOwner") : t("roleGuest")}
+                  </span>
                 </div>
-                <div className="flex gap-2">
-                  {canDownload && (
-                    <a
-                      href={`/api/session-orders/${order.id}/download?token=${order.token}`}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
-                    >
-                      <Download size={13} /> Download
-                    </a>
-                  )}
+                <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                  {session.photoCount != null && <span>{session.photoCount} fotos</span>}
+                  <span>{formatDate(session.createdAt)}</span>
                 </div>
               </div>
-            );
-          })}
+              <ExternalLink size={16} className="shrink-0 text-white/30" />
+            </Link>
+          ))}
         </div>
       )}
     </div>

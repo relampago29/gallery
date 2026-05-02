@@ -182,6 +182,8 @@
     "photos": "fotos",
     "sessionsEmpty": "Sessões privadas",
     "sessionsEmptyHint": "Ainda não tens sessões privadas.",
+    "roleOwner": "Proprietário",
+    "roleGuest": "Convidado",
     "statusPending": "Pendente",
     "statusPaid": "Pago",
     "statusFulfilled": "Entregue",
