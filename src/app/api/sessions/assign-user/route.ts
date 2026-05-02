@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       ownerUid,
       ownerEmail,
       // Ensure allowedUids exists for array-contains queries
-      ...(!(snap.data()?.allowedUids) && { allowedUids: [], allowedUsers: {} }),
+      ...(!snap.data()?.allowedUids && { allowedUids: [], allowedUsers: {} }),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
