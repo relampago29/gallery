@@ -58,7 +58,11 @@ export default function SessionDetailPage() {
   const [toast, setToast] = useState<{
     type: "success" | "error" | "warning" | "info" | "confirm";
     message: string;
-    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+    actions?: {
+      label: string;
+      onClick: () => void;
+      variant?: "primary" | "ghost";
+    }[];
   } | null>(null);
 
   const loadPhotos = useCallback(async () => {
@@ -155,11 +159,19 @@ export default function SessionDetailPage() {
               });
               const data = await res.json().catch(() => ({}));
               if (!res.ok)
-                throw new Error(data?.error || "Falha ao remover proprietário.");
+                throw new Error(
+                  data?.error || "Falha ao remover proprietário.",
+                );
               setOwnerEmail(null);
-              setUserMsg({ type: "ok", text: "Proprietário removido com sucesso." });
+              setUserMsg({
+                type: "ok",
+                text: "Proprietário removido com sucesso.",
+              });
             } catch (err: any) {
-              setUserMsg({ type: "err", text: err?.message || "Erro ao remover." });
+              setUserMsg({
+                type: "err",
+                text: err?.message || "Erro ao remover.",
+              });
             } finally {
               setUserLoading(false);
             }
