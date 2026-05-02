@@ -9,11 +9,12 @@ import { requireAdmin } from "../../session-orders/helpers";
 type Body = {
   sessionId: string;
   ownerEmail: string;
+  revoke?: boolean;
 };
 
 /**
  * POST /api/sessions/assign-user
- * Admin atribui uma sessão a um utilizador (por email).
+ * Admin atribui ou remove o owner de uma sessão.
  * Se o utilizador não existir no Firebase Auth, retorna erro.
  */
 export async function POST(req: Request) {
@@ -27,9 +28,8 @@ export async function POST(req: Request) {
       email?: string;
     };
     const sessionId = (body.sessionId || "").trim();
-    const ownerEmail = (body.ownerEmail || body.email || "")
-      .trim()
-      .toLowerCase();
+    const ownerEmail = (body.ownerEmail || body.email || "").trim().toLowerCase();
+    const revoke = body.revoke === true;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -37,6 +37,28 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+
+    const db = getAdminDb();
+    const sessionRef = db.collection("client_sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+
+    if (!snap.exists) {
+      return NextResponse.json(
+        { error: "Sessão não encontrada" },
+        { status: 404 },
+      );
+    }
+
+    // Remover owner
+    if (revoke) {
+      await sessionRef.update({
+        ownerUid: FieldValue.delete(),
+        ownerEmail: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return NextResponse.json({ ok: true, action: "removed" });
+    }
+
     if (!ownerEmail) {
       return NextResponse.json(
         { error: "ownerEmail obrigatório" },
@@ -54,17 +76,6 @@ export async function POST(req: Request) {
         {
           error: `Utilizador com email "${ownerEmail}" não encontrado. O utilizador deve registar-se primeiro.`,
         },
-        { status: 404 },
-      );
-    }
-
-    const db = getAdminDb();
-    const sessionRef = db.collection("client_sessions").doc(sessionId);
-    const snap = await sessionRef.get();
-
-    if (!snap.exists) {
-      return NextResponse.json(
-        { error: "Sessão não encontrada" },
         { status: 404 },
       );
     }

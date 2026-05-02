@@ -124,6 +124,31 @@ export default function SessionDetailPage() {
     }
   }
 
+  async function removeOwner() {
+    if (!confirm("Tens a certeza que queres remover o proprietário desta sessão?")) return;
+    setUserLoading(true);
+    setUserMsg(null);
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/sessions/assign-user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionId, revoke: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Falha ao remover proprietário.");
+      setOwnerEmail(null);
+      setUserMsg({ type: "ok", text: "Proprietário removido com sucesso." });
+    } catch (err: any) {
+      setUserMsg({ type: "err", text: err?.message || "Erro ao remover." });
+    } finally {
+      setUserLoading(false);
+    }
+  }
+
   async function grantAccess(email: string, freeAccess: boolean) {
     if (!email.trim()) return;
     setUserLoading(true);
@@ -274,9 +299,20 @@ export default function SessionDetailPage() {
         <div className="space-y-2">
           <p className="text-xs font-medium text-white/50">Proprietário</p>
           {ownerEmail ? (
-            <div className="flex items-center gap-2 text-sm text-white">
-              <Shield size={14} className="text-emerald-400" />
-              {ownerEmail}
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <div className="flex items-center gap-2 text-sm text-white">
+                <Shield size={14} className="text-emerald-400" />
+                {ownerEmail}
+              </div>
+              <button
+                type="button"
+                onClick={removeOwner}
+                disabled={userLoading}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-white/40 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                title="Remover proprietário"
+              >
+                <Trash2 size={12} />
+              </button>
             </div>
           ) : (
             <p className="text-xs text-white/40 italic">
