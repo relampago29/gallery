@@ -25,9 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const body = (await req.json().catch(() => ({}))) as Partial<Body>;
+    const body = (await req.json().catch(() => ({}))) as Partial<Body> & {
+      email?: string;
+    };
     const sessionId = (body.sessionId || "").trim();
-    const guestEmail = (body.guestEmail || "").trim().toLowerCase();
+    const guestEmail = (body.guestEmail || body.email || "")
+      .trim()
+      .toLowerCase();
     const freeAccess = body.freeAccess === true;
     const revoke = body.revoke === true;
 
