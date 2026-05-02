@@ -180,12 +180,6 @@ const NavBar: React.FC = () => {
                   : translate("portfolio")}
               </Link>
               <Link
-                href="/sessions"
-                className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
-              >
-                {translate("viewSession")}
-              </Link>
-              <Link
                 href="/events"
                 className="block rounded-2xl bg-white/5 px-4 py-3 font-medium transition hover:bg-white/10"
               >
@@ -240,11 +234,6 @@ const NavBar: React.FC = () => {
               {pathname === "/portofolio"
                 ? translate("home")
                 : translate("portfolio")}
-            </Link>
-          </li>
-          <li>
-            <Link className="text-base font-medium text-white" href="/sessions">
-              {translate("viewSession")}
             </Link>
           </li>
           <li>
