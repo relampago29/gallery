@@ -80,11 +80,13 @@ export async function POST(req: Request) {
         allowedUids: FieldValue.arrayRemove(guestUid),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      const updatedSnap = await sessionRef.get();
       return NextResponse.json({
         ok: true,
         action: "revoked",
         guestUid,
         guestEmail,
+        allowedUsers: updatedSnap.data()?.allowedUsers || {},
       });
     }
 
@@ -100,12 +102,14 @@ export async function POST(req: Request) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    const updatedSnap = await sessionRef.get();
     return NextResponse.json({
       ok: true,
       action: "granted",
       guestUid,
       guestEmail,
       freeAccess,
+      allowedUsers: updatedSnap.data()?.allowedUsers || {},
     });
   } catch (err: any) {
     return NextResponse.json(
