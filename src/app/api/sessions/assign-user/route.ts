@@ -28,7 +28,9 @@ export async function POST(req: Request) {
       email?: string;
     };
     const sessionId = (body.sessionId || "").trim();
-    const ownerEmail = (body.ownerEmail || body.email || "").trim().toLowerCase();
+    const ownerEmail = (body.ownerEmail || body.email || "")
+      .trim()
+      .toLowerCase();
     const revoke = body.revoke === true;
 
     if (!sessionId) {

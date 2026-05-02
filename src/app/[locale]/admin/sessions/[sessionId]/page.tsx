@@ -125,7 +125,10 @@ export default function SessionDetailPage() {
   }
 
   async function removeOwner() {
-    if (!confirm("Tens a certeza que queres remover o proprietário desta sessão?")) return;
+    if (
+      !confirm("Tens a certeza que queres remover o proprietário desta sessão?")
+    )
+      return;
     setUserLoading(true);
     setUserMsg(null);
     try {
@@ -139,7 +142,8 @@ export default function SessionDetailPage() {
         body: JSON.stringify({ sessionId, revoke: true }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Falha ao remover proprietário.");
+      if (!res.ok)
+        throw new Error(data?.error || "Falha ao remover proprietário.");
       setOwnerEmail(null);
       setUserMsg({ type: "ok", text: "Proprietário removido com sucesso." });
     } catch (err: any) {
