@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AdminNotification } from "@/components/admin/Notification";
+import { EmailAutocomplete } from "@/components/admin/EmailAutocomplete";
 
 type SessionPhoto = {
   id: string;
@@ -360,12 +361,11 @@ export default function SessionDetailPage() {
             </p>
           )}
           <div className="flex items-center gap-2">
-            <input
-              className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
-              placeholder="email@exemplo.com"
-              type="email"
+            <EmailAutocomplete
               value={assignEmail}
-              onChange={(e) => setAssignEmail(e.target.value)}
+              onChange={setAssignEmail}
+              disabled={userLoading}
+              onSubmit={(email) => { if (email.trim()) assignOwner(); }}
             />
             <button
               type="button"
@@ -436,12 +436,10 @@ export default function SessionDetailPage() {
             </p>
           )}
           <div className="flex items-center gap-2">
-            <input
-              className="flex-1 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/30 focus:border-white/40 focus:outline-none"
-              placeholder="email@exemplo.com"
-              type="email"
+            <EmailAutocomplete
               value={guestEmail}
-              onChange={(e) => setGuestEmail(e.target.value)}
+              onChange={setGuestEmail}
+              disabled={userLoading}
             />
             <button
               type="button"
