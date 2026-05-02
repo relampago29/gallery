@@ -251,7 +251,16 @@ export default function SessionDetailPage() {
 
   return (
     <div className="space-y-8">
-      {/* Back + header */}
+      {toast && (
+        <AdminNotification
+          type={toast.type}
+          message={toast.message}
+          actions={toast.actions}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Back + header */}}
       <header className="space-y-4">
         <button
           type="button"
@@ -315,15 +324,6 @@ export default function SessionDetailPage() {
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
           <Users size={14} /> Gestão de utilizadores
         </h2>
-
-        {toast && (
-          <AdminNotification
-            type={toast.type}
-            message={toast.message}
-            actions={toast.actions}
-            onClose={() => setToast(null)}
-          />
-        )}
 
         {userMsg && (
           <div

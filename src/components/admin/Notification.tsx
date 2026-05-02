@@ -35,7 +35,7 @@ export function AdminNotification({ type = "info", message, onClose, actions }: 
       <div className={`flex flex-col gap-3 rounded-2xl border ${t.border} ${t.bg} px-4 py-3 shadow-[0_20px_80px_rgba(0,0,0,0.4)] backdrop-blur-lg`}>
         <div className="flex items-start gap-3">
           <span className={`mt-0.5 inline-flex h-7 min-w-14 items-center justify-center rounded-full px-3 text-xs font-semibold ${t.pill}`}>
-            {type === "success" ? "Sucesso" : type === "error" ? "Erro" : type === "warning" ? "Aviso" : "Info"}
+            {type === "success" ? "Sucesso" : type === "error" ? "Erro" : type === "warning" ? "Aviso" : type === "confirm" ? "Confirmar" : "Info"}
           </span>
           <p className={`text-sm leading-relaxed ${t.text}`}>{message}</p>
           {onClose ? (
