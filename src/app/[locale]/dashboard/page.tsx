@@ -705,13 +705,17 @@ function HistoryPanel({ locale }: { locale: string }) {
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-white">{session.name}</p>
+                  <p className="text-sm font-semibold text-white">
+                    {session.name}
+                  </p>
                   <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
                     {session.role === "owner" ? t("roleOwner") : t("roleGuest")}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                  {session.photoCount != null && <span>{session.photoCount} fotos</span>}
+                  {session.photoCount != null && (
+                    <span>{session.photoCount} fotos</span>
+                  )}
                   <span>{formatDate(session.createdAt)}</span>
                 </div>
               </div>
