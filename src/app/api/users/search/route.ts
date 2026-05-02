@@ -24,8 +24,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ users: [] });
     }
 
-    const results: { uid: string; email: string; displayName: string | null }[] =
-      [];
+    const results: {
+      uid: string;
+      email: string;
+      displayName: string | null;
+    }[] = [];
     let pageToken: string | undefined;
 
     // Iterate pages (1000 users each) until we have 8 matches or exhausted

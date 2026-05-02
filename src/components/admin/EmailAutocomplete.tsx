@@ -41,10 +41,9 @@ export function EmailAutocomplete({
       const user = auth.currentUser;
       if (!user) return;
       const token = await user.getIdToken();
-      const res = await fetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!res.ok) return;
       const data = await res.json();
       const list: UserSuggestion[] = data.users ?? [];
@@ -134,7 +133,9 @@ export function EmailAutocomplete({
             >
               <span>{s.email}</span>
               {s.displayName && (
-                <span className="text-[11px] text-white/40">{s.displayName}</span>
+                <span className="text-[11px] text-white/40">
+                  {s.displayName}
+                </span>
               )}
             </li>
           ))}

@@ -365,7 +365,9 @@ export default function SessionDetailPage() {
               value={assignEmail}
               onChange={setAssignEmail}
               disabled={userLoading}
-              onSubmit={(email) => { if (email.trim()) assignOwner(); }}
+              onSubmit={(email) => {
+                if (email.trim()) assignOwner();
+              }}
             />
             <button
               type="button"
