@@ -18,6 +18,8 @@ import {
   ShieldOff,
 } from "lucide-react";
 
+import { AdminNotification } from "@/components/admin/Notification";
+
 type SessionPhoto = {
   id: string;
   title?: string | null;
@@ -53,6 +55,11 @@ export default function SessionDetailPage() {
     text: string;
   } | null>(null);
   const [userLoading, setUserLoading] = useState(false);
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "warning" | "info" | "confirm";
+    message: string;
+    actions?: { label: string; onClick: () => void; variant?: "primary" | "ghost" }[];
+  } | null>(null);
 
   const loadPhotos = useCallback(async () => {
     if (!sessionId) return;
@@ -125,32 +132,42 @@ export default function SessionDetailPage() {
   }
 
   async function removeOwner() {
-    if (
-      !confirm("Tens a certeza que queres remover o proprietário desta sessão?")
-    )
-      return;
-    setUserLoading(true);
-    setUserMsg(null);
-    try {
-      const token = await getIdToken();
-      const res = await fetch("/api/sessions/assign-user", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    setToast({
+      type: "confirm",
+      message: "Tens a certeza que queres remover o proprietário desta sessão?",
+      actions: [
+        { label: "Cancelar", onClick: () => setToast(null), variant: "ghost" },
+        {
+          label: "Remover",
+          onClick: async () => {
+            setToast(null);
+            setUserLoading(true);
+            setUserMsg(null);
+            try {
+              const token = await getIdToken();
+              const res = await fetch("/api/sessions/assign-user", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ sessionId, revoke: true }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok)
+                throw new Error(data?.error || "Falha ao remover proprietário.");
+              setOwnerEmail(null);
+              setUserMsg({ type: "ok", text: "Proprietário removido com sucesso." });
+            } catch (err: any) {
+              setUserMsg({ type: "err", text: err?.message || "Erro ao remover." });
+            } finally {
+              setUserLoading(false);
+            }
+          },
+          variant: "primary",
         },
-        body: JSON.stringify({ sessionId, revoke: true }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok)
-        throw new Error(data?.error || "Falha ao remover proprietário.");
-      setOwnerEmail(null);
-      setUserMsg({ type: "ok", text: "Proprietário removido com sucesso." });
-    } catch (err: any) {
-      setUserMsg({ type: "err", text: err?.message || "Erro ao remover." });
-    } finally {
-      setUserLoading(false);
-    }
+      ],
+    });
   }
 
   async function grantAccess(email: string, freeAccess: boolean) {
@@ -286,6 +303,15 @@ export default function SessionDetailPage() {
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-white/60">
           <Users size={14} /> Gestão de utilizadores
         </h2>
+
+        {toast && (
+          <AdminNotification
+            type={toast.type}
+            message={toast.message}
+            actions={toast.actions}
+            onClose={() => setToast(null)}
+          />
+        )}
 
         {userMsg && (
           <div
