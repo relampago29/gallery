@@ -98,7 +98,7 @@ export default function UploadPrivatePhotoPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [sessionName, setSessionName] = useState("");
-  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [savingSession, setSavingSession] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -262,7 +262,7 @@ export default function UploadPrivatePhotoPage() {
           Admin
         </p>
         <h1 className="text-4xl font-semibold text-white tracking-tight">
-          Carregar sessões privadas
+          Criar sessão privada
         </h1>
         <p className="text-sm text-white/70">
           Envia fotos para uma sessão privada. O cliente acede automaticamente
@@ -283,7 +283,7 @@ export default function UploadPrivatePhotoPage() {
               </h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               <label className="space-y-1.5">
                 <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/50">
                   Nome da sessão *
@@ -294,19 +294,6 @@ export default function UploadPrivatePhotoPage() {
                   value={sessionName}
                   onChange={(e) => setSessionName(e.target.value)}
                   required
-                />
-              </label>
-
-              <label className="space-y-1.5">
-                <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/50">
-                  Email do cliente (opcional)
-                </span>
-                <input
-                  className={inputBase}
-                  placeholder="Ex.: cliente@email.com"
-                  type="email"
-                  value={ownerEmail}
-                  onChange={(e) => setOwnerEmail(e.target.value)}
                 />
               </label>
             </div>
@@ -513,7 +500,7 @@ export default function UploadPrivatePhotoPage() {
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
                   1
                 </span>
-                <span>Faz upload das fotos e indica o email do cliente.</span>
+                <span>Dá um nome à sessão e faz upload das fotos.</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/70">
