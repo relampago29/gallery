@@ -220,6 +220,41 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
+    const statusFilter = searchParams.get("status");
+
+    // ── Admin list by status (/api/session-orders?status=paid) ─────────────
+    if (statusFilter && auth.isAdmin) {
+      const db = getAdminDb();
+      const snapshot = await db
+        .collection("session_orders")
+        .where("status", "==", statusFilter)
+        .limit(200)
+        .get();
+
+      const items = snapshot.docs
+        .map((doc) => {
+          const d = doc.data() || {};
+          return {
+            id: doc.id,
+            sessionId: d.sessionId,
+            sessionName: d.sessionName || d.sessionId,
+            selectedCount:
+              d.selectedCount ||
+              (Array.isArray(d.selectedPhotos) ? d.selectedPhotos.length : 0),
+            createdAt: d.createdAt || null,
+            status: d.status || statusFilter,
+          };
+        })
+        .sort((a, b) => {
+          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta; // desc: mais recentes primeiro
+        });
+
+      return NextResponse.json({ items });
+    }
+
+    // ── Single order lookup by sessionId ───────────────────────────────────
     const sessionId = sanitizeSessionId(searchParams.get("sessionId") || "");
     if (!sessionId) {
       return NextResponse.json(
