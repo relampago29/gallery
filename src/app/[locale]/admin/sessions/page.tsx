@@ -15,6 +15,7 @@ import {
   Calendar,
   CreditCard,
   User,
+  Download,
 } from "lucide-react";
 
 type SessionRow = {
@@ -340,6 +341,16 @@ export default function PrivateSessionsAdminPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 sm:ml-2">
+                    {item.photoCount > 0 && (
+                      <a
+                        href={`/api/session-photos/download-all?sessionId=${encodeURIComponent(item.id)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl text-white/30 transition hover:bg-white/10 hover:text-white"
+                        title="Transferir todas as fotos"
+                      >
+                        <Download size={14} />
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => {

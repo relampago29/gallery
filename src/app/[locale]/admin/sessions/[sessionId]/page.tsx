@@ -385,9 +385,6 @@ export default function SessionDetailPage() {
               value={assignEmail}
               onChange={setAssignEmail}
               disabled={userLoading}
-              onSubmit={(email) => {
-                if (email.trim()) assignOwner();
-              }}
             />
             {/* Free / Paid segmented selector */}
             <div className="inline-flex shrink-0 items-center rounded-xl border border-white/15 bg-white/5 p-0.5 text-xs">
