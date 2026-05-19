@@ -14,6 +14,8 @@ import {
   Trash2,
   Shield,
   ShieldOff,
+  Gift,
+  CreditCard,
 } from "lucide-react";
 
 import { AdminNotification } from "@/components/admin/Notification";
@@ -387,25 +389,35 @@ export default function SessionDetailPage() {
                 if (email.trim()) assignOwner();
               }}
             />
-            {/* Free / Paid toggle */}
-            <button
-              type="button"
-              onClick={() => setAssignFreeAccess((v) => !v)}
-              disabled={userLoading}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition ${
-                assignFreeAccess
-                  ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-                  : "border-amber-400/40 bg-amber-500/10 text-amber-300"
-              }`}
-              title={assignFreeAccess ? "Acesso grátis" : "Acesso pago"}
-            >
-              {assignFreeAccess ? (
-                <Shield size={12} />
-              ) : (
-                <ShieldOff size={12} />
-              )}
-              {assignFreeAccess ? "Grátis" : "Pago"}
-            </button>
+            {/* Free / Paid segmented selector */}
+            <div className="inline-flex shrink-0 items-center rounded-xl border border-white/15 bg-white/5 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setAssignFreeAccess(true)}
+                disabled={userLoading}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                  assignFreeAccess
+                    ? "bg-emerald-500 text-white shadow"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <Gift size={11} />
+                Grátis
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssignFreeAccess(false)}
+                disabled={userLoading}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${
+                  !assignFreeAccess
+                    ? "bg-amber-500 text-white shadow"
+                    : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <CreditCard size={11} />
+                Pago
+              </button>
+            </div>
             <button
               type="button"
               onClick={assignOwner}

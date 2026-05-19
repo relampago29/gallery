@@ -83,7 +83,14 @@
     "freeAccessNote": "Tens acesso grátis. Seleciona as fotos e transfere diretamente.",
     "paidAccess": "Pagamento necessário",
     "photos": "fotos",
-    "backToSessions": "Voltar às sessões"
+    "backToSessions": "Voltar às sessões",
+    "tabSessions": "Sessões",
+    "tabPending": "Pagamentos pendentes",
+    "noPendingSessions": "Nenhum pagamento pendente.",
+    "noPendingHint": "Quando tiveres sessões com pagamento por confirmar aparecerão aqui.",
+    "pendingSelectPhotos": "Escolher fotos",
+    "pendingAwaitingConfirm": "A aguardar confirmação",
+    "pendingContinue": "Ver pedido"
   },
   "sessionOrderPayment": {
     "badge": "Pagamento",

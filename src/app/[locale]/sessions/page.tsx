@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Loader2,
   Gift,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 
 type SessionItem = {
@@ -46,6 +48,7 @@ export default function SessionsEntryPage() {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"sessions" | "pending">("sessions");
 
   // Escutar estado de auth
   useEffect(() => {
@@ -112,6 +115,9 @@ export default function SessionsEntryPage() {
   const cardClass =
     "rounded-3xl border border-white/10 bg-white/5 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm";
 
+  const freeSessions = sessions.filter((s) => s.freeAccess);
+  const pendingSessions = sessions.filter((s) => !s.freeAccess);
+
   return (
     <div className="min-h-screen bg-[#030303] text-gray-100">
       <NavBar />
@@ -127,6 +133,58 @@ export default function SessionsEntryPage() {
             <p className="text-sm text-white/70">{t("subtitle")}</p>
           </header>
 
+          {/* Tabs */}
+          <div className="flex items-center justify-center">
+            <div className="inline-flex items-center rounded-full border border-white/15 bg-white/5 p-1 text-sm">
+              <button
+                type="button"
+                onClick={() => setTab("sessions")}
+                className={`relative flex items-center gap-2 rounded-full px-5 py-2 transition ${
+                  tab === "sessions"
+                    ? "bg-white text-gray-900 font-semibold shadow"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <ImageIcon size={14} />
+                {t("tabSessions")}
+                {freeSessions.length > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      tab === "sessions"
+                        ? "bg-gray-200 text-gray-700"
+                        : "bg-white/15 text-white/70"
+                    }`}
+                  >
+                    {freeSessions.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("pending")}
+                className={`relative flex items-center gap-2 rounded-full px-5 py-2 transition ${
+                  tab === "pending"
+                    ? "bg-white text-gray-900 font-semibold shadow"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                <CreditCard size={14} />
+                {t("tabPending")}
+                {pendingSessions.length > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      tab === "pending"
+                        ? "bg-amber-200 text-amber-800"
+                        : "bg-amber-400/20 text-amber-300"
+                    }`}
+                  >
+                    {pendingSessions.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
           {error && (
             <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
               {error}
@@ -141,77 +199,111 @@ export default function SessionsEntryPage() {
               />
               <p className="text-sm text-white/50">{t("loadingSessions")}</p>
             </div>
-          ) : sessions.length === 0 ? (
-            <div className={`${cardClass} p-10 text-center`}>
-              <Lock size={32} className="mx-auto mb-3 text-white/20" />
-              <p className="text-sm text-white/50">{t("noSessions")}</p>
-              <p className="mt-2 text-xs text-white/30">
-                {t("noSessionsHint")}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() =>
-                    router.push(`/${locale}/sessions/${session.id}`)
-                  }
-                  className={`${cardClass} cursor-pointer p-5 transition hover:border-white/20 hover:bg-white/[0.07]`}
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    {/* Nome */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <h3 className="truncate text-base font-semibold text-white">
-                        {session.name}
-                      </h3>
-                      <div className="flex items-center gap-2 text-xs text-white/40">
-                        {session.role === "owner" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
-                            {t("roleOwner")}
+          ) : tab === "sessions" ? (
+            /* ── Sessions tab ── */
+            freeSessions.length === 0 ? (
+              <div className={`${cardClass} p-10 text-center`}>
+                <Lock size={32} className="mx-auto mb-3 text-white/20" />
+                <p className="text-sm text-white/50">{t("noSessions")}</p>
+                <p className="mt-2 text-xs text-white/30">
+                  {t("noSessionsHint")}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {freeSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    onClick={() =>
+                      router.push(`/${locale}/sessions/${session.id}`)
+                    }
+                    className={`${cardClass} cursor-pointer p-5 transition hover:border-white/20 hover:bg-white/[0.07]`}
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <h3 className="truncate text-base font-semibold text-white">
+                          {session.name}
+                        </h3>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/50">
+                            {session.role === "owner"
+                              ? t("roleOwner")
+                              : t("roleGuest")}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
-                            {t("roleGuest")}
-                          </span>
-                        )}
-                        {session.freeAccess ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-200">
                             <Gift size={8} />
                             {t("freeAccess")}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-200">
-                            {t("paidAccess")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Meta */}
-                    <div className="flex flex-wrap items-center gap-3 text-xs">
-                      {session.photoCount != null && (
-                        <div className="flex items-center gap-1.5 text-white/50">
-                          <ImageIcon size={12} />
-                          <span className="font-medium text-white/70">
-                            {session.photoCount}
-                          </span>
-                          {t("photos")}
                         </div>
-                      )}
-                      <div className="flex items-center gap-1.5 text-white/50">
-                        <Calendar size={12} />
-                        <span className="text-white/70">
-                          {formatDate(session.createdAt, locale)}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        {session.photoCount != null && (
+                          <div className="flex items-center gap-1.5 text-white/50">
+                            <ImageIcon size={12} />
+                            <span className="font-medium text-white/70">
+                              {session.photoCount}
+                            </span>
+                            {t("photos")}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 text-white/50">
+                          <Calendar size={12} />
+                          <span className="text-white/70">
+                            {formatDate(session.createdAt, locale)}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        size={18}
+                        className="shrink-0 text-white/20"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : /* ── Pending payments tab ── */
+          pendingSessions.length === 0 ? (
+            <div className={`${cardClass} p-10 text-center`}>
+              <CreditCard size={32} className="mx-auto mb-3 text-white/20" />
+              <p className="text-sm text-white/50">{t("noPendingSessions")}</p>
+              <p className="mt-2 text-xs text-white/30">{t("noPendingHint")}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingSessions.map((session) => (
+                <div key={session.id} className={`${cardClass} p-5`}>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <h3 className="truncate text-base font-semibold text-white">
+                        {session.name}
+                      </h3>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/50">
+                          {session.role === "owner"
+                            ? t("roleOwner")
+                            : t("roleGuest")}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-300">
+                          <Clock size={8} />
+                          {t("paidAccess")}
                         </span>
                       </div>
+                      <div className="flex items-center gap-1.5 text-xs text-white/40 pt-0.5">
+                        <Calendar size={10} />
+                        {formatDate(session.createdAt, locale)}
+                      </div>
                     </div>
-
-                    {/* Arrow */}
-                    <ChevronRight
-                      size={18}
-                      className="shrink-0 text-white/20"
-                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        router.push(`/${locale}/sessions/${session.id}`)
+                      }
+                      className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90 shrink-0"
+                    >
+                      <CreditCard size={14} />
+                      {t("pendingSelectPhotos")}
+                    </button>
                   </div>
                 </div>
               ))}
