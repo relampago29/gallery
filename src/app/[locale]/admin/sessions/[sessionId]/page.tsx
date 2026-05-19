@@ -192,6 +192,38 @@ export default function SessionDetailPage() {
     });
   }
 
+  async function updateOwnerFreeAccess(newValue: boolean) {
+    if (!ownerEmail) return;
+    setUserLoading(true);
+    setUserMsg(null);
+    try {
+      const token = await getIdToken();
+      const res = await fetch("/api/sessions/assign-user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          email: ownerEmail,
+          ownerFreeAccess: newValue,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Falha ao atualizar acesso.");
+      setOwnerFreeAccess(newValue);
+      setUserMsg({
+        type: "ok",
+        text: `Acesso atualizado para ${newValue ? "Grátis" : "Pago"}.`,
+      });
+    } catch (err: any) {
+      setUserMsg({ type: "err", text: err?.message || "Erro ao atualizar." });
+    } finally {
+      setUserLoading(false);
+    }
+  }
+
   async function grantAccess(email: string, freeAccess: boolean) {
     if (!email.trim()) return;
     setUserLoading(true);
@@ -352,18 +384,44 @@ export default function SessionDetailPage() {
           <p className="text-xs font-medium text-white/50">Proprietário</p>
           {ownerEmail ? (
             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className="flex items-center gap-2 text-sm text-white">
+              <div className="flex items-center gap-3 text-sm text-white">
                 <Shield size={14} className="text-emerald-400" />
                 {ownerEmail}
-                {ownerFreeAccess ? (
-                  <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                {/* Inline free/paid toggle */}
+                <div className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      !ownerFreeAccess && updateOwnerFreeAccess(true)
+                    }
+                    disabled={userLoading}
+                    className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition ${
+                      ownerFreeAccess
+                        ? "bg-emerald-500 text-white shadow"
+                        : "text-white/40 hover:text-white/70"
+                    }`}
+                    title="Acesso grátis"
+                  >
+                    <Gift size={10} />
                     Grátis
-                  </span>
-                ) : (
-                  <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ownerFreeAccess && updateOwnerFreeAccess(false)
+                    }
+                    disabled={userLoading}
+                    className={`flex items-center gap-1 rounded-md px-2.5 py-1 transition ${
+                      !ownerFreeAccess
+                        ? "bg-amber-500 text-white shadow"
+                        : "text-white/40 hover:text-white/70"
+                    }`}
+                    title="Requer pagamento"
+                  >
+                    <CreditCard size={10} />
                     Pago
-                  </span>
-                )}
+                  </button>
+                </div>
               </div>
               <button
                 type="button"

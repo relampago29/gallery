@@ -45,7 +45,9 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creatingOrder, setCreatingOrder] = useState(false);
-  const [existingOrder, setExistingOrder] = useState<ExistingOrder | null>(null);
+  const [existingOrder, setExistingOrder] = useState<ExistingOrder | null>(
+    null,
+  );
   const [checkingOrder, setCheckingOrder] = useState(false);
 
   // Auth listener
@@ -177,15 +179,16 @@ export default function SessionDetailPage() {
       const status = payload?.status;
       if (!orderId || !token) throw new Error(t("createOrderFailed"));
 
-      // Se já está pago (free access), ir direto para download
-      if (status === "paid") {
+      // Only go to download if the API explicitly confirms paid status
+      // AND the session is indeed free access — prevents bypassing payment
+      if (status === "paid" && session.freeAccess) {
         router.push(
           `/${locale}/sessions/orders/${orderId}/download?token=${token}`,
         );
       } else {
-        router.push(
-          `/${locale}/sessions/orders/${orderId}?token=${token}`,
-        );
+        // Always go through the payment page for pending orders
+        // or if there's any mismatch between freeAccess and status
+        router.push(`/${locale}/sessions/orders/${orderId}?token=${token}`);
       }
     } catch (err: any) {
       setError(err?.message || t("proceedError"));
@@ -232,7 +235,10 @@ export default function SessionDetailPage() {
 
           {loading ? (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-              <Loader2 size={24} className="mx-auto mb-3 animate-spin text-white/40" />
+              <Loader2
+                size={24}
+                className="mx-auto mb-3 animate-spin text-white/40"
+              />
               <p className="text-sm text-white/50">{t("searching")}</p>
             </div>
           ) : error ? (
@@ -337,10 +343,9 @@ export default function SessionDetailPage() {
                   <div className="photo-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {session.files.map((photo) => {
                       const isSelected = selected.has(photo.id);
-                      const imageSrc =
-                        photo?.url?.trim()?.length
-                          ? photo.url
-                          : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+                      const imageSrc = photo?.url?.trim()?.length
+                        ? photo.url
+                        : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
                       return (
                         <button
                           key={photo.id}
