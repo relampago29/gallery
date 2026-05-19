@@ -29,11 +29,14 @@ import {
   Camera,
   Download,
   ExternalLink,
+  Lock,
+  Gift,
+  CreditCard,
 } from "lucide-react";
 import Link from "next/link";
 
-type Tab = "info" | "history";
-type HistorySub = "events" | "sessions";
+type Tab = "info" | "history" | "sessions";
+type HistorySub = "events";
 
 type EventOrder = {
   id: string;
@@ -90,6 +93,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const tab = searchParams?.get("tab");
     if (tab === "history") setActiveTab("history");
+    if (tab === "sessions") setActiveTab("sessions");
   }, [searchParams]);
 
   useEffect(() => {
@@ -285,7 +289,7 @@ export default function DashboardPage() {
           </header>
 
           {/* Tab switcher */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setActiveTab("info")}
@@ -297,6 +301,18 @@ export default function DashboardPage() {
             >
               <UserCircle size={15} />
               {t("infoTab")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("sessions")}
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm transition ${
+                activeTab === "sessions"
+                  ? "bg-white text-gray-900 font-semibold shadow-lg"
+                  : "border border-white/15 text-white/70 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Camera size={15} />
+              {t("sessionsTab")}
             </button>
             <button
               type="button"
@@ -432,6 +448,9 @@ export default function DashboardPage() {
 
           {/* History tab */}
           {activeTab === "history" && <HistoryPanel locale={locale} />}
+
+          {/* Sessions tab */}
+          {activeTab === "sessions" && <SessionsPanel locale={locale} />}
         </div>
       </div>
     </div>
@@ -441,10 +460,7 @@ export default function DashboardPage() {
 /* ── Purchase History Component ── */
 function HistoryPanel({ locale }: { locale: string }) {
   const t = useTranslations("dashboard");
-  const [sub, setSub] = useState<HistorySub>("events");
   const [eventOrders, setEventOrders] = useState<EventOrder[]>([]);
-  const [sessionOrders, setSessionOrders] = useState<SessionOrder[]>([]);
-  const [privateSessions, setPrivateSessions] = useState<PrivateSession[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadEventOrders = useCallback(async () => {
@@ -465,30 +481,10 @@ function HistoryPanel({ locale }: { locale: string }) {
     }
   }, []);
 
-  const loadSessionOrders = useCallback(async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-    try {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/sessions/my-sessions", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPrivateSessions(Array.isArray(data.sessions) ? data.sessions : []);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadEventOrders(), loadSessionOrders()]).finally(() =>
-      setLoading(false),
-    );
-  }, [loadEventOrders, loadSessionOrders]);
+    loadEventOrders().finally(() => setLoading(false));
+  }, [loadEventOrders]);
 
   function statusBadge(status: string) {
     switch (status) {
@@ -538,31 +534,217 @@ function HistoryPanel({ locale }: { locale: string }) {
 
   return (
     <div className="space-y-5">
-      {/* Sub-tab switcher */}
-      <div className="flex gap-2">
+      {loading ? (
+        <div className="py-16 text-center text-sm text-white/50">
+          {t("loadingHistory")}
+        </div>
+      ) : eventOrders.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+            <CalendarDays size={28} className="text-white/30" />
+          </div>
+          <p className="text-lg font-semibold text-white">{t("eventsEmpty")}</p>
+          <p className="mt-2 text-sm text-white/50">{t("eventsEmptyHint")}</p>
+          <Link
+            href={`/${locale}/events`}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
+            {t("exploreEvents")} <ExternalLink size={13} />
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
+                {t("awaitingPayment")}
+              </h3>
+              {eventOrders
+                .filter((o) => o.status === "pending")
+                .map((order) => {
+                  const eventNameStr =
+                    Object.values(order.eventNames || {}).join(", ") ||
+                    "Evento";
+                  return (
+                    <div
+                      key={order.id}
+                      className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate max-w-xs text-sm font-semibold text-white">
+                            {eventNameStr}
+                          </p>
+                          {statusBadge(order.status)}
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                          <span>{order.itemCount} fotos</span>
+                          <span>{order.totalPrice.toFixed(2)}€</span>
+                          <span>{formatDate(order.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                        >
+                          <Clock size={13} /> {t("viewPayment")}
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+          {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
+            <div className="space-y-3">
+              {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+                  {t("historyLabel")}
+                </h3>
+              )}
+              {eventOrders
+                .filter((o) => o.status !== "pending")
+                .map((order) => {
+                  const eventNameStr =
+                    Object.values(order.eventNames || {}).join(", ") ||
+                    "Evento";
+                  const canDownload =
+                    order.status === "paid" || order.status === "fulfilled";
+                  return (
+                    <div
+                      key={order.id}
+                      className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate max-w-xs text-sm font-semibold text-white">
+                            {eventNameStr}
+                          </p>
+                          {statusBadge(order.status)}
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                          <span>{order.itemCount} fotos</span>
+                          <span>{order.totalPrice.toFixed(2)}€</span>
+                          <span>{formatDate(order.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {canDownload && (
+                          <a
+                            href={`/api/event-orders/${order.id}/download?token=${order.publicToken}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
+                          >
+                            <Download size={13} /> Download
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Private Sessions Component ── */
+function SessionsPanel({ locale }: { locale: string }) {
+  const t = useTranslations("dashboard");
+  const router = useRouter();
+  const [sessions, setSessions] = useState<PrivateSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sessionTab, setSessionTab] = useState<"free" | "pending">("free");
+
+  useEffect(() => {
+    async function load() {
+      const user = auth.currentUser;
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch("/api/sessions/my-sessions", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSessions(Array.isArray(data.sessions) ? data.sessions : []);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const cardClass =
+    "rounded-3xl border border-white/10 bg-white/5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm";
+
+  const freeSessions = sessions.filter((s) => s.freeAccess);
+  const pendingSessions = sessions.filter((s) => !s.freeAccess);
+
+  function formatDate(ts: number | null) {
+    if (!ts) return "—";
+    return new Date(ts).toLocaleDateString("pt-PT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-tabs */}
+      <div className="inline-flex items-center rounded-full border border-white/15 bg-white/5 p-1 text-sm">
         <button
           type="button"
-          onClick={() => setSub("events")}
-          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
-            sub === "events"
-              ? "bg-white/10 text-white font-semibold border border-white/20"
-              : "border border-white/10 text-white/50 hover:bg-white/5 hover:text-white"
+          onClick={() => setSessionTab("free")}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${
+            sessionTab === "free"
+              ? "bg-white text-gray-900 font-semibold shadow"
+              : "text-white/60 hover:text-white"
           }`}
         >
-          <CalendarDays size={14} />
-          {t("eventsTab")}
+          <Gift size={13} />
+          {t("sessionsTab")}
+          {freeSessions.length > 0 && (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                sessionTab === "free"
+                  ? "bg-gray-200 text-gray-700"
+                  : "bg-white/15 text-white/70"
+              }`}
+            >
+              {freeSessions.length}
+            </span>
+          )}
         </button>
         <button
           type="button"
-          onClick={() => setSub("sessions")}
-          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm transition ${
-            sub === "sessions"
-              ? "bg-white/10 text-white font-semibold border border-white/20"
-              : "border border-white/10 text-white/50 hover:bg-white/5 hover:text-white"
+          onClick={() => setSessionTab("pending")}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 transition ${
+            sessionTab === "pending"
+              ? "bg-white text-gray-900 font-semibold shadow"
+              : "text-white/60 hover:text-white"
           }`}
         >
-          <Camera size={14} />
-          {t("sessionsTab")}
+          <CreditCard size={13} />
+          {t("sessionsPendingTab")}
+          {pendingSessions.length > 0 && (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                sessionTab === "pending"
+                  ? "bg-amber-200 text-amber-800"
+                  : "bg-amber-400/20 text-amber-300"
+              }`}
+            >
+              {pendingSessions.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -570,138 +752,71 @@ function HistoryPanel({ locale }: { locale: string }) {
         <div className="py-16 text-center text-sm text-white/50">
           {t("loadingHistory")}
         </div>
-      ) : sub === "events" ? (
-        eventOrders.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
+      ) : sessionTab === "free" ? (
+        freeSessions.length === 0 ? (
+          <div className={`${cardClass} p-10 text-center`}>
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-              <CalendarDays size={28} className="text-white/30" />
+              <Lock size={28} className="text-white/30" />
             </div>
             <p className="text-lg font-semibold text-white">
-              {t("eventsEmpty")}
+              {t("sessionsEmpty")}
             </p>
-            <p className="mt-2 text-sm text-white/50">{t("eventsEmptyHint")}</p>
-            <Link
-              href={`/${locale}/events`}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-            >
-              {t("exploreEvents")} <ExternalLink size={13} />
-            </Link>
+            <p className="mt-2 text-sm text-white/50">
+              {t("sessionsEmptyHint")}
+            </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Pending orders section */}
-            {eventOrders.filter((o) => o.status === "pending").length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
-                  {t("awaitingPayment")}
-                </h3>
-                {eventOrders
-                  .filter((o) => o.status === "pending")
-                  .map((order) => {
-                    const eventNameStr =
-                      Object.values(order.eventNames || {}).join(", ") ||
-                      "Evento";
-                    return (
-                      <div
-                        key={order.id}
-                        className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-white truncate max-w-xs">
-                              {eventNameStr}
-                            </p>
-                            {statusBadge(order.status)}
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                            <span>{order.itemCount} fotos</span>
-                            <span>{order.totalPrice.toFixed(2)}€</span>
-                            <span>{formatDate(order.createdAt)}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
-                          >
-                            <Clock size={13} /> {t("viewPayment")}
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-
-            {/* Other orders (paid, fulfilled, rejected) */}
-            {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
-              <div className="space-y-3">
-                {eventOrders.filter((o) => o.status === "pending").length >
-                  0 && (
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-                    {t("historyLabel")}
-                  </h3>
-                )}
-                {eventOrders
-                  .filter((o) => o.status !== "pending")
-                  .map((order) => {
-                    const eventNameStr =
-                      Object.values(order.eventNames || {}).join(", ") ||
-                      "Evento";
-                    const canDownload =
-                      order.status === "paid" || order.status === "fulfilled";
-                    return (
-                      <div
-                        key={order.id}
-                        className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-white truncate max-w-xs">
-                              {eventNameStr}
-                            </p>
-                            {statusBadge(order.status)}
-                          </div>
-                          <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                            <span>{order.itemCount} fotos</span>
-                            <span>{order.totalPrice.toFixed(2)}€</span>
-                            <span>{formatDate(order.createdAt)}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {canDownload && (
-                            <a
-                              href={`/api/event-orders/${order.id}/download?token=${order.publicToken}`}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
-                            >
-                              <Download size={13} /> Download
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
+          <div className="space-y-3">
+            {freeSessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/${locale}/sessions/${session.id}`}
+                className={`${cardClass} flex flex-col gap-4 p-5 transition hover:border-white/20 hover:bg-white/[0.07] sm:flex-row sm:items-center sm:justify-between`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-white">
+                      {session.name}
+                    </p>
+                    <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
+                      {session.role === "owner"
+                        ? t("roleOwner")
+                        : t("roleGuest")}
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-200">
+                      <Gift size={8} /> {t("freeAccess")}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                    {session.photoCount != null && (
+                      <span>{session.photoCount} fotos</span>
+                    )}
+                    <span>{formatDate(session.createdAt)}</span>
+                  </div>
+                </div>
+                <ExternalLink size={16} className="shrink-0 text-white/30" />
+              </Link>
+            ))}
           </div>
         )
-      ) : /* sessions */ privateSessions.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
+      ) : pendingSessions.length === 0 ? (
+        <div className={`${cardClass} p-10 text-center`}>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-            <Camera size={28} className="text-white/30" />
+            <CreditCard size={28} className="text-white/30" />
           </div>
           <p className="text-lg font-semibold text-white">
-            {t("sessionsEmpty")}
+            {t("sessionsPendingEmpty")}
           </p>
-          <p className="mt-2 text-sm text-white/50">{t("sessionsEmptyHint")}</p>
+          <p className="mt-2 text-sm text-white/50">
+            {t("sessionsPendingEmptyHint")}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {privateSessions.map((session) => (
-            <Link
+          {pendingSessions.map((session) => (
+            <div
               key={session.id}
-              href={`/${locale}/sessions/${session.id}`}
-              className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between transition hover:border-white/20 hover:bg-white/[0.07]"
+              className={`${cardClass} flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between`}
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -711,16 +826,23 @@ function HistoryPanel({ locale }: { locale: string }) {
                   <span className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-white/60">
                     {session.role === "owner" ? t("roleOwner") : t("roleGuest")}
                   </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-300">
+                    <CreditCard size={8} /> {t("paidAccess")}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                  {session.photoCount != null && (
-                    <span>{session.photoCount} fotos</span>
-                  )}
                   <span>{formatDate(session.createdAt)}</span>
                 </div>
               </div>
-              <ExternalLink size={16} className="shrink-0 text-white/30" />
-            </Link>
+              <button
+                type="button"
+                onClick={() => router.push(`/${locale}/sessions/${session.id}`)}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
+              >
+                <CreditCard size={14} />
+                {t("sessionsPendingAction")}
+              </button>
+            </div>
           ))}
         </div>
       )}
