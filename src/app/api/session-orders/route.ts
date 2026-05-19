@@ -268,6 +268,7 @@ export async function GET(req: Request) {
     const db = getAdminDb();
 
     // Filtrar pedidos pelo userId do utilizador autenticado (a menos que seja admin)
+    // Note: no orderBy to avoid composite index requirement — sort in JS
     let query = db
       .collection("session_orders")
       .where("sessionId", "==", sessionId);
@@ -276,13 +277,19 @@ export async function GET(req: Request) {
       query = query.where("userId", "==", auth.uid);
     }
 
-    const snapshot = await query.orderBy("createdAt", "desc").limit(1).get();
+    const snapshot = await query.limit(20).get();
 
     if (snapshot.empty) {
       return NextResponse.json({ order: null });
     }
 
-    const doc = snapshot.docs[0];
+    // Sort by createdAt descending in JS, take the most recent
+    const sorted = snapshot.docs.sort((a, b) => {
+      const ta = (a.data()?.createdAt as number) || 0;
+      const tb = (b.data()?.createdAt as number) || 0;
+      return tb - ta;
+    });
+    const doc = sorted[0];
     const data = doc.data() || {};
 
     return NextResponse.json({
