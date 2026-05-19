@@ -26,7 +26,11 @@ export async function GET(req: Request) {
           id: doc.id,
           sessionId: data.sessionId,
           sessionName: data.sessionName || data.sessionId,
-          selectedCount: data.selectedCount || (Array.isArray(data.selectedPhotos) ? data.selectedPhotos.length : 0),
+          selectedCount:
+            data.selectedCount ||
+            (Array.isArray(data.selectedPhotos)
+              ? data.selectedPhotos.length
+              : 0),
           createdAt: data.createdAt || null,
         };
       })
@@ -38,6 +42,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ items });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "server error" },
+      { status: 500 },
+    );
   }
 }
