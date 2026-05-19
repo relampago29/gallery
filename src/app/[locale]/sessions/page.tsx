@@ -145,7 +145,9 @@ export default function SessionsEntryPage() {
             <div className={`${cardClass} p-10 text-center`}>
               <Lock size={32} className="mx-auto mb-3 text-white/20" />
               <p className="text-sm text-white/50">{t("noSessions")}</p>
-              <p className="mt-2 text-xs text-white/30">{t("noSessionsHint")}</p>
+              <p className="mt-2 text-xs text-white/30">
+                {t("noSessionsHint")}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

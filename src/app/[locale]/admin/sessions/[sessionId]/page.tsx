@@ -122,7 +122,11 @@ export default function SessionDetailPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sessionId, email: assignEmail.trim(), ownerFreeAccess: assignFreeAccess }),
+        body: JSON.stringify({
+          sessionId,
+          email: assignEmail.trim(),
+          ownerFreeAccess: assignFreeAccess,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok)
@@ -395,7 +399,11 @@ export default function SessionDetailPage() {
               }`}
               title={assignFreeAccess ? "Acesso grátis" : "Acesso pago"}
             >
-              {assignFreeAccess ? <Shield size={12} /> : <ShieldOff size={12} />}
+              {assignFreeAccess ? (
+                <Shield size={12} />
+              ) : (
+                <ShieldOff size={12} />
+              )}
               {assignFreeAccess ? "Grátis" : "Pago"}
             </button>
             <button

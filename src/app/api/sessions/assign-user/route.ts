@@ -94,7 +94,12 @@ export async function POST(req: Request) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return NextResponse.json({ ok: true, ownerUid, ownerEmail, ownerFreeAccess });
+    return NextResponse.json({
+      ok: true,
+      ownerUid,
+      ownerEmail,
+      ownerFreeAccess,
+    });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
