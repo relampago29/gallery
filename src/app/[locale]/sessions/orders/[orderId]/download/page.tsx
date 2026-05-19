@@ -46,7 +46,7 @@ export default function OrderDownloadPage() {
         setSelectedCount(
           typeof payload?.selectedCount === "number"
             ? payload.selectedCount
-            : null
+            : null,
         );
         if (status !== "paid" && status !== "fulfilled") {
           setError(t("tokenMissing"));
@@ -65,7 +65,7 @@ export default function OrderDownloadPage() {
   }, [orderId, token, t]);
 
   const downloadUrl = `/api/session-orders/${orderId}/download?token=${encodeURIComponent(
-    token
+    token,
   )}`;
 
   return (
@@ -129,9 +129,7 @@ export default function OrderDownloadPage() {
                 <p className="text-lg font-semibold text-emerald-300">
                   {t("fileReady")}
                 </p>
-                <p className="text-sm text-white/60">
-                  {t("preparationDone", { duration: "" })}
-                </p>
+                <p className="text-sm text-white/60">{t("preparationDone")}</p>
                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                   <a
                     href={downloadUrl}

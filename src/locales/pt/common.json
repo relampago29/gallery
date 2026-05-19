@@ -124,7 +124,7 @@
     "estimatedTimeOnly": "Tempo estimado: ~{total}",
     "estimating": "A estimar tempo…",
     "fileReady": "Ficheiro pronto. Clica em descarregar para guardar.",
-    "preparationDone": "Preparação concluída em {duration}.",
+    "preparationDone": "O teu download está pronto.",
     "tokenMissing": "Token em falta. Reabre o link enviado.",
     "downloading": "A descarregar… mantém a página aberta.",
     "estimatedProgress": "Progresso estimado: {percent}%",

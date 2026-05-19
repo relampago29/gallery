@@ -86,8 +86,10 @@ export async function GET(req: Request) {
 
     // Verificar se o utilizador precisa de pagar ou tem acesso gratuito
     let userFreeAccess = false;
-    if (auth.isAdmin || sessionData.ownerUid === auth.uid) {
+    if (auth.isAdmin) {
       userFreeAccess = true;
+    } else if (sessionData.ownerUid === auth.uid) {
+      userFreeAccess = sessionData.ownerFreeAccess === true;
     } else {
       const guests = sessionData.allowedUsers || {};
       userFreeAccess = guests[auth.uid]?.freeAccess === true;

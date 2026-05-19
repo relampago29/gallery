@@ -124,7 +124,7 @@
     "estimatedTimeOnly": "Estimated time: ~{total}",
     "estimating": "Estimating time…",
     "fileReady": "File ready. Click download to save.",
-    "preparationDone": "Preparation completed in {duration}.",
+    "preparationDone": "Your download is ready.",
     "tokenMissing": "Token missing. Reopen the link sent.",
     "downloading": "Downloading… keep this page open.",
     "estimatedProgress": "Estimated progress: {percent}%",
