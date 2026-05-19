@@ -81,6 +81,7 @@
     "roleGuest": "Guest",
     "freeAccess": "Free access",
     "freeAccessNote": "You have free access. Select photos and download directly.",
+    "paidAccess": "Payment required",
     "photos": "photos",
     "backToSessions": "Back to sessions"
   },

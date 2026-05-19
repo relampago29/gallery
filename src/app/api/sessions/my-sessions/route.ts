@@ -61,7 +61,7 @@ export async function GET(req: Request) {
         name: data.name || doc.id,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
         role: "owner",
-        freeAccess: true, // owner always has free access
+        freeAccess: data.ownerFreeAccess === true,
         photoCount: photosSnap.data().count ?? 0,
       });
     }

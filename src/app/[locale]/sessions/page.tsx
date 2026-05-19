@@ -173,10 +173,14 @@ export default function SessionsEntryPage() {
                             {t("roleGuest")}
                           </span>
                         )}
-                        {session.freeAccess && (
+                        {session.freeAccess ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-200">
                             <Gift size={8} />
                             {t("freeAccess")}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-200">
+                            {t("paidAccess")}
                           </span>
                         )}
                       </div>

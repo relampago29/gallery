@@ -42,12 +42,14 @@ export default function SessionDetailPage() {
   const [photos, setPhotos] = useState<SessionPhoto[]>([]);
   const [sessionName, setSessionName] = useState<string | null>(null);
   const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
+  const [ownerFreeAccess, setOwnerFreeAccess] = useState<boolean>(false);
   const [allowedUsers, setAllowedUsers] = useState<
     Record<string, { email: string; freeAccess?: boolean }>
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignEmail, setAssignEmail] = useState("");
+  const [assignFreeAccess, setAssignFreeAccess] = useState(false);
   const [guestEmail, setGuestEmail] = useState("");
   const [userMsg, setUserMsg] = useState<{
     type: "ok" | "err";
@@ -96,6 +98,7 @@ export default function SessionDetailPage() {
         const session = metaData.sessions?.find((s: any) => s.id === sessionId);
         if (session) {
           setOwnerEmail(session.ownerEmail || null);
+          setOwnerFreeAccess(session.ownerFreeAccess === true);
           setAllowedUsers(session.allowedUsers || {});
         }
       }
@@ -119,13 +122,15 @@ export default function SessionDetailPage() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ sessionId, email: assignEmail.trim() }),
+        body: JSON.stringify({ sessionId, email: assignEmail.trim(), ownerFreeAccess: assignFreeAccess }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok)
         throw new Error(data?.error || "Falha ao associar utilizador.");
       setOwnerEmail(assignEmail.trim());
+      setOwnerFreeAccess(assignFreeAccess);
       setAssignEmail("");
+      setAssignFreeAccess(false);
       setUserMsg({ type: "ok", text: "Proprietário associado com sucesso." });
     } catch (err: any) {
       setUserMsg({ type: "err", text: err?.message || "Erro ao associar." });
@@ -344,6 +349,15 @@ export default function SessionDetailPage() {
               <div className="flex items-center gap-2 text-sm text-white">
                 <Shield size={14} className="text-emerald-400" />
                 {ownerEmail}
+                {ownerFreeAccess ? (
+                  <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
+                    Grátis
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                    Pago
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -369,6 +383,21 @@ export default function SessionDetailPage() {
                 if (email.trim()) assignOwner();
               }}
             />
+            {/* Free / Paid toggle */}
+            <button
+              type="button"
+              onClick={() => setAssignFreeAccess((v) => !v)}
+              disabled={userLoading}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition ${
+                assignFreeAccess
+                  ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
+                  : "border-amber-400/40 bg-amber-500/10 text-amber-300"
+              }`}
+              title={assignFreeAccess ? "Acesso grátis" : "Acesso pago"}
+            >
+              {assignFreeAccess ? <Shield size={12} /> : <ShieldOff size={12} />}
+              {assignFreeAccess ? "Grátis" : "Pago"}
+            </button>
             <button
               type="button"
               onClick={assignOwner}

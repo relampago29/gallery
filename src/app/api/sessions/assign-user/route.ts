@@ -9,6 +9,7 @@ import { requireAdmin } from "../../session-orders/helpers";
 type Body = {
   sessionId: string;
   ownerEmail: string;
+  ownerFreeAccess?: boolean;
   revoke?: boolean;
 };
 
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
       .trim()
       .toLowerCase();
     const revoke = body.revoke === true;
+    const ownerFreeAccess = body.ownerFreeAccess === true;
 
     if (!sessionId) {
       return NextResponse.json(
@@ -56,6 +58,7 @@ export async function POST(req: Request) {
       await sessionRef.update({
         ownerUid: FieldValue.delete(),
         ownerEmail: FieldValue.delete(),
+        ownerFreeAccess: FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
       });
       return NextResponse.json({ ok: true, action: "removed" });
@@ -85,12 +88,13 @@ export async function POST(req: Request) {
     await sessionRef.update({
       ownerUid,
       ownerEmail,
+      ownerFreeAccess,
       // Ensure allowedUids exists for array-contains queries
       ...(!snap.data()?.allowedUids && { allowedUids: [], allowedUsers: {} }),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return NextResponse.json({ ok: true, ownerUid, ownerEmail });
+    return NextResponse.json({ ok: true, ownerUid, ownerEmail, ownerFreeAccess });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "server error" },
