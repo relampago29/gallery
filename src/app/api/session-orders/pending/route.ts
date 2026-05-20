@@ -32,6 +32,7 @@ export async function GET(req: Request) {
               ? data.selectedPhotos.length
               : 0),
           createdAt: data.createdAt || null,
+          userEmail: data.userEmail || null,
         };
       })
       .sort((a, b) => {

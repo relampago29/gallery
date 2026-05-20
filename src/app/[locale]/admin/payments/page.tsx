@@ -10,6 +10,7 @@ type PendingOrder = {
   sessionName: string;
   selectedCount: number;
   createdAt: number | null;
+  userEmail: string | null;
 };
 
 type PendingEventOrder = {
@@ -448,8 +449,8 @@ export default function PendingPaymentsPage() {
                         <div className="text-lg font-semibold text-white">
                           {item.sessionName || "Sessão sem nome"}
                         </div>
-                        <p className="text-xs uppercase tracking-[0.35em] text-white/50">
-                          {item.sessionId}
+                        <p className="text-xs text-white/50">
+                          {item.userEmail || item.sessionId}
                         </p>
                       </div>
                       <div className="space-y-1 text-sm text-white/70">
