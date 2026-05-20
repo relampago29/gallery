@@ -243,7 +243,7 @@ function OrderContent() {
                       {t("downloadAgain")}
                     </a>
                     <Link
-                      href={`/${locale}/dashboard?tab=sessions`}
+                      href="/dashboard?tab=sessions"
                       className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
                     >
                       {t("backToDashboard")}
