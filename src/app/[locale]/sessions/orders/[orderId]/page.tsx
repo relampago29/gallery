@@ -283,14 +283,6 @@ function OrderContent() {
             </div>
           </div>
         )}
-
-        {/* Order ID footer */}
-        {orderId && (
-          <div className="text-center text-xs text-white/50">
-            {t("orderId")}{" "}
-            <span className="font-mono text-white/80">{orderId}</span>
-          </div>
-        )}
       </main>
     </div>
   );

@@ -111,7 +111,18 @@
     "waitingMessage": "Mal confirmarmos o pagamento vais receber automaticamente o download das fotos. Mantém esta página aberta.",
     "orderId": "ID do pedido:",
     "checkFailed": "Não conseguimos verificar o pagamento.",
-    "paymentCheckFailed": "Falha ao verificar o pagamento"
+    "paymentCheckFailed": "Falha ao verificar o pagamento",
+    "downloadTitle": "As tuas fotos estão prontas",
+    "downloadSubtitle": "Pagamento confirmado. Podes descarregar as tuas fotos abaixo.",
+    "download": "Descarregar fotos",
+    "downloadAgain": "Descarregar novamente",
+    "downloadStarted": "Download iniciado!",
+    "preparationDone": "O teu ficheiro está pronto. Podes descarregar novamente a qualquer momento.",
+    "rejectedTitle": "Pagamento não confirmado",
+    "rejectedSubtitle": "O teu pagamento foi rejeitado ou cancelado.",
+    "rejectedHint": "Se achas que isto é um erro, por favor contacta o fotógrafo.",
+    "backToSession": "Voltar à sessão",
+    "backToDashboard": "Ir para o dashboard"
   },
   "sessionOrderDownload": {
     "badge": "Download",

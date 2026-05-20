@@ -111,7 +111,18 @@
     "waitingMessage": "As soon as we confirm the payment you'll automatically receive the photo download. Keep this page open.",
     "orderId": "Order ID:",
     "checkFailed": "We couldn't verify the payment.",
-    "paymentCheckFailed": "Failed to verify the payment"
+    "paymentCheckFailed": "Failed to verify the payment",
+    "downloadTitle": "Your photos are ready",
+    "downloadSubtitle": "Payment confirmed. You can download your photos below.",
+    "download": "Download photos",
+    "downloadAgain": "Download again",
+    "downloadStarted": "Download started!",
+    "preparationDone": "Your file is ready. You can download again at any time.",
+    "rejectedTitle": "Payment not confirmed",
+    "rejectedSubtitle": "Your payment was rejected or cancelled.",
+    "rejectedHint": "If you think this is a mistake, please contact the photographer.",
+    "backToSession": "Back to session",
+    "backToDashboard": "Go to dashboard"
   },
   "sessionOrderDownload": {
     "badge": "Download",
