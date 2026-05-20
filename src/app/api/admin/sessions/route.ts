@@ -30,6 +30,7 @@ export async function GET(req: Request) {
           ownerEmail:
             typeof data.ownerEmail === "string" ? data.ownerEmail : null,
           ownerUid: typeof data.ownerUid === "string" ? data.ownerUid : null,
+          ownerFreeAccess: data.ownerFreeAccess === true,
           allowedUsers: data.allowedUsers || {},
           lastSequenceNumber:
             typeof data.lastSequenceNumber === "number"

@@ -179,15 +179,14 @@ export default function SessionDetailPage() {
       const status = payload?.status;
       if (!orderId || !token) throw new Error(t("createOrderFailed"));
 
-      // Only go to download if the API explicitly confirms paid status
-      // AND the session is indeed free access — prevents bypassing payment
-      if (status === "paid" && session.freeAccess) {
+      // Use the status returned by the API — it reads fresh from Firestore,
+      // so it is always authoritative. "paid" = freeAccess was true → download.
+      // "pending" = payment required → MBWay page.
+      if (status === "paid") {
         router.push(
           `/${locale}/sessions/orders/${orderId}/download?token=${token}`,
         );
       } else {
-        // Always go through the payment page for pending orders
-        // or if there's any mismatch between freeAccess and status
         router.push(`/${locale}/sessions/orders/${orderId}?token=${token}`);
       }
     } catch (err: any) {
