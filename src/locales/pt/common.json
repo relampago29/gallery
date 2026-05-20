@@ -126,6 +126,8 @@
     "fileReady": "Ficheiro pronto. Clica em descarregar para guardar.",
     "preparationDone": "O teu download está pronto.",
     "tokenMissing": "Token em falta. Reabre o link enviado.",
+    "paymentPending": "Pagamento ainda não confirmado.",
+    "backToPayment": "Voltar à página de pagamento",
     "downloading": "A descarregar… mantém a página aberta.",
     "estimatedProgress": "Progresso estimado: {percent}%",
     "prepareFile": "Preparar ficheiro",

@@ -1,26 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
 import { Link } from "@/i18n/navigation";
-import { Download, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  Download,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Clock,
+} from "lucide-react";
 
-export default function OrderDownloadPage() {
+function OrderDownloadContent() {
   const locale = useLocale();
   const t = useTranslations("sessionOrderDownload");
   const params = useParams<{ orderId: string; locale: string }>();
+  const searchParams = useSearchParams();
   const orderId = params?.orderId || "";
-  const token = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("token") || "";
-  }, []);
+  const token = searchParams.get("token") || "";
 
   const [loading, setLoading] = useState(true);
   const [canDownload, setCanDownload] = useState(false);
   const [selectedCount, setSelectedCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
   const [downloadStarted, setDownloadStarted] = useState(false);
 
   // Validate order on mount
@@ -32,30 +37,42 @@ export default function OrderDownloadPage() {
     }
 
     let aborted = false;
+    setError(null);
+    setIsPending(false);
+    setLoading(true);
+
     fetch(`/api/session-orders/${orderId}?token=${encodeURIComponent(token)}`, {
       cache: "no-store",
     })
       .then((res) => {
-        if (!res.ok) throw new Error("not found");
+        if (res.status === 401 || res.status === 404) {
+          throw Object.assign(new Error("invalid"), { code: res.status });
+        }
+        if (!res.ok) throw new Error("error");
         return res.json();
       })
       .then((payload) => {
         if (aborted) return;
         const status = payload?.status;
-        setCanDownload(status === "paid" || status === "fulfilled");
+        const isPaid = status === "paid" || status === "fulfilled";
+        setCanDownload(isPaid);
         setSelectedCount(
           typeof payload?.selectedCount === "number"
             ? payload.selectedCount
             : null,
         );
-        if (status !== "paid" && status !== "fulfilled") {
-          setError(t("tokenMissing"));
+        if (!isPaid) {
+          if (status === "pending") {
+            setIsPending(true);
+          } else {
+            setError(t("tokenMissing"));
+          }
         }
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err: any) => {
         if (aborted) return;
-        setError(t("tokenMissing"));
+        setError(err?.code === 401 ? t("tokenMissing") : t("tokenMissing"));
         setLoading(false);
       });
 
@@ -90,8 +107,22 @@ export default function OrderDownloadPage() {
               </div>
             )}
 
-            {/* Error / not paid */}
-            {!loading && error && !canDownload && (
+            {/* Payment pending — go back to payment page */}
+            {!loading && isPending && !canDownload && (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <Clock size={28} className="text-amber-400" />
+                <p className="text-sm text-amber-200">{t("paymentPending")}</p>
+                <Link
+                  href={`/sessions/orders/${orderId}?token=${encodeURIComponent(token)}`}
+                  className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
+                >
+                  {t("backToPayment")}
+                </Link>
+              </div>
+            )}
+
+            {/* Error / invalid token */}
+            {!loading && error && !canDownload && !isPending && (
               <div className="flex flex-col items-center gap-3 py-4">
                 <AlertCircle size={28} className="text-amber-400" />
                 <p className="text-sm text-amber-200">{error}</p>
@@ -156,5 +187,13 @@ export default function OrderDownloadPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function OrderDownloadPage() {
+  return (
+    <Suspense>
+      <OrderDownloadContent />
+    </Suspense>
   );
 }

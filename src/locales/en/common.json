@@ -126,6 +126,8 @@
     "fileReady": "File ready. Click download to save.",
     "preparationDone": "Your download is ready.",
     "tokenMissing": "Token missing. Reopen the link sent.",
+    "paymentPending": "Payment not yet confirmed.",
+    "backToPayment": "Back to payment page",
     "downloading": "Downloading… keep this page open.",
     "estimatedProgress": "Estimated progress: {percent}%",
     "prepareFile": "Prepare file",
