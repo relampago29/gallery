@@ -203,7 +203,10 @@
     "statusPending": "Pendente",
     "statusPaid": "Pago",
     "statusFulfilled": "Entregue",
-    "statusRejected": "Rejeitado"
+    "statusRejected": "Rejeitado",
+    "sessionOrdersLabel": "Sessões privadas",
+    "sessionOrdersEmpty": "Ainda não tens encomendas de sessões privadas.",
+    "eventOrdersLabel": "Eventos"
   },
   "protofolioHomePage": {
     "highlights": "Destaques",

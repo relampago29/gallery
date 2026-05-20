@@ -203,7 +203,10 @@
     "statusPending": "Pending",
     "statusPaid": "Paid",
     "statusFulfilled": "Delivered",
-    "statusRejected": "Rejected"
+    "statusRejected": "Rejected",
+    "sessionOrdersLabel": "Private sessions",
+    "sessionOrdersEmpty": "You don't have any private session orders yet.",
+    "eventOrdersLabel": "Events"
   },
   "protofolioHomePage": {
     "highlights": "Highlights",

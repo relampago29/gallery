@@ -461,20 +461,31 @@ export default function DashboardPage() {
 function HistoryPanel({ locale }: { locale: string }) {
   const t = useTranslations("dashboard");
   const [eventOrders, setEventOrders] = useState<EventOrder[]>([]);
+  const [sessionOrders, setSessionOrders] = useState<SessionOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadEventOrders = useCallback(async () => {
+  const loadOrders = useCallback(async () => {
     const user = auth.currentUser;
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      const res = await fetch("/api/event-orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const [eventRes, sessionRes] = await Promise.all([
+        fetch("/api/event-orders", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
+        fetch("/api/session-orders/my-orders", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }),
+      ]);
+      if (eventRes.ok) {
+        const data = await eventRes.json();
         setEventOrders(Array.isArray(data.orders) ? data.orders : []);
+      }
+      if (sessionRes.ok) {
+        const data = await sessionRes.json();
+        setSessionOrders(Array.isArray(data.orders) ? data.orders : []);
       }
     } catch {
       // ignore
@@ -483,8 +494,8 @@ function HistoryPanel({ locale }: { locale: string }) {
 
   useEffect(() => {
     setLoading(true);
-    loadEventOrders().finally(() => setLoading(false));
-  }, [loadEventOrders]);
+    loadOrders().finally(() => setLoading(false));
+  }, [loadOrders]);
 
   function statusBadge(status: string) {
     switch (status) {
@@ -533,123 +544,193 @@ function HistoryPanel({ locale }: { locale: string }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {loading ? (
         <div className="py-16 text-center text-sm text-white/50">
           {t("loadingHistory")}
         </div>
-      ) : eventOrders.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-            <CalendarDays size={28} className="text-white/30" />
-          </div>
-          <p className="text-lg font-semibold text-white">{t("eventsEmpty")}</p>
-          <p className="mt-2 text-sm text-white/50">{t("eventsEmptyHint")}</p>
-          <Link
-            href={`/${locale}/events`}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-          >
-            {t("exploreEvents")} <ExternalLink size={13} />
-          </Link>
-        </div>
       ) : (
-        <div className="space-y-6">
-          {eventOrders.filter((o) => o.status === "pending").length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
-                {t("awaitingPayment")}
-              </h3>
-              {eventOrders
-                .filter((o) => o.status === "pending")
-                .map((order) => {
-                  const eventNameStr =
-                    Object.values(order.eventNames || {}).join(", ") ||
-                    "Evento";
-                  return (
-                    <div
-                      key={order.id}
-                      className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="truncate max-w-xs text-sm font-semibold text-white">
-                            {eventNameStr}
-                          </p>
-                          {statusBadge(order.status)}
-                        </div>
-                        <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                          <span>{order.itemCount} fotos</span>
-                          <span>{order.totalPrice.toFixed(2)}€</span>
-                          <span>{formatDate(order.createdAt)}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Link
-                          href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
-                        >
-                          <Clock size={13} /> {t("viewPayment")}
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-          {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
-            <div className="space-y-3">
-              {eventOrders.filter((o) => o.status === "pending").length > 0 && (
-                <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
-                  {t("historyLabel")}
-                </h3>
-              )}
-              {eventOrders
-                .filter((o) => o.status !== "pending")
-                .map((order) => {
-                  const eventNameStr =
-                    Object.values(order.eventNames || {}).join(", ") ||
-                    "Evento";
+        <>
+          {/* ── Session Orders ── */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
+              <Camera size={12} />
+              {t("sessionOrdersLabel")}
+            </h3>
+            {sessionOrders.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+                <Camera size={24} className="mx-auto mb-3 text-white/20" />
+                <p className="text-sm text-white/50">{t("sessionOrdersEmpty")}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sessionOrders.map((order) => {
                   const canDownload =
                     order.status === "paid" || order.status === "fulfilled";
+                  const isPending = order.status === "pending";
                   return (
                     <div
                       key={order.id}
-                      className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                      className={`flex flex-col gap-4 rounded-3xl border p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between ${
+                        isPending
+                          ? "border-amber-400/20 bg-amber-500/5"
+                          : "border-white/10 bg-white/5"
+                      }`}
                     >
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="truncate max-w-xs text-sm font-semibold text-white">
-                            {eventNameStr}
+                            {order.sessionName}
                           </p>
                           {statusBadge(order.status)}
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-white/50">
-                          <span>{order.itemCount} fotos</span>
-                          <span>{order.totalPrice.toFixed(2)}€</span>
+                          <span>{order.selectedCount} fotos</span>
                           <span>{formatDate(order.createdAt)}</span>
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {canDownload && (
-                          <a
-                            href={`/api/event-orders/${order.id}/download?token=${order.publicToken}`}
+                        {isPending && order.token && (
+                          <Link
+                            href={`/${locale}/sessions/orders/${order.id}?token=${order.token}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                          >
+                            <Clock size={13} /> {t("viewPayment")}
+                          </Link>
+                        )}
+                        {canDownload && order.token && (
+                          <Link
+                            href={`/${locale}/sessions/orders/${order.id}?token=${order.token}`}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
                           >
                             <Download size={13} /> Download
-                          </a>
+                          </Link>
                         )}
                       </div>
                     </div>
                   );
                 })}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Event Orders ── */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50 flex items-center gap-2">
+              <CalendarDays size={12} />
+              {t("eventOrdersLabel")}
+            </h3>
+            {eventOrders.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+                <CalendarDays size={24} className="mx-auto mb-3 text-white/30" />
+                <p className="text-sm text-white/50">{t("eventsEmpty")}</p>
+                <p className="mt-2 text-xs text-white/30">{t("eventsEmptyHint")}</p>
+                <Link
+                  href={`/${locale}/events`}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  {t("exploreEvents")} <ExternalLink size={13} />
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
+                      {t("awaitingPayment")}
+                    </h4>
+                    {eventOrders
+                      .filter((o) => o.status === "pending")
+                      .map((order) => {
+                        const eventNameStr =
+                          Object.values(order.eventNames || {}).join(", ") ||
+                          "Evento";
+                        return (
+                          <div
+                            key={order.id}
+                            className="flex flex-col gap-4 rounded-3xl border border-amber-400/20 bg-amber-500/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="truncate max-w-xs text-sm font-semibold text-white">
+                                  {eventNameStr}
+                                </p>
+                                {statusBadge(order.status)}
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                                <span>{order.itemCount} fotos</span>
+                                <span>{order.totalPrice.toFixed(2)}€</span>
+                                <span>{formatDate(order.createdAt)}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Link
+                                href={`/${locale}/events/orders/${order.id}?token=${order.publicToken}`}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+                              >
+                                <Clock size={13} /> {t("viewPayment")}
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
+                  <div className="space-y-3">
+                    {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+                      <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+                        {t("historyLabel")}
+                      </h4>
+                    )}
+                    {eventOrders
+                      .filter((o) => o.status !== "pending")
+                      .map((order) => {
+                        const eventNameStr =
+                          Object.values(order.eventNames || {}).join(", ") ||
+                          "Evento";
+                        const canDownload =
+                          order.status === "paid" || order.status === "fulfilled";
+                        return (
+                          <div
+                            key={order.id}
+                            className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="truncate max-w-xs text-sm font-semibold text-white">
+                                  {eventNameStr}
+                                </p>
+                                {statusBadge(order.status)}
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-xs text-white/50">
+                                <span>{order.itemCount} fotos</span>
+                                <span>{order.totalPrice.toFixed(2)}€</span>
+                                <span>{formatDate(order.createdAt)}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {canDownload && (
+                                <a
+                                  href={`/api/event-orders/${order.id}/download?token=${order.publicToken}`}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-gray-900 transition hover:bg-white/90"
+                                >
+                                  <Download size={13} /> Download
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
-}
-
 /* ── Private Sessions Component ── */
 function SessionsPanel({ locale }: { locale: string }) {
   const t = useTranslations("dashboard");

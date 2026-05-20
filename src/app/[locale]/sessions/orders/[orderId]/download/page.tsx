@@ -1,199 +1,35 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { useParams, useSearchParams } from "next/navigation";
-import NavBar from "@/components/shared/navbar/navbar";
-import { Link } from "@/i18n/navigation";
-import {
-  Download,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Clock,
-} from "lucide-react";
+import { useEffect } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useLocale } from "next-intl";
+import { Suspense } from "react";
 
-function OrderDownloadContent() {
+/**
+ * This route is kept for backward compatibility with any existing links.
+ * It redirects to the unified order page: /sessions/orders/[orderId]?token=...
+ */
+function DownloadRedirectContent() {
   const locale = useLocale();
-  const t = useTranslations("sessionOrderDownload");
-  const params = useParams<{ orderId: string; locale: string }>();
+  const params = useParams<{ orderId: string }>();
   const searchParams = useSearchParams();
-  const orderId = params?.orderId || "";
-  const token = searchParams.get("token") || "";
+  const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [canDownload, setCanDownload] = useState(false);
-  const [selectedCount, setSelectedCount] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, setIsPending] = useState(false);
-  const [downloadStarted, setDownloadStarted] = useState(false);
-
-  // Validate order on mount
   useEffect(() => {
-    if (!orderId || !token) {
-      setError(t("tokenMissing"));
-      setLoading(false);
-      return;
-    }
+    const orderId = params?.orderId || "";
+    const token = searchParams.get("token") || "";
+    router.replace(
+      `/${locale}/sessions/orders/${orderId}${token ? `?token=${token}` : ""}`,
+    );
+  }, [locale, params, router, searchParams]);
 
-    let aborted = false;
-    setError(null);
-    setIsPending(false);
-    setLoading(true);
-
-    fetch(`/api/session-orders/${orderId}?token=${encodeURIComponent(token)}`, {
-      cache: "no-store",
-    })
-      .then((res) => {
-        if (res.status === 401 || res.status === 404) {
-          throw Object.assign(new Error("invalid"), { code: res.status });
-        }
-        if (!res.ok) throw new Error("error");
-        return res.json();
-      })
-      .then((payload) => {
-        if (aborted) return;
-        const status = payload?.status;
-        const isPaid = status === "paid" || status === "fulfilled";
-        setCanDownload(isPaid);
-        setSelectedCount(
-          typeof payload?.selectedCount === "number"
-            ? payload.selectedCount
-            : null,
-        );
-        if (!isPaid) {
-          if (status === "pending") {
-            setIsPending(true);
-          } else {
-            setError(t("tokenMissing"));
-          }
-        }
-        setLoading(false);
-      })
-      .catch((err: any) => {
-        if (aborted) return;
-        setError(err?.code === 401 ? t("tokenMissing") : t("tokenMissing"));
-        setLoading(false);
-      });
-
-    return () => {
-      aborted = true;
-    };
-  }, [orderId, token, t]);
-
-  const downloadUrl = `/api/session-orders/${orderId}/download?token=${encodeURIComponent(
-    token,
-  )}`;
-
-  return (
-    <div className="min-h-screen bg-[#030303] text-gray-100">
-      <NavBar />
-      <main className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 pb-16 pt-10 text-center sm:px-6 lg:px-8">
-        <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-          Download
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
-          {t("fileReady")}
-        </h1>
-        <p className="text-sm text-white/70">{t("preparingFile")}</p>
-
-        <div className="w-full rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-          <div className="space-y-5 text-center">
-            {/* Loading */}
-            {loading && (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <Loader2 size={24} className="animate-spin text-white/60" />
-                <p className="text-sm text-white/70">{t("preparingFile")}</p>
-              </div>
-            )}
-
-            {/* Payment pending — go back to payment page */}
-            {!loading && isPending && !canDownload && (
-              <div className="flex flex-col items-center gap-4 py-4">
-                <Clock size={28} className="text-amber-400" />
-                <p className="text-sm text-amber-200">{t("paymentPending")}</p>
-                <Link
-                  href={`/sessions/orders/${orderId}?token=${encodeURIComponent(token)}`}
-                  className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
-                >
-                  {t("backToPayment")}
-                </Link>
-              </div>
-            )}
-
-            {/* Error / invalid token */}
-            {!loading && error && !canDownload && !isPending && (
-              <div className="flex flex-col items-center gap-3 py-4">
-                <AlertCircle size={28} className="text-amber-400" />
-                <p className="text-sm text-amber-200">{error}</p>
-              </div>
-            )}
-
-            {/* Token missing */}
-            {!token && !loading && (
-              <p className="text-sm text-red-400">{t("tokenMissing")}</p>
-            )}
-
-            {/* Ready — download not yet started */}
-            {!loading && canDownload && !downloadStarted && (
-              <div className="flex flex-col items-center gap-4 py-4">
-                {selectedCount && (
-                  <p className="text-sm text-white/70">
-                    {selectedCount} {selectedCount === 1 ? "foto" : "fotos"}
-                  </p>
-                )}
-                <a
-                  href={downloadUrl}
-                  onClick={() => setDownloadStarted(true)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 active:scale-95"
-                >
-                  <Download size={16} />
-                  {t("download")}
-                </a>
-              </div>
-            )}
-
-            {/* Download started */}
-            {!loading && canDownload && downloadStarted && (
-              <div className="flex flex-col items-center gap-4 py-4">
-                <CheckCircle2 size={28} className="text-emerald-400" />
-                <p className="text-lg font-semibold text-emerald-300">
-                  {t("fileReady")}
-                </p>
-                <p className="text-sm text-white/60">{t("preparationDone")}</p>
-                <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                  <a
-                    href={downloadUrl}
-                    className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-gray-900 transition hover:bg-white/90 active:scale-95"
-                  >
-                    <Download size={14} />
-                    {t("download")}
-                  </a>
-                  <Link
-                    href="/"
-                    locale={locale}
-                    className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
-                  >
-                    {t("backToHome")}
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="text-xs text-white/60">
-          {t("orderLabel", { id: orderId })}
-        </div>
-      </main>
-    </div>
-  );
+  return null;
 }
 
-export default function OrderDownloadPage() {
+export default function DownloadRedirectPage() {
   return (
     <Suspense>
-      <OrderDownloadContent />
+      <DownloadRedirectContent />
     </Suspense>
   );
 }

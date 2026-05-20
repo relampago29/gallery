@@ -108,9 +108,7 @@ export async function POST(req: Request) {
 
     // Verificar se o utilizador tem acesso gratuito
     let hasFreeAccess = false;
-    if (auth.isAdmin) {
-      hasFreeAccess = true;
-    } else if (sessionData.ownerUid === auth.uid) {
+    if (sessionData.ownerUid === auth.uid) {
       hasFreeAccess = sessionData.ownerFreeAccess === true;
     } else {
       const guests = sessionData.allowedUsers || {};

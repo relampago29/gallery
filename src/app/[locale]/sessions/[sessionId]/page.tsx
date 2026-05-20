@@ -182,13 +182,9 @@ export default function SessionDetailPage() {
       // Use the status returned by the API — it reads fresh from Firestore,
       // so it is always authoritative. "paid" = freeAccess was true → download.
       // "pending" = payment required → MBWay page.
-      if (status === "paid") {
-        router.push(
-          `/${locale}/sessions/orders/${orderId}/download?token=${token}`,
-        );
-      } else {
-        router.push(`/${locale}/sessions/orders/${orderId}?token=${token}`);
-      }
+      // Both paid (freeAccess) and pending go to the same unified order page.
+      // The page handles all states: pending shows MBWay, paid shows download.
+      router.push(`/${locale}/sessions/orders/${orderId}?token=${token}`);
     } catch (err: any) {
       setError(err?.message || t("proceedError"));
     } finally {
@@ -198,11 +194,10 @@ export default function SessionDetailPage() {
 
   const resumeOrder = () => {
     if (!existingOrder || !existingOrder.token) return;
-    const target =
-      existingOrder.status === "pending"
-        ? `/${locale}/sessions/orders/${existingOrder.id}?token=${existingOrder.token}`
-        : `/${locale}/sessions/orders/${existingOrder.id}/download?token=${existingOrder.token}`;
-    router.push(target);
+    // Both pending and paid go to the unified order page which handles all states
+    router.push(
+      `/${locale}/sessions/orders/${existingOrder.id}?token=${existingOrder.token}`,
+    );
   };
 
   // Auth loading
@@ -225,7 +220,7 @@ export default function SessionDetailPage() {
           {/* Back button */}
           <button
             type="button"
-            onClick={() => router.push(`/${locale}/sessions`)}
+            onClick={() => router.push(`/${locale}/dashboard?tab=sessions`)}
             className="inline-flex items-center gap-2 text-sm text-white/50 transition hover:text-white"
           >
             <ArrowLeft size={14} />
