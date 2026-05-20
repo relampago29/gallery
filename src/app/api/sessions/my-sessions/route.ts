@@ -41,6 +41,20 @@ export async function GET(req: Request) {
       .limit(100)
       .get();
 
+    // Fetch all paid/fulfilled session_orders for this user to detect paid
+    // access even when the client_sessions document wasn't back-filled.
+    const paidOrdersSnap = await db
+      .collection("session_orders")
+      .where("userId", "==", uid)
+      .where("status", "in", ["paid", "fulfilled"])
+      .limit(200)
+      .get();
+    const paidSessionIds = new Set<string>(
+      paidOrdersSnap.docs
+        .map((d) => d.data()?.sessionId as string)
+        .filter(Boolean),
+    );
+
     const seen = new Set<string>();
     const sessions: {
       id: string;
@@ -61,7 +75,7 @@ export async function GET(req: Request) {
         name: data.name || doc.id,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
         role: "owner",
-        freeAccess: data.ownerFreeAccess === true,
+        freeAccess: data.ownerFreeAccess === true || paidSessionIds.has(doc.id),
         photoCount: photosSnap.data().count ?? 0,
       });
     }
@@ -78,7 +92,7 @@ export async function GET(req: Request) {
         name: data.name || doc.id,
         createdAt: typeof data.createdAt === "number" ? data.createdAt : null,
         role: "guest",
-        freeAccess: guestData.freeAccess === true,
+        freeAccess: guestData.freeAccess === true || paidSessionIds.has(doc.id),
         photoCount: photosSnap.data().count ?? 0,
       });
     }
