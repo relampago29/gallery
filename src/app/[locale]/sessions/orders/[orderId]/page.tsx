@@ -96,11 +96,9 @@ function OrderContent() {
 
   const isPending = !loading && order?.status === "pending";
   const isPaid =
-    !loading &&
-    (order?.status === "paid" || order?.status === "fulfilled");
+    !loading && (order?.status === "paid" || order?.status === "fulfilled");
   const isRejected =
-    !loading &&
-    (order?.status === "rejected" || order?.status === "cancelled");
+    !loading && (order?.status === "rejected" || order?.status === "cancelled");
 
   const downloadUrl = `/api/session-orders/${orderId}/download?token=${encodeURIComponent(token)}`;
 
@@ -215,7 +213,9 @@ function OrderContent() {
               {!downloadStarted ? (
                 <div className="flex flex-col items-center gap-4 py-2">
                   <CheckCircle2 size={32} className="text-emerald-400" />
-                  <p className="text-sm text-emerald-200">{t("statusConfirmed")}</p>
+                  <p className="text-sm text-emerald-200">
+                    {t("statusConfirmed")}
+                  </p>
                   <a
                     href={downloadUrl}
                     onClick={() => setDownloadStarted(true)}
@@ -231,7 +231,9 @@ function OrderContent() {
                   <p className="text-lg font-semibold text-emerald-300">
                     {t("downloadStarted")}
                   </p>
-                  <p className="text-sm text-white/60">{t("preparationDone")}</p>
+                  <p className="text-sm text-white/60">
+                    {t("preparationDone")}
+                  </p>
                   <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                     <a
                       href={downloadUrl}
@@ -305,170 +307,5 @@ export default function OrderPage() {
     >
       <OrderContent />
     </Suspense>
-  );
-}
-
-  const locale = useLocale();
-  const t = useTranslations("sessionOrderPayment");
-  const params = useParams<{ orderId: string; locale: string }>();
-  const router = useRouter();
-  const token = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("token") || "";
-  }, []);
-  const [order, setOrder] = useState<OrderPayload | null>(null);
-  const [statusError, setStatusError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [paymentPhone, setPaymentPhone] = useState<string>("---");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/settings/payment-phone", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (typeof data?.phone === "string" && data.phone.trim()) {
-          setPaymentPhone(data.phone.trim());
-        }
-      } catch {
-        // fallback stays as "---"
-      }
-    })();
-  }, []);
-
-  const orderId = params?.orderId || "";
-
-  const fetchStatus = async () => {
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/session-orders/${orderId}?token=${token}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        throw new Error(payload?.error || t("checkFailed"));
-      }
-      const data = (await res.json()) as OrderPayload;
-      setOrder(data);
-      setStatusError(null);
-    } catch (err: any) {
-      setStatusError(err?.message || t("paymentCheckFailed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 6000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, orderId]);
-
-  useEffect(() => {
-    if (!order) return;
-    if (order.status === "paid" || order.status === "fulfilled") {
-      router.replace(
-        `/${locale}/sessions/orders/${orderId}/download?token=${token}`
-      );
-      return;
-    }
-    if (order.status === "rejected" || order.status === "cancelled") {
-      const qs = new URLSearchParams();
-      qs.set("sessionId", order.sessionId);
-      router.replace(`/${locale}/sessions?${qs.toString()}`);
-    }
-  }, [order, router, locale, orderId, token]);
-
-  const statusLabel = useMemo(() => {
-    if (!order) return t("statusValidating");
-    switch (order.status) {
-      case "paid":
-      case "fulfilled":
-        return t("statusConfirmed");
-      case "rejected":
-        return t("statusRejected");
-      case "cancelled":
-        return t("statusCancelled");
-      default:
-        return t("statusPending");
-    }
-  }, [order]);
-
-  return (
-    <div className="min-h-screen bg-[#030303] text-gray-100">
-      <NavBar />
-      <main className="mx-auto max-w-3xl space-y-6 px-4 pb-16 pt-10 sm:px-6 lg:px-8">
-        <header className="space-y-3 text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-white/60">
-            {t("badge")}
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
-            {t("title")}
-          </h1>
-          <p className="text-sm text-white/70">{t("subtitle")}</p>
-        </header>
-
-        {!token ? (
-          <div className="rounded-3xl border border-red-400/40 bg-red-500/10 p-5 text-center text-sm text-red-100">
-            {t("missingToken")}
-          </div>
-        ) : null}
-
-        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-[0_25px_120px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/50">
-                {t("statusLabel")}
-              </p>
-              <div className="text-lg font-semibold text-white">
-                {statusLabel}
-              </div>
-              {statusError ? (
-                <p className="text-sm text-red-300">{statusError}</p>
-              ) : null}
-              {loading ? (
-                <p className="text-sm text-white/60">{t("confirmingData")}</p>
-              ) : null}
-            </div>
-            {order ? (
-              <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
-                <div className="flex justify-between">
-                  <span>{t("session")}</span>
-                  <strong>{order.sessionName || order.sessionId}</strong>
-                </div>
-                <div className="mt-2 flex justify-between">
-                  <span>{t("photosSelected")}</span>
-                  <strong>{order.selectedCount}</strong>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="rounded-2xl border border-white/20 bg-black/20 p-4 text-white">
-              <p className="text-sm text-white/60">{t("mbwayLabel")}</p>
-              <div className="text-3xl font-semibold tracking-wide">
-                {paymentPhone}
-              </div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/40">
-                {t("mbwayRequired")}
-              </p>
-            </div>
-
-            <div className="text-xs text-white/60">{t("waitingMessage")}</div>
-          </div>
-        </div>
-
-        <div className="text-center text-xs text-white/50">
-          {t("orderId")}{" "}
-          <span className="font-mono text-white/80">{orderId}</span>
-        </div>
-      </main>
-    </div>
   );
 }

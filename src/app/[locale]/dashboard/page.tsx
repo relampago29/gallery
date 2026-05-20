@@ -560,7 +560,9 @@ function HistoryPanel({ locale }: { locale: string }) {
             {sessionOrders.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm">
                 <Camera size={24} className="mx-auto mb-3 text-white/20" />
-                <p className="text-sm text-white/50">{t("sessionOrdersEmpty")}</p>
+                <p className="text-sm text-white/50">
+                  {t("sessionOrdersEmpty")}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -622,9 +624,14 @@ function HistoryPanel({ locale }: { locale: string }) {
             </h3>
             {eventOrders.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center shadow-[0_15px_60px_rgba(0,0,0,0.3)] backdrop-blur-sm">
-                <CalendarDays size={24} className="mx-auto mb-3 text-white/30" />
+                <CalendarDays
+                  size={24}
+                  className="mx-auto mb-3 text-white/30"
+                />
                 <p className="text-sm text-white/50">{t("eventsEmpty")}</p>
-                <p className="mt-2 text-xs text-white/30">{t("eventsEmptyHint")}</p>
+                <p className="mt-2 text-xs text-white/30">
+                  {t("eventsEmptyHint")}
+                </p>
                 <Link
                   href={`/${locale}/events`}
                   className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
@@ -634,7 +641,8 @@ function HistoryPanel({ locale }: { locale: string }) {
               </div>
             ) : (
               <div className="space-y-6">
-                {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+                {eventOrders.filter((o) => o.status === "pending").length >
+                  0 && (
                   <div className="space-y-3">
                     <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/80">
                       {t("awaitingPayment")}
@@ -676,9 +684,11 @@ function HistoryPanel({ locale }: { locale: string }) {
                       })}
                   </div>
                 )}
-                {eventOrders.filter((o) => o.status !== "pending").length > 0 && (
+                {eventOrders.filter((o) => o.status !== "pending").length >
+                  0 && (
                   <div className="space-y-3">
-                    {eventOrders.filter((o) => o.status === "pending").length > 0 && (
+                    {eventOrders.filter((o) => o.status === "pending").length >
+                      0 && (
                       <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
                         {t("historyLabel")}
                       </h4>
@@ -690,7 +700,8 @@ function HistoryPanel({ locale }: { locale: string }) {
                           Object.values(order.eventNames || {}).join(", ") ||
                           "Evento";
                         const canDownload =
-                          order.status === "paid" || order.status === "fulfilled";
+                          order.status === "paid" ||
+                          order.status === "fulfilled";
                         return (
                           <div
                             key={order.id}
@@ -731,6 +742,8 @@ function HistoryPanel({ locale }: { locale: string }) {
       )}
     </div>
   );
+}
+
 /* ── Private Sessions Component ── */
 function SessionsPanel({ locale }: { locale: string }) {
   const t = useTranslations("dashboard");
