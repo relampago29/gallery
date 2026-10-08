@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth, bucketAdmin } from "@/lib/firebase/admin";
+import sharp from "sharp";
 
 /** Verifica token e devolve { uid, isAdmin } ou null */
 async function verifyToken(req: Request) {
@@ -27,6 +28,72 @@ type SessionPhoto = {
   downloadUrl: string;
   createdAt?: number;
 };
+
+const PREVIEW_MAX_WIDTH = 1280;
+const PREVIEW_QUALITY = 76;
+const WATERMARK_LABEL = "MOMENTOS.WORK · PRÉ-VISUALIZAÇÃO";
+
+/** Gera um SVG com o texto da marca de água repetido na diagonal */
+function buildWatermarkSvg(width: number, height: number) {
+  const tiles: string[] = [];
+  const spacingX = 340;
+  const spacingY = 150;
+  for (let y = -spacingY; y < height + spacingY; y += spacingY) {
+    for (let x = -spacingX; x < width + spacingX; x += spacingX) {
+      tiles.push(
+        `<text x="${x}" y="${y}" transform="rotate(-28 ${x} ${y})" font-size="26" font-family="sans-serif" font-weight="600" fill="#ffffff" fill-opacity="0.24">${WATERMARK_LABEL}</text>`,
+      );
+    }
+  }
+  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${tiles.join("")}</svg>`;
+}
+
+/**
+ * Devolve o URL assinado de uma pré-visualização redimensionada e com marca
+ * de água para o masterPath indicado. Gera e guarda em cache (Storage) na
+ * primeira chamada; nas seguintes apenas reaproveita o ficheiro já gerado.
+ * Isto impede que o preview mostrado antes do pagamento seja o ficheiro
+ * final em alta resolução (que podia ser copiado via "abrir imagem" do
+ * browser).
+ */
+async function getOrCreatePreviewUrl(
+  masterPath: string,
+  sessionId: string,
+  photoId: string,
+  expiresAt: number,
+): Promise<string | null> {
+  const previewPath = `variants/sessions/${sessionId}/preview/${photoId}.jpg`;
+  const previewFile = bucketAdmin.file(previewPath);
+
+  const [exists] = await previewFile.exists().catch(() => [false]);
+  if (!exists) {
+    const [masterBuffer] = await bucketAdmin.file(masterPath).download();
+    const resized = await sharp(masterBuffer)
+      .rotate()
+      .resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true })
+      .toBuffer();
+    const meta = await sharp(resized).metadata();
+    const width = meta.width || PREVIEW_MAX_WIDTH;
+    const height = meta.height || PREVIEW_MAX_WIDTH;
+    const watermarkSvg = buildWatermarkSvg(width, height);
+    const watermarked = await sharp(resized)
+      .composite([{ input: Buffer.from(watermarkSvg) }])
+      .jpeg({ quality: PREVIEW_QUALITY })
+      .toBuffer();
+
+    await previewFile.save(watermarked, {
+      resumable: false,
+      contentType: "image/jpeg",
+      metadata: { cacheControl: "private,max-age=3600" },
+    });
+  }
+
+  const [url] = await previewFile.getSignedUrl({
+    action: "read",
+    expires: expiresAt,
+  });
+  return url;
+}
 
 function sanitizeSessionId(raw: string) {
   return raw
@@ -107,10 +174,24 @@ export async function GET(req: Request) {
         const masterPath = data.masterPath as string | undefined;
         if (!masterPath) return;
         try {
-          const [url] = await bucketAdmin.file(masterPath).getSignedUrl({
-            action: "read",
-            expires: expiresAt,
-          });
+          // Utilizadores não-admin só veem uma pré-visualização redimensionada
+          // e com marca de água — nunca o ficheiro master em alta resolução.
+          // Isto impede copiar/"abrir imagem" do browser para obter o
+          // ficheiro final sem pagar. O admin continua a ver o master.
+          const url = auth.isAdmin
+            ? (
+                await bucketAdmin.file(masterPath).getSignedUrl({
+                  action: "read",
+                  expires: expiresAt,
+                })
+              )[0]
+            : await getOrCreatePreviewUrl(
+                masterPath,
+                sessionId,
+                doc.id,
+                expiresAt,
+              );
+          if (!url) return;
           const downloadUrl = `/api/session-photos/download?path=${encodeURIComponent(masterPath)}&name=${encodeURIComponent(
             data.title || doc.id,
           )}`;
@@ -137,10 +218,22 @@ export async function GET(req: Request) {
             .filter((f) => f.name !== prefix && !f.name.endsWith("/"))
             .map(async (file) => {
               try {
-                const [url] = await bucketAdmin.file(file.name).getSignedUrl({
-                  action: "read",
-                  expires: expiresAt,
-                });
+                const fileName = file.name.split("/").pop() || file.name;
+                const photoId = fileName.replace(/\.[^.]+$/, "");
+                const url = auth.isAdmin
+                  ? (
+                      await file.getSignedUrl({
+                        action: "read",
+                        expires: expiresAt,
+                      })
+                    )[0]
+                  : await getOrCreatePreviewUrl(
+                      file.name,
+                      sessionId,
+                      photoId,
+                      expiresAt,
+                    );
+                if (!url) return;
                 files.push({
                   id: file.name,
                   title: file.name.slice(prefix.length) || file.name,
