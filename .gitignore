@@ -46,4 +46,6 @@ yarn-error.log*
 next-env.d.ts
 
 
-/docs
+/docstest_setup.mjs
+create_test_data.mjs
+cleanup_test_data.mjs
