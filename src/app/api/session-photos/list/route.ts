@@ -2,24 +2,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { getAdminDb, getAdminAuth, bucketAdmin } from "@/lib/firebase/admin";
-import sharp from "sharp";
-
-/** Verifica token e devolve { uid, isAdmin } ou null */
-async function verifyToken(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-  try {
-    const decoded = await getAdminAuth().verifyIdToken(token);
-    const isAdmin =
-      (decoded as any)?.isAdmin === true ||
-      (decoded as any)?.claims?.isAdmin === true;
-    return { uid: decoded.uid, isAdmin };
-  } catch {
-    return null;
-  }
-}
+import { bucketAdmin } from "@/lib/firebase/admin";
+import {
+  verifySessionToken,
+  checkSessionAccess,
+  sanitizeSessionId,
+  clampHours,
+} from "@/lib/sessionPhotos";
 
 type SessionPhoto = {
   id: string;
@@ -29,84 +18,17 @@ type SessionPhoto = {
   createdAt?: number;
 };
 
-const PREVIEW_MAX_WIDTH = 1280;
-const PREVIEW_QUALITY = 76;
-const WATERMARK_LABEL = "MOMENTOS.WORK · PRÉ-VISUALIZAÇÃO";
-
-/** Gera um SVG com o texto da marca de água repetido na diagonal */
-function buildWatermarkSvg(width: number, height: number) {
-  const tiles: string[] = [];
-  const spacingX = 340;
-  const spacingY = 150;
-  for (let y = -spacingY; y < height + spacingY; y += spacingY) {
-    for (let x = -spacingX; x < width + spacingX; x += spacingX) {
-      tiles.push(
-        `<text x="${x}" y="${y}" transform="rotate(-28 ${x} ${y})" font-size="26" font-family="sans-serif" font-weight="600" fill="#ffffff" fill-opacity="0.24">${WATERMARK_LABEL}</text>`,
-      );
-    }
-  }
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${tiles.join("")}</svg>`;
-}
-
 /**
- * Devolve o URL assinado de uma pré-visualização redimensionada e com marca
- * de água para o masterPath indicado. Gera e guarda em cache (Storage) na
- * primeira chamada; nas seguintes apenas reaproveita o ficheiro já gerado.
- * Isto impede que o preview mostrado antes do pagamento seja o ficheiro
- * final em alta resolução (que podia ser copiado via "abrir imagem" do
- * browser).
+ * Para utilizadores não-admin, o `url` devolvido NUNCA é um link direto
+ * (assinado) para o Storage — é sempre um endpoint proxy da nossa própria
+ * API que exige um Bearer token válido em cada pedido e revalida as
+ * permissões em tempo real. Isto impede que a imagem fique acessível por
+ * um link copiável/partilhável fora do fluxo normal da aplicação (ex:
+ * "copiar endereço da imagem" e abrir noutro browser/dispositivo). Os
+ * admins continuam a receber um URL assinado direto ao master.
  */
-async function getOrCreatePreviewUrl(
-  masterPath: string,
-  sessionId: string,
-  photoId: string,
-  expiresAt: number,
-): Promise<string | null> {
-  const previewPath = `variants/sessions/${sessionId}/preview/${photoId}.jpg`;
-  const previewFile = bucketAdmin.file(previewPath);
-
-  const [exists] = await previewFile.exists().catch(() => [false]);
-  if (!exists) {
-    const [masterBuffer] = await bucketAdmin.file(masterPath).download();
-    const resized = await sharp(masterBuffer)
-      .rotate()
-      .resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true })
-      .toBuffer();
-    const meta = await sharp(resized).metadata();
-    const width = meta.width || PREVIEW_MAX_WIDTH;
-    const height = meta.height || PREVIEW_MAX_WIDTH;
-    const watermarkSvg = buildWatermarkSvg(width, height);
-    const watermarked = await sharp(resized)
-      .composite([{ input: Buffer.from(watermarkSvg) }])
-      .jpeg({ quality: PREVIEW_QUALITY })
-      .toBuffer();
-
-    await previewFile.save(watermarked, {
-      resumable: false,
-      contentType: "image/jpeg",
-      metadata: { cacheControl: "private,max-age=3600" },
-    });
-  }
-
-  const [url] = await previewFile.getSignedUrl({
-    action: "read",
-    expires: expiresAt,
-  });
-  return url;
-}
-
-function sanitizeSessionId(raw: string) {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function clampHours(input: number | null | undefined) {
-  if (!input || Number.isNaN(input)) return 48;
-  return Math.min(168, Math.max(1, input));
+function buildPreviewUrl(sessionId: string, photoId: string) {
+  return `/api/session-photos/preview?sessionId=${encodeURIComponent(sessionId)}&photoId=${encodeURIComponent(photoId)}`;
 }
 
 export async function GET(req: Request) {
@@ -122,45 +44,22 @@ export async function GET(req: Request) {
     }
 
     // Auth: requer utilizador autenticado (owner, guest ou admin)
-    const auth = await verifyToken(req);
+    const auth = await verifySessionToken(req);
     if (!auth) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    const expiresAt = Date.now() + hours * 60 * 60 * 1000;
-    const db = getAdminDb();
-    const sessionRef = db.collection("client_sessions").doc(sessionId);
-    const sessionSnap = await sessionRef.get();
-
-    if (!sessionSnap.exists) {
+    const access = await checkSessionAccess(sessionId, auth);
+    if (!access) {
       return NextResponse.json({ error: "session not found" }, { status: 404 });
     }
+    if (!access.allowed) {
+      return NextResponse.json({ error: "access denied" }, { status: 403 });
+    }
 
-    const sessionData = sessionSnap.data() || {};
+    const { sessionRef, sessionData, freeAccess: userFreeAccess } = access;
     const sessionName = sessionData.name as string | undefined;
-
-    // Verificar acesso: admin, owner, ou guest
-    if (!auth.isAdmin) {
-      const isOwner = sessionData.ownerUid === auth.uid;
-      const allowedUids: string[] = Array.isArray(sessionData.allowedUids)
-        ? sessionData.allowedUids
-        : [];
-      const isGuest = allowedUids.includes(auth.uid);
-      if (!isOwner && !isGuest) {
-        return NextResponse.json({ error: "access denied" }, { status: 403 });
-      }
-    }
-
-    // Verificar se o utilizador precisa de pagar ou tem acesso gratuito
-    let userFreeAccess = false;
-    if (auth.isAdmin) {
-      userFreeAccess = true;
-    } else if (sessionData.ownerUid === auth.uid) {
-      userFreeAccess = sessionData.ownerFreeAccess === true;
-    } else {
-      const guests = sessionData.allowedUsers || {};
-      userFreeAccess = guests[auth.uid]?.freeAccess === true;
-    }
+    const expiresAt = Date.now() + hours * 60 * 60 * 1000;
 
     const photosSnap = await sessionRef
       .collection("photos")
@@ -175,9 +74,8 @@ export async function GET(req: Request) {
         if (!masterPath) return;
         try {
           // Utilizadores não-admin só veem uma pré-visualização redimensionada
-          // e com marca de água — nunca o ficheiro master em alta resolução.
-          // Isto impede copiar/"abrir imagem" do browser para obter o
-          // ficheiro final sem pagar. O admin continua a ver o master.
+          // e com marca de água — nunca o ficheiro master em alta resolução,
+          // servida sempre via proxy autenticado (nunca um link direto).
           const url = auth.isAdmin
             ? (
                 await bucketAdmin.file(masterPath).getSignedUrl({
@@ -185,12 +83,7 @@ export async function GET(req: Request) {
                   expires: expiresAt,
                 })
               )[0]
-            : await getOrCreatePreviewUrl(
-                masterPath,
-                sessionId,
-                doc.id,
-                expiresAt,
-              );
+            : buildPreviewUrl(sessionId, doc.id);
           if (!url) return;
           const downloadUrl = `/api/session-photos/download?path=${encodeURIComponent(masterPath)}&name=${encodeURIComponent(
             data.title || doc.id,
@@ -227,12 +120,7 @@ export async function GET(req: Request) {
                         expires: expiresAt,
                       })
                     )[0]
-                  : await getOrCreatePreviewUrl(
-                      file.name,
-                      sessionId,
-                      photoId,
-                      expiresAt,
-                    );
+                  : buildPreviewUrl(sessionId, photoId);
                 if (!url) return;
                 files.push({
                   id: file.name,

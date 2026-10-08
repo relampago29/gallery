@@ -31,6 +31,73 @@ type ExistingOrder = {
   sessionName?: string;
 };
 
+const PLACEHOLDER_IMG =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+/**
+ * Busca a imagem via fetch() autenticado (com o Bearer token do utilizador)
+ * em vez de usar o URL do proxy diretamente como src de <img>. O resultado
+ * é convertido num blob: URL local ao browser. Isto garante que a imagem
+ * nunca fica acessível através de um link copiável/partilhável fora da
+ * aplicação: sem o token válido o pedido ao servidor falha (401), e o
+ * blob: URL gerado só existe na memória desta aba/sessão do browser — não
+ * pode ser copiado, enviado a outra pessoa, nem aberto depois de a página
+ * ser fechada.
+ */
+function SecurePhoto({
+  src,
+  alt,
+  user,
+}: {
+  src: string;
+  alt: string;
+  user: User | null;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function load() {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch(src, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      } catch {
+        // ignore load errors, placeholder stays visible
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src, user]);
+
+  return (
+    <Image
+      src={blobUrl || PLACEHOLDER_IMG}
+      alt={alt}
+      fill
+      sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+      className="object-cover"
+      loading="lazy"
+      unoptimized
+      style={{ backgroundColor: "#0a0a0a" }}
+    />
+  );
+}
+
 export default function SessionDetailPage() {
   const t = useTranslations("sessionsPage");
   const locale = useLocale();
@@ -337,9 +404,6 @@ export default function SessionDetailPage() {
                   <div className="photo-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {session.files.map((photo) => {
                       const isSelected = selected.has(photo.id);
-                      const imageSrc = photo?.url?.trim()?.length
-                        ? photo.url
-                        : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
                       return (
                         <button
                           key={photo.id}
@@ -351,15 +415,10 @@ export default function SessionDetailPage() {
                             {isSelected ? t("photoSelected") : t("photoSelect")}
                           </span>
                           <div className="relative aspect-[4/5]">
-                            <Image
-                              src={imageSrc}
+                            <SecurePhoto
+                              src={photo.url}
                               alt={photo.title || t("photoAlt")}
-                              fill
-                              sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
-                              className="object-cover"
-                              loading="lazy"
-                              unoptimized
-                              style={{ backgroundColor: "#0a0a0a" }}
+                              user={user}
                             />
                             <div
                               className={`pointer-events-none absolute inset-0 bg-black/60 transition ${isSelected ? "opacity-40" : "opacity-0"}`}
