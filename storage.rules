@@ -28,10 +28,10 @@ service firebase.storage {
       allow write: if request.auth != null && request.auth.token.isAdmin == true;
     }
 
-    // capas das categorias (upload admin, leitura pública)
+    // capas antigas das categorias: o upload passou a ser feito pelo servidor
+    // (/api/categories/cover) e o público só vê variants/categories (com marca).
     match /categories/{path=**} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.token.isAdmin == true;
+      allow read, write: if false;
     }
 
     // variantes públicas servidas ao site
@@ -41,6 +41,22 @@ service firebase.storage {
     }
 
     match /variants/events/{path=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // destaques, trail e capas de categorias: só cópias com marca de água
+    match /variants/highlights/{path=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /variants/trail/{path=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /variants/categories/{path=**} {
       allow read: if true;
       allow write: if false;
     }

@@ -47,6 +47,7 @@ async function uploadAndCreate({ file, token }: { file: File; token: string }) {
   const form = new FormData();
   form.append("file", compressed);
   form.append("name", file.name || "trail");
+  form.append("kind", "trail");
   const uploadRes = await fetch("/api/highlights/upload", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },

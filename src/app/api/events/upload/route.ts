@@ -7,23 +7,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import { Readable } from "node:stream";
 import { requireAdmin } from "../../session-orders/helpers";
-
-function extFromNameOrMime(name?: string | null, mime?: string | null) {
-  if (name && name.includes(".")) return name.split(".").pop()!.toLowerCase();
-  if (!mime) return "jpg";
-  if (mime.includes("jpeg")) return "jpg";
-  if (mime.includes("png")) return "png";
-  if (mime.includes("heic")) return "heic";
-  if (mime.includes("webp")) return "webp";
-  if (mime.includes("avif")) return "avif";
-  return "jpg";
-}
-
-function makeDownloadUrl(bucketName: string, path: string, token: string) {
-  return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(
-    path
-  )}?alt=media&token=${token}`;
-}
+import { extFromNameOrMime, savePublicImage } from "@/lib/publicImages";
 
 /**
  * POST /api/events/upload
@@ -57,19 +41,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "file too large" }, { status: 413 });
     }
 
+    // Capa: original privado + cópia com marca de água (igual a destaques/trail).
+    if (type === "cover") {
+      const saved = await savePublicImage({
+        kind: "event-covers",
+        buffer: Buffer.from(await file.arrayBuffer()),
+        contentType: file.type,
+        originalName,
+      });
+      return NextResponse.json(
+        { ok: true, masterPath: saved.masterPath, imageUrl: saved.imageUrl },
+        { status: 201 }
+      );
+    }
+
+    if (!eventId) {
+      return NextResponse.json({ error: "missing eventId" }, { status: 400 });
+    }
+
     const ext = extFromNameOrMime(originalName, file.type);
     const photoId = randomUUID();
-
-    // Caminho no Storage
-    const storagePath =
-      type === "cover"
-        ? `masters/events/covers/${photoId}.${ext}`
-        : `masters/events/${eventId}/${photoId}.${ext}`;
-
-    const storage = getAdminStorage();
-    const bucket = storage.bucket();
-    const bucketName = bucket.name;
-    const token = randomUUID();
+    const storagePath = `masters/events/${eventId}/${photoId}.${ext}`;
+    const bucket = getAdminStorage().bucket();
 
     const gcsFile = bucket.file(storagePath);
     const contentType = file.type || "application/octet-stream";
@@ -85,8 +78,9 @@ export async function POST(req: Request) {
         contentType,
         metadata: {
           contentType,
-          cacheControl: "public,max-age=31536000,immutable",
-          metadata: { firebaseStorageDownloadTokens: token },
+          // Master privado (sem token): as variantes com marca de água são
+          // geradas pela Cloud Function onEventMasterUpload.
+          cacheControl: "private,no-store",
         },
       });
       ws.on("error", reject);
@@ -95,53 +89,42 @@ export async function POST(req: Request) {
       inputStream.pipe(ws);
     });
 
-    const downloadUrl = makeDownloadUrl(bucketName, storagePath, token);
-
-    // Se for foto de evento, cria doc no Firestore
-    if (type === "photo" && eventId) {
-      const db = getAdminDb();
-      const ref = await db
-        .collection("events")
-        .doc(eventId)
-        .collection("photos")
-        .add({
-          title: title || null,
-          masterPath: storagePath,
-          imageUrl: downloadUrl,
-          status: "processing",
-          published: false,
-          createdAt: Date.now(),
-          createdAtServer: FieldValue.serverTimestamp(),
-          createdBy: uid,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-
-      // atualizar contador de fotos no evento
-      const countSnap = await db
-        .collection("events")
-        .doc(eventId)
-        .collection("photos")
-        .count()
-        .get();
-      await db.collection("events").doc(eventId).update({
-        photoCount: countSnap.data().count,
+    const db = getAdminDb();
+    const ref = await db
+      .collection("events")
+      .doc(eventId)
+      .collection("photos")
+      .add({
+        title: title || null,
+        masterPath: storagePath,
+        // Sem imageUrl: o master não pode ser público. As variantes com
+        // marca de água são geradas pela Cloud Function onEventMasterUpload.
+        status: "processing",
+        published: false,
+        createdAt: Date.now(),
+        createdAtServer: FieldValue.serverTimestamp(),
+        createdBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      return NextResponse.json(
-        {
-          ok: true,
-          id: ref.id,
-          masterPath: storagePath,
-          imageUrl: downloadUrl,
-        },
-        { status: 201 }
-      );
-    }
+    // atualizar contador de fotos no evento
+    const countSnap = await db
+      .collection("events")
+      .doc(eventId)
+      .collection("photos")
+      .count()
+      .get();
+    await db.collection("events").doc(eventId).update({
+      photoCount: countSnap.data().count,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-    // Se for capa, retorna só o URL
     return NextResponse.json(
-      { ok: true, masterPath: storagePath, imageUrl: downloadUrl },
+      {
+        ok: true,
+        id: ref.id,
+        masterPath: storagePath,
+      },
       { status: 201 }
     );
   } catch (err: any) {

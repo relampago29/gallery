@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { auth, storage } from "@/lib/firebase/client";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth } from "@/lib/firebase/client";
 import { AdminNotification } from "@/components/admin/Notification";
 import { ImagePlus, Eye, EyeOff, Trash2 } from "lucide-react";
 
@@ -48,11 +47,19 @@ export default function CategoriesAdminPage() {
   }, []);
 
   async function uploadCover(file: File, categoryId: string): Promise<string> {
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `categories/${categoryId}/cover.${ext}`;
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, file);
-    return getDownloadURL(storageRef);
+    // O servidor guarda o original em privado e devolve a capa com marca de água.
+    const token = await getIdToken();
+    const form = new FormData();
+    form.append("file", file);
+    form.append("id", categoryId);
+    const res = await fetch("/api/categories/cover", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `Falha (${res.status}) no upload.`);
+    return data.coverUrl as string;
   }
 
   async function createCategory(e: React.FormEvent) {
@@ -93,16 +100,7 @@ export default function CategoriesAdminPage() {
   async function handleCoverUpload(cat: Category, file: File) {
     setBusy(true);
     try {
-      const url = await uploadCover(file, cat.id);
-      const token = await getIdToken();
-      await fetch("/api/categories/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id: cat.id, patch: { coverUrl: url } }),
-      });
+      await uploadCover(file, cat.id);
       load();
       setToast({ type: "success", message: "Capa atualizada." });
     } catch (err: any) {

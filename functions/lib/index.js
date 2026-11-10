@@ -46,6 +46,7 @@ const storage_1 = require("firebase-functions/v2/storage");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const zip_stream_1 = __importDefault(require("zip-stream"));
+const watermark_1 = require("./shared/watermark");
 admin.initializeApp();
 // ✔ Define região e recursos globais para TODAS as funções v2
 (0, v2_1.setGlobalOptions)({
@@ -108,10 +109,9 @@ exports.onPublicMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB"
         for (const targetW of SIZES) {
             const width = Math.min(targetW, masterW);
             const height = Math.round((masterH * width) / masterW);
-            const pipeline = (0, sharp_1.default)(masterBuffer).rotate().resize({
-                width,
-                withoutEnlargement: true,
-            });
+            // Redimensiona e aplica a marca de água ANTES de codificar os formatos:
+            // nenhuma variante pública sai sem marca de água.
+            const pipeline = await (0, watermark_1.watermarkedPipeline)(sharp_1.default, masterBuffer, width);
             // Processar formatos sequencialmente para reduzir pico de memória
             const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
             const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
@@ -225,6 +225,9 @@ exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB" 
     // Ignora capas (masters/events/covers/...)
     if (name.startsWith("masters/events/covers/"))
         return;
+    // Ignorar ficheiros temporários usados pelo script de reprocessamento
+    if (name.endsWith(".tmp"))
+        return;
     const parts = name.replace("masters/events/", "").split("/");
     if (parts.length < 2)
         return;
@@ -240,10 +243,8 @@ exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB" 
     for (const targetW of SIZES) {
         const width = Math.min(targetW, masterW);
         const height = Math.round((masterH * width) / masterW);
-        const pipeline = (0, sharp_1.default)(masterBuffer).rotate().resize({
-            width,
-            withoutEnlargement: true,
-        });
+        // Redimensiona e aplica a marca de água ANTES de codificar os formatos.
+        const pipeline = await (0, watermark_1.watermarkedPipeline)(sharp_1.default, masterBuffer, width);
         // Processar formatos sequencialmente para reduzir pico de memória
         const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
         const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();

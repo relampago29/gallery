@@ -188,3 +188,14 @@ body {
 .agenda-calendar .rbc-addons-dnd .rbc-addons-dnd-resize-ew-anchor {
   cursor: ew-resize;
 }
+
+/* ——— Proteção anti-cópia das fotos (ver ImageProtection.tsx) ——— */
+body.protect-images img,
+body.protect-images picture,
+body.protect-images video,
+body.protect-images [data-protect-image] {
+  -webkit-touch-callout: none; /* iOS: remove "Guardar/Copiar" no long-press */
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
