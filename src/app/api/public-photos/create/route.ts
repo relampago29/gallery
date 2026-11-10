@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { firestoreAdmin } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 type Body = {
   title?: string | null;
@@ -17,6 +18,8 @@ type Body = {
 
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const body = (await req.json()) as Partial<Body>;
 
     // validações básicas

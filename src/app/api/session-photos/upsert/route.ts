@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 type Body = {
   sessionId?: string;
@@ -21,6 +22,8 @@ function sanitizeId(input: string) {
 /** POST /api/session-photos/upsert — cria ou actualiza metadados de uma sessão privada */
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const data = (await req.json().catch(() => ({}))) as Partial<Body>;
     const rawSession = data?.sessionId || "";
     const safeSession = sanitizeId(rawSession);

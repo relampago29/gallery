@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { authFetch } from "@/lib/auth/authFetch";
 
 type Props = {
   sessionId: string;
@@ -15,7 +16,7 @@ export function DownloadAllButton({ sessionId, className }: Props) {
   async function handleClick() {
     try {
       setDownloading(true);
-      const res = await fetch(
+      const res = await authFetch(
         `/api/session-photos/download-all?sessionId=${encodeURIComponent(
           sessionId
         )}`

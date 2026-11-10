@@ -17,7 +17,7 @@
 | **Backend**       | Next.js API Routes + Firebase Cloud Functions v2 (Node 20, `europe-west1`)              |
 | **Base de Dados** | Cloud Firestore                                                                         |
 | **Armazenamento** | Firebase Storage (masters → variants pipeline)                                          |
-| **Autenticação**  | Firebase Auth (anónimo para público; claim `admin` para administradores)                |
+| **Autenticação**  | Firebase Auth (anónimo para público; claim `isAdmin` para administradores)                |
 | **Email**         | Resend SDK                                                                              |
 | **Testes**        | Vitest + Testing Library + jsdom                                                        |
 | **Deploy**        | Vercel (com `maxDuration: 60` para rotas de upload) + Firebase Hosting (`europe-west1`) |
@@ -167,7 +167,7 @@ functions/                      # Firebase Cloud Functions (pacote separado)
 ## 🔐 Arquitectura de Autenticação
 
 - **Cliente público**: Sign-in anónimo automático (via `ensureAuth.ts`)
-- **Admin**: Claim `admin` nos tokens Firebase Auth (definido via `scripts/grant-admin.js`)
+- **Admin**: Claim `isAdmin` nos tokens Firebase Auth (definido via `scripts/grant-admin.js`). Rotas admin validam-no com `requireAdminRequest()` (`src/lib/auth/requireAdmin.ts`); o cliente envia o token com `authFetch()` / `downloadWithAuth()` (`src/lib/auth/authFetch.ts`)
 - **Servidor**: Todas as escritas Firestore/Storage via Admin SDK — regras Firestore bloqueiam escritas do cliente
 - **Safari fix**: Proxy custom no middleware para evitar problemas cross-origin com `identitytoolkit.googleapis.com`
 

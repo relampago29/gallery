@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/firebase/client", () => ({
   db: {},
   storage: {},
-  auth: { currentUser: null },
+  auth: { currentUser: { getIdToken: async () => "test-token" } },
 }));
 
 const fsMock = {

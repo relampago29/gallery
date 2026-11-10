@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { findPublicMaxSequence, findPrivateMaxSequence } from "@/lib/admin/sequence";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 type Payload = {
   mode?: "public" | "private";
@@ -23,6 +24,8 @@ function sanitizeSessionId(raw: string) {
 
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const body = (await req.json()) as Payload;
     const mode = body.mode;
     const count = Math.max(1, Math.min(500, Number(body.count) || 1));
