@@ -136,8 +136,31 @@ export function getAdminBucket() {
   return name ? storage.bucket(name) : storage.bucket();
 }
 
-// ✅ Singletons convenientes (importa estes diretamente se preferires)
-export const authAdmin = getAdminAuth();
-export const firestoreAdmin = getAdminDb();
-export const storageAdmin = getAdminStorage();
-export const bucketAdmin = getAdminBucket();
+/**
+ * Cria um objeto que só inicializa o recurso real no primeiro acesso.
+ * Importar este módulo não toca no Firebase, por isso o `next build`
+ * ("Collecting page data") funciona sem as env vars/credenciais (ex: CI).
+ */
+function lazy<T extends object>(factory: () => T): T {
+  let instance: T | null = null;
+  const get = () => (instance ??= factory());
+  return new Proxy({} as T, {
+    get(_target, prop) {
+      const real = get();
+      const value = Reflect.get(real, prop, real);
+      return typeof value === "function" ? value.bind(real) : value;
+    },
+    set(_target, prop, value) {
+      return Reflect.set(get(), prop, value);
+    },
+    has(_target, prop) {
+      return Reflect.has(get(), prop);
+    },
+  });
+}
+
+// ✅ Singletons convenientes (inicializados só no primeiro uso)
+export const authAdmin: Auth = lazy(getAdminAuth);
+export const firestoreAdmin: Firestore = lazy(getAdminDb);
+export const storageAdmin: Storage = lazy(getAdminStorage);
+export const bucketAdmin: ReturnType<typeof getAdminBucket> = lazy(getAdminBucket);

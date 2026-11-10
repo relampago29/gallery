@@ -5,7 +5,10 @@ import { getAdminDb } from "@/lib/firebase/admin";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Criado só no primeiro pedido: o construtor do Resend rebenta sem API key,
+// o que partia o `next build` no CI.
+let _resend: Resend | null = null;
+const getResend = () => (_resend ??= new Resend(process.env.RESEND_API_KEY));
 
 const FROM = process.env.RESEND_FROM_EMAIL || "Momentos <geral@momentos.work>";
 
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
     const fullName = `${firstName} ${lastName}`.trim();
 
     // ── Send branded email via Resend ──────────────────────────
-    const { error } = await resend.emails.send({
+    const { error } = await getResend().emails.send({
       from: FROM,
       to: toEmail,
       replyTo: email,
