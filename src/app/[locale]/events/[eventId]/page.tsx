@@ -63,7 +63,9 @@ function pickPhotoThumb(photo: EventPhoto): string {
       if (s?.jpg) return s.jpg;
     }
   }
-  return photo.imageUrl || "";
+  // Nunca cair para `imageUrl`: em docs antigos aponta para o master em
+  // alta resolução, sem marca de água. Sem variantes, a foto não aparece.
+  return "";
 }
 
 const PHOTO_PAGE_SIZE = 24;
@@ -145,7 +147,7 @@ export default function PublicEventDetailPage() {
   }
 
   const publishedPhotos = useMemo(
-    () => photos.filter((p) => p.status === "ready" || p.imageUrl),
+    () => photos.filter((p) => p.status === "ready" && !!p.sizes),
     [photos],
   );
 

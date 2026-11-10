@@ -86,7 +86,9 @@ export async function POST(req: Request) {
         metadata: {
           contentType,
           cacheControl: "public,max-age=31536000,immutable",
-          metadata: { firebaseStorageDownloadTokens: token },
+          // Só as capas têm link público; os masters das fotos ficam privados.
+          metadata:
+            type === "cover" ? { firebaseStorageDownloadTokens: token } : {},
         },
       });
       ws.on("error", reject);
@@ -107,7 +109,8 @@ export async function POST(req: Request) {
         .add({
           title: title || null,
           masterPath: storagePath,
-          imageUrl: downloadUrl,
+          // Sem imageUrl: o master não pode ser público. As variantes com
+          // marca de água são geradas pela Cloud Function onEventMasterUpload.
           status: "processing",
           published: false,
           createdAt: Date.now(),
@@ -133,7 +136,6 @@ export async function POST(req: Request) {
           ok: true,
           id: ref.id,
           masterPath: storagePath,
-          imageUrl: downloadUrl,
         },
         { status: 201 }
       );

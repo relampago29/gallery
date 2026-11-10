@@ -8,6 +8,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import ZipStream from "zip-stream";
+import { watermarkedPipeline } from "./watermark";
 
 // Tipos dos eventos (úteis para TS)
 import type { CloudEvent } from "firebase-functions/v2";
@@ -107,10 +108,9 @@ export const onPublicMasterUpload = onObjectFinalized(
         const width = Math.min(targetW, masterW);
         const height = Math.round((masterH * width) / masterW);
 
-        const pipeline = sharp(masterBuffer).rotate().resize({
-          width,
-          withoutEnlargement: true,
-        });
+        // Redimensiona e aplica a marca de água ANTES de codificar os formatos:
+        // nenhuma variante pública sai sem marca de água.
+        const pipeline = await watermarkedPipeline(masterBuffer, width);
 
         // Processar formatos sequencialmente para reduzir pico de memória
         const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
@@ -238,6 +238,8 @@ export const onEventMasterUpload = onObjectFinalized(
     if (!name.startsWith("masters/events/")) return;
     // Ignora capas (masters/events/covers/...)
     if (name.startsWith("masters/events/covers/")) return;
+    // Ignorar ficheiros temporários usados pelo script de reprocessamento
+    if (name.endsWith(".tmp")) return;
 
     const parts = name.replace("masters/events/", "").split("/");
     if (parts.length < 2) return;
@@ -258,10 +260,8 @@ export const onEventMasterUpload = onObjectFinalized(
       const width = Math.min(targetW, masterW);
       const height = Math.round((masterH * width) / masterW);
 
-      const pipeline = sharp(masterBuffer).rotate().resize({
-        width,
-        withoutEnlargement: true,
-      });
+      // Redimensiona e aplica a marca de água ANTES de codificar os formatos.
+      const pipeline = await watermarkedPipeline(masterBuffer, width);
 
       // Processar formatos sequencialmente para reduzir pico de memória
       const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
