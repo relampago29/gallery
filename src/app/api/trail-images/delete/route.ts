@@ -1,24 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAdminDb, getAdminStorage } from "@/lib/firebase/admin";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { deletePublicImageByUrl } from "@/lib/publicImages";
 import { requireAdmin } from "../../session-orders/helpers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-function parseStoragePath(url: string | undefined | null) {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    if (!u.hostname.includes("firebasestorage.googleapis.com")) return null;
-    const match = u.pathname.match(/\/b\/([^/]+)\/o\/([^?]+)/);
-    if (!match) return null;
-    const bucket = match[1];
-    const path = decodeURIComponent(match[2]);
-    return { bucket, path };
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(req: Request) {
   try {
@@ -38,18 +24,7 @@ export async function POST(req: Request) {
 
     await docRef.delete();
 
-    if (imageUrl) {
-      const parsed = parseStoragePath(imageUrl);
-      const storage = getAdminStorage();
-      const bucket = storage.bucket();
-      if (parsed && parsed.bucket === bucket.name && parsed.path.startsWith("masters/")) {
-        try {
-          await bucket.file(parsed.path).delete({ ignoreNotFound: true });
-        } catch (err) {
-          console.error("[trail-images/delete] failed to delete storage file", parsed.path, err);
-        }
-      }
-    }
+    await deletePublicImageByUrl(imageUrl);
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

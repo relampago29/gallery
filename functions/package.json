@@ -6,9 +6,10 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run sync-shared && tsc -p tsconfig.json",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,storage",
-    "deploy": "npm run build && firebase deploy --only functions"
+    "deploy": "npm run build && firebase deploy --only functions",
+    "sync-shared": "node ../scripts/sync-shared-watermark.js"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",

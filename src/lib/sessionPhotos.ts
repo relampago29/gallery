@@ -1,9 +1,10 @@
 import { getAdminDb, getAdminAuth, bucketAdmin } from "@/lib/firebase/admin";
 import sharp from "sharp";
+import { watermarkedJpeg } from "@/lib/watermark";
 
 export const PREVIEW_MAX_WIDTH = 1280;
 export const PREVIEW_QUALITY = 76;
-export const WATERMARK_LABEL = "MOMENTOS.WORK · PRÉ-VISUALIZAÇÃO";
+const PREVIEW_DIR = "preview-v2";
 
 export type AuthInfo = { uid: string; isAdmin: boolean };
 
@@ -107,50 +108,30 @@ export async function resolveMasterPath(
   return match ? match.name : null;
 }
 
-/** Constrói um SVG com o texto da marca de água repetido na diagonal */
-function buildWatermarkSvg(width: number, height: number) {
-  const tiles: string[] = [];
-  const spacingX = 340;
-  const spacingY = 150;
-  for (let y = -spacingY; y < height + spacingY; y += spacingY) {
-    for (let x = -spacingX; x < width + spacingX; x += spacingX) {
-      tiles.push(
-        `<text x="${x}" y="${y}" transform="rotate(-28 ${x} ${y})" font-size="26" font-family="sans-serif" font-weight="600" fill="#ffffff" fill-opacity="0.24">${WATERMARK_LABEL}</text>`,
-      );
-    }
-  }
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${tiles.join("")}</svg>`;
-}
-
 /**
  * Garante que existe uma pré-visualização redimensionada (1280px) e com
- * marca de água em cache no Storage para o masterPath indicado. Devolve o
- * caminho do ficheiro de preview (sempre o mesmo, reaproveitado em
- * chamadas seguintes).
+ * marca de água em cache no Storage para o masterPath indicado. Usa a MESMA
+ * marca de água do resto do site (`@/lib/watermark`). Devolve o caminho do
+ * ficheiro de preview (reaproveitado em chamadas seguintes).
  */
 export async function ensurePreviewFile(
   masterPath: string,
   sessionId: string,
   photoId: string,
 ): Promise<string> {
-  const previewPath = `variants/sessions/${sessionId}/preview/${photoId}.jpg`;
+  // "preview-v2": as previews antigas (marca de água SVG) são regeneradas.
+  const previewPath = `variants/sessions/${sessionId}/${PREVIEW_DIR}/${photoId}.jpg`;
   const previewFile = bucketAdmin.file(previewPath);
 
   const [exists] = await previewFile.exists().catch(() => [false]);
   if (!exists) {
     const [masterBuffer] = await bucketAdmin.file(masterPath).download();
-    const resized = await sharp(masterBuffer)
-      .rotate()
-      .resize({ width: PREVIEW_MAX_WIDTH, withoutEnlargement: true })
-      .toBuffer();
-    const meta = await sharp(resized).metadata();
-    const width = meta.width || PREVIEW_MAX_WIDTH;
-    const height = meta.height || PREVIEW_MAX_WIDTH;
-    const watermarkSvg = buildWatermarkSvg(width, height);
-    const watermarked = await sharp(resized)
-      .composite([{ input: Buffer.from(watermarkSvg) }])
-      .jpeg({ quality: PREVIEW_QUALITY })
-      .toBuffer();
+    const watermarked = await watermarkedJpeg(
+      sharp,
+      masterBuffer,
+      PREVIEW_MAX_WIDTH,
+      PREVIEW_QUALITY,
+    );
 
     await previewFile.save(watermarked, {
       resumable: false,

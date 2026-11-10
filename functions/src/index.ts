@@ -8,7 +8,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onRequest } from "firebase-functions/v2/https";
 import ZipStream from "zip-stream";
-import { watermarkedPipeline } from "./watermark";
+import { watermarkedPipeline } from "./shared/watermark";
 
 // Tipos dos eventos (úteis para TS)
 import type { CloudEvent } from "firebase-functions/v2";
@@ -110,7 +110,7 @@ export const onPublicMasterUpload = onObjectFinalized(
 
         // Redimensiona e aplica a marca de água ANTES de codificar os formatos:
         // nenhuma variante pública sai sem marca de água.
-        const pipeline = await watermarkedPipeline(masterBuffer, width);
+        const pipeline = await watermarkedPipeline(sharp, masterBuffer, width);
 
         // Processar formatos sequencialmente para reduzir pico de memória
         const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
@@ -261,7 +261,7 @@ export const onEventMasterUpload = onObjectFinalized(
       const height = Math.round((masterH * width) / masterW);
 
       // Redimensiona e aplica a marca de água ANTES de codificar os formatos.
-      const pipeline = await watermarkedPipeline(masterBuffer, width);
+      const pipeline = await watermarkedPipeline(sharp, masterBuffer, width);
 
       // Processar formatos sequencialmente para reduzir pico de memória
       const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();

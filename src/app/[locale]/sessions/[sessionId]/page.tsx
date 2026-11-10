@@ -90,10 +90,9 @@ function SecurePhoto({
       alt={alt}
       fill
       sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
-      className="pointer-events-none object-cover select-none"
+      className="object-cover"
       loading="lazy"
       unoptimized
-      draggable={false}
       style={{ backgroundColor: "#0a0a0a" }}
     />
   );
@@ -403,8 +402,7 @@ export default function SessionDetailPage() {
                 <>
                   {/* Photo grid */}
                   <div
-                    className="photo-grid grid select-none gap-5 sm:grid-cols-2 lg:grid-cols-3"
-                    onContextMenu={(e) => e.preventDefault()}
+                    className="photo-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
                   >
                     {session.files.map((photo) => {
                       const isSelected = selected.has(photo.id);
@@ -413,7 +411,6 @@ export default function SessionDetailPage() {
                           key={photo.id}
                           type="button"
                           onClick={() => togglePhoto(photo.id)}
-                          onDragStart={(e) => e.preventDefault()}
                           className={`relative overflow-hidden rounded-3xl border ${isSelected ? "border-white/80" : "border-white/10"} bg-white/5 text-left shadow-[0_25px_120px_rgba(0,0,0,0.45)] transition hover:border-white/40`}
                         >
                           <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">

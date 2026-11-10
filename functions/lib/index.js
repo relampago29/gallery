@@ -46,7 +46,7 @@ const storage_1 = require("firebase-functions/v2/storage");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const zip_stream_1 = __importDefault(require("zip-stream"));
-const watermark_1 = require("./watermark");
+const watermark_1 = require("./shared/watermark");
 admin.initializeApp();
 // ✔ Define região e recursos globais para TODAS as funções v2
 (0, v2_1.setGlobalOptions)({
@@ -111,7 +111,7 @@ exports.onPublicMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB"
             const height = Math.round((masterH * width) / masterW);
             // Redimensiona e aplica a marca de água ANTES de codificar os formatos:
             // nenhuma variante pública sai sem marca de água.
-            const pipeline = await (0, watermark_1.watermarkedPipeline)(masterBuffer, width);
+            const pipeline = await (0, watermark_1.watermarkedPipeline)(sharp_1.default, masterBuffer, width);
             // Processar formatos sequencialmente para reduzir pico de memória
             const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
             const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
@@ -244,7 +244,7 @@ exports.onEventMasterUpload = (0, storage_1.onObjectFinalized)({ memory: "2GiB" 
         const width = Math.min(targetW, masterW);
         const height = Math.round((masterH * width) / masterW);
         // Redimensiona e aplica a marca de água ANTES de codificar os formatos.
-        const pipeline = await (0, watermark_1.watermarkedPipeline)(masterBuffer, width);
+        const pipeline = await (0, watermark_1.watermarkedPipeline)(sharp_1.default, masterBuffer, width);
         // Processar formatos sequencialmente para reduzir pico de memória
         const jpgBuf = await pipeline.clone().jpeg({ quality: 82 }).toBuffer();
         const webpBuf = await pipeline.clone().webp({ quality: 82 }).toBuffer();
