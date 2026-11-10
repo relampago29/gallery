@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { Locale, routing } from "@/i18n/routing";
 import { CartProvider } from "@/components/cart/CartContext";
+import ImageProtection from "@/components/shared/ImageProtection";
 
 export const metadata: Metadata = {
   title: "Gallery",
@@ -39,7 +40,10 @@ export default async function RootLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages as any}>
-      <CartProvider>{children}</CartProvider>
+      <CartProvider>
+        <ImageProtection />
+        {children}
+      </CartProvider>
     </NextIntlClientProvider>
   );
 }
