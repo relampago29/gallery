@@ -20,12 +20,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [sessionExpiry, setSessionExpiry] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const SESSION_MS = 2 * 60 * 60 * 1000;
-  const GRACE_MS = 5 * 60 * 1000;
-  const keyExpiry = "adminSessionExpiry";
-  const keyLastActive = "adminSessionLastActive";
+  const keyExpiry = "authExpiry"; // definido no cliente Firebase
 
   const fallbackCallbackUrl = useMemo(() => {
     const qs = searchParams?.toString();
@@ -56,25 +51,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      const now = Date.now();
-      const storedExpiry = Number(localStorage.getItem(keyExpiry));
-      const lastActive = Number(localStorage.getItem(keyLastActive));
-      let nextExpiry = storedExpiry;
-
-      if (!storedExpiry || storedExpiry <= now) {
-        if (lastActive && now - lastActive <= GRACE_MS) {
-          nextExpiry = now + SESSION_MS;
-        } else {
-          nextExpiry = now + SESSION_MS;
-        }
-      }
-
-      localStorage.setItem(keyExpiry, String(nextExpiry));
-      localStorage.setItem(keyLastActive, String(now));
-      setSessionExpiry(nextExpiry);
+      const storedExpiry = Number(sessionStorage.getItem(keyExpiry));
+      setSessionExpiry(!storedExpiry || Number.isNaN(storedExpiry) ? null : storedExpiry);
     });
     return () => unsub();
-  }, [GRACE_MS, SESSION_MS, keyExpiry, keyLastActive, forceSignOut]);
+  }, [keyExpiry, forceSignOut]);
 
   useEffect(() => {
     if (sessionExpiry === null) {
@@ -95,24 +76,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [sessionExpiry, forceSignOut]);
 
   const refreshTokenIfNeeded = useCallback(async () => {
-    if (refreshing) return;
-    const now = Date.now();
-    const THRESHOLD = 15 * 60 * 1000;
-    if (sessionExpiry === null || sessionExpiry - now > THRESHOLD) return;
-    if (!auth.currentUser) return;
-    setRefreshing(true);
-    try {
-      await auth.currentUser.getIdToken(true);
-      const next = Date.now() + SESSION_MS;
-      localStorage.setItem(keyExpiry, String(next));
-      setSessionExpiry(next);
-      localStorage.setItem(keyLastActive, String(Date.now()));
-    } catch (err) {
-      console.error("Falha ao renovar token", err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [sessionExpiry, refreshing, SESSION_MS, keyExpiry, keyLastActive]);
+    // Sessão é controlada pelo authExpiry (1 minuto) no cliente Firebase; não renovamos aqui.
+    return;
+  }, []);
 
   return (
     <UploadProgressProvider>
@@ -194,7 +160,11 @@ function Header({
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Falha ao obter notificações.");
+      if (!res.ok) {
+        console.warn("[Header] notificações: resposta não ok", res.status);
+        setNotifications([]);
+        return;
+      }
       const data = await res.json();
       const items = Array.isArray(data?.items) ? data.items : [];
       const mapped = items.slice(0, 5).map((item: any) => ({

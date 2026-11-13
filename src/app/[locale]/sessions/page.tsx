@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useState, useEffect } from "react";
 import NavBar from "@/components/shared/navbar/navbar";
 import { useLocale } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 
 type SessionPhoto = {
   id: string;
@@ -363,21 +362,25 @@ function SessionFlow() {
                     <span className="absolute right-3 top-3 z-10 rounded-full border border-white/60 bg-black/40 px-2 py-0.5 text-xs text-white">
                     {isSelected ? "Selecionada" : "Selecionar"}
                     </span>
-                    <div className="relative aspect-[4/5]">
-                    <Image
+                  <div className="relative aspect-[4/5]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src={imageSrc}
                       alt={photo.title || "Foto"}
-                      fill
-                      sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                       loading="lazy"
-                      unoptimized
+                      decoding="async"
+                      fetchPriority="low"
                       style={{ backgroundColor: "#0a0a0a" }}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+                      }}
                     />
                     <div
                       className={`pointer-events-none absolute inset-0 bg-black/60 transition ${isSelected ? "opacity-40" : "opacity-0"}`}
                     />
-                    </div>
+                  </div>
 
                   
                   <div className="p-4">
@@ -392,29 +395,31 @@ function SessionFlow() {
               );
             })}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                setSession(null);
-                setCode("");
-                setSelected(new Set());
-                setError(null);
-                setExistingOrder(null);
-                setExistingOrderError(null);
-              }}
-              className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
-            >
-              Procurar outra sessão
-            </button>
-            <button
-              type="button"
-              disabled={!selectionCount || creatingOrder}
-              onClick={proceed}
-              className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
-            >
-              {creatingOrder ? "A preparar…" : `Avançar (${selectionCount} fotos)`}
-            </button>
+          <div className="fixed bottom-6 left-0 right-0 z-20">
+            <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-2xl border border-white/10 bg-black/70 px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setSession(null);
+                  setCode("");
+                  setSelected(new Set());
+                  setError(null);
+                  setExistingOrder(null);
+                  setExistingOrderError(null);
+                }}
+                className="rounded-full border border-white/30 px-5 py-2 text-sm text-white transition hover:bg-white/10"
+              >
+                Procurar outra sessão
+              </button>
+              <button
+                type="button"
+                disabled={!selectionCount || creatingOrder}
+                onClick={proceed}
+                className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-white/90 disabled:opacity-40"
+              >
+                {creatingOrder ? "A preparar…" : `Avançar (${selectionCount} fotos)`}
+              </button>
+            </div>
           </div>
           {!selectionCount ? (
             <p className="text-center text-sm text-white/60">Seleciona pelo menos uma foto para continuar.</p>

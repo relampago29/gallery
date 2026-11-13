@@ -1,6 +1,6 @@
 // src/lib/firebase/client.ts
 import { getApps, initializeApp, type FirebaseOptions } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 
@@ -17,6 +17,47 @@ const config: FirebaseOptions = {
 const app = getApps().length ? getApps()[0] : initializeApp(config);
 
 export const auth = getAuth(app);
+// Sessão apenas por aba (não persiste entre reaberturas do browser)
+setPersistence(auth, browserSessionPersistence).catch(() => {
+  /* fallback silencioso */
+});
+
+// Expira sessão em ~1 minuto para testes (força logout mesmo se o token for renovado)
+const TTL_MS = 60 * 1000;
+let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearExpiryTimer() {
+  if (expiryTimer) {
+    clearTimeout(expiryTimer);
+    expiryTimer = null;
+  }
+}
+
+function scheduleFixedExpiry() {
+  clearExpiryTimer();
+  const expireAt = Date.now() + TTL_MS;
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem("authExpiry", String(expireAt));
+  }
+  expiryTimer = setTimeout(() => {
+    signOut(auth).catch(() => {});
+  }, TTL_MS);
+}
+
+if (typeof window !== "undefined") {
+  const expiry = sessionStorage.getItem("authExpiry");
+  if (expiry && Number(expiry) < Date.now()) {
+    signOut(auth).catch(() => {});
+  }
+  onAuthStateChanged(auth, (user) => {
+    clearExpiryTimer();
+    if (user) {
+      scheduleFixedExpiry();
+    } else {
+      sessionStorage.removeItem("authExpiry");
+    }
+  });
+}
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
