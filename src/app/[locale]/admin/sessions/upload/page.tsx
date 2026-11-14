@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/auth/authFetch";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   uploadPrivateMaster,
@@ -75,7 +76,7 @@ async function runWithConcurrency(
 }
 
 async function reserveSequenceNumbers(count: number, sessionId: string) {
-  const res = await fetch("/api/upload/sequence", {
+  const res = await authFetch("/api/upload/sequence", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ mode: "private", count, sessionId }),
@@ -178,7 +179,7 @@ export default function UploadPrivatePhotoPage() {
         scope: uploadScope,
       });
       setSavingSession(true);
-      const resMeta = await fetch("/api/session-photos/upsert", {
+      const resMeta = await authFetch("/api/session-photos/upsert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -3,9 +3,12 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { bucketAdmin } from "@/lib/firebase/admin";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 export async function GET(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const { searchParams } = new URL(req.url);
     const path = searchParams.get("path");
     const hours = Number(searchParams.get("hours") || 24);

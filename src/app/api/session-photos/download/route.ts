@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { bucketAdmin } from "@/lib/firebase/admin";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 function sanitizePath(path: string) {
   return path.replace(/(\.\.)+/g, "").replace(/^\/+/, "");
@@ -14,6 +15,8 @@ function sanitizeFilename(name: string) {
 
 export async function GET(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const { searchParams } = new URL(req.url);
     const rawPath = searchParams.get("path") || "";
     const rawName = searchParams.get("name") || "";

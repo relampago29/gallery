@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadWithAuth } from "@/lib/auth/authFetch";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
@@ -348,15 +349,21 @@ export default function SessionDetailPage() {
             </span>
           </div>
           {photos.length > 0 && (
-            <a
-              href={`/api/session-photos/download-all?sessionId=${encodeURIComponent(
-                sessionId,
-              )}`}
+            <button
+              type="button"
+              onClick={() =>
+                downloadWithAuth(
+                  `/api/session-photos/download-all?sessionId=${encodeURIComponent(
+                    sessionId,
+                  )}`,
+                  `${sessionId}.zip`,
+                ).catch((err) => alert(err?.message || "Falha no download"))
+              }
               className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 text-sm font-semibold text-gray-900 transition hover:bg-white/90"
             >
               <Download size={14} />
               Transferir tudo
-            </a>
+            </button>
           )}
         </div>
       </div>
@@ -621,15 +628,19 @@ export default function SessionDetailPage() {
                     </p>
                   )}
                 </div>
-                <a
-                  href={photo.downloadUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadWithAuth(
+                      photo.downloadUrl,
+                      photo.title || photo.id,
+                    ).catch((err) => alert(err?.message || "Falha no download"))
+                  }
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/20 px-4 py-1.5 text-xs text-white transition hover:bg-white/10"
                 >
                   <Download size={12} />
                   Transferir
-                </a>
+                </button>
               </div>
             </div>
           ))}

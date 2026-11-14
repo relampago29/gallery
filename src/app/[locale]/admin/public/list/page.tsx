@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/auth/authFetch";
 import { useEffect, useMemo, useState } from "react";
 import { listActiveCategories } from "@/lib/categories";
 import {
@@ -230,7 +231,7 @@ export default function PublicListPage() {
                         setToast(null);
                         setPurging(true);
                         try {
-                          const res = await fetch(
+                          const res = await authFetch(
                             "/api/public-photos/delete-all",
                             { method: "POST" }
                           );

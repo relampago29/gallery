@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import NavBar from "@/components/shared/navbar/navbar";
@@ -39,6 +39,7 @@ function OrderContent() {
   const [loading, setLoading] = useState(true);
   const [paymentPhone, setPaymentPhone] = useState<string>("---");
   const [downloadStarted, setDownloadStarted] = useState(false);
+  const statusRef = useRef<string | null>(null);
 
   // Fetch payment phone (only needed for pending state, but fetched early)
   useEffect(() => {
@@ -69,6 +70,7 @@ function OrderContent() {
         throw new Error(payload?.error || t("checkFailed"));
       }
       const data = (await res.json()) as OrderPayload;
+      statusRef.current = data?.status ?? null;
       setOrder(data);
       setStatusError(null);
     } catch (err: any) {
@@ -86,8 +88,13 @@ function OrderContent() {
     }
     fetchStatus();
     const interval = setInterval(() => {
-      // Only keep polling while order is pending
-      if (order && order.status !== "pending") return;
+      // Only keep polling while order is pending. Reads the latest status
+      // from a ref: the `order` state captured by this closure is stale.
+      const status = statusRef.current;
+      if (status && status !== "pending") {
+        clearInterval(interval);
+        return;
+      }
       fetchStatus();
     }, 6000);
     return () => clearInterval(interval);

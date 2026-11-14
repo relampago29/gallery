@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 type Body = {
   sessionId: string;
@@ -20,6 +21,8 @@ function sanitizeId(input: string) {
 
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const data = (await req.json()) as Partial<Body>;
     const rawSession = data?.sessionId || "";
     const safeSession = sanitizeId(rawSession);

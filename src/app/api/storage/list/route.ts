@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { getAdminStorage } from "@/lib/firebase/admin";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 type Scope = "public" | "session";
 type Kind = "masters" | "variants";
@@ -19,6 +20,8 @@ function sanitizeSegment(s: string) {
 
 export async function GET(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const { searchParams } = new URL(req.url);
 
     // Parâmetros:

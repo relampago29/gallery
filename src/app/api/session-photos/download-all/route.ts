@@ -5,6 +5,7 @@ export const maxDuration = 300;
 import { NextResponse } from "next/server";
 import { bucketAdmin, getAdminDb } from "@/lib/firebase/admin";
 import { buildZipStreamFromSources, sanitizeFilename, type ZipStreamSource } from "@/lib/storage/zip";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 function sanitizeSessionId(raw: string) {
   return raw
@@ -88,6 +89,8 @@ async function getSessionFileEntries(sessionId: string) {
 
 export async function GET(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const { searchParams } = new URL(req.url);
     const rawSession = searchParams.get("sessionId") || "";
     const sessionId = sanitizeSessionId(rawSession);

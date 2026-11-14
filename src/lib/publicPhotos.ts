@@ -1,3 +1,4 @@
+import { authFetch } from "@/lib/auth/authFetch";
 import { db, storage } from "@/lib/firebase/client";
 import {
   collection,
@@ -80,7 +81,7 @@ async function uploadWithRetry(path: string, file: File) {
 async function postJsonWithRetry(url: string, payload: any) {
   return retry(
     async () => {
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -238,7 +239,7 @@ export async function uploadMasterAndCreateProcessingDoc(opts: {
  * Remove uma foto via API Admin (também dispara a Function para limpar variants/master).
  */
 export async function deletePublicPhoto(photoId: string): Promise<void> {
-  const res = await fetch("/api/public-photos/delete", {
+  const res = await authFetch("/api/public-photos/delete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ photoId }),

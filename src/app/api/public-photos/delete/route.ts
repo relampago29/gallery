@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { firestoreAdmin } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { findPublicMaxSequence } from "@/lib/admin/sequence";
+import { requireAdminRequest } from "@/lib/auth/requireAdmin";
 
 async function deleteById(photoId: string) {
   const ref = firestoreAdmin.collection("public_photos").doc(photoId);
@@ -30,6 +31,8 @@ async function syncPublicCounter() {
 
 export async function POST(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const { photoId } = await req.json();
     if (!photoId) return NextResponse.json({ error: "missing photoId" }, { status: 400 });
     await deleteById(photoId);
@@ -44,6 +47,8 @@ export async function POST(req: Request) {
 // (Opcional) aceitar DELETE
 export async function DELETE(req: Request) {
   try {
+    const admin = await requireAdminRequest(req);
+    if (!admin.ok) return admin.response;
     const url = new URL(req.url);
     const photoId = url.searchParams.get("id");
     if (!photoId) return NextResponse.json({ error: "missing id" }, { status: 400 });
